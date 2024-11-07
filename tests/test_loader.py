@@ -1,6 +1,6 @@
 import unittest
 from data.modules.loader import Loader
-from typing import Dict, List
+from typing import Dict, List, Any
 
 class MockLoader(Loader):
     """
@@ -30,7 +30,7 @@ class TestLoader(unittest.TestCase):
         """
         Set up a mock loader instance with a test configuration.
         """
-        self.loader = MockLoader(config_path='config/test_config.yaml')
+        self.loader: Loader = MockLoader(config_path='config/test_config.yaml')
         self.loader.config = {
             "providers": {
                 "databento": {
@@ -43,15 +43,15 @@ class TestLoader(unittest.TestCase):
         """
         Test if the configuration loads correctly.
         """
-        config = self.loader.load_config()
+        config: Dict[str, Any] = self.loader.load_config()
         self.assertIn("providers", config, "Config should contain 'providers' key")
 
     def test_validate_symbols(self) -> None:
         """
         Test the validate_symbols method to ensure only supported symbols are validated.
         """
-        symbols = self.loader.load_symbols()
-        validated_symbols = self.loader.validate_symbols(symbols)
+        symbols: Dict[str, str] = self.loader.load_symbols()
+        validated_symbols: List[str] = self.loader.validate_symbols(symbols)
         self.assertIn("AAPL", validated_symbols, "AAPL should be supported")
         self.assertIn("ES", validated_symbols, "ES should be supported")
         self.assertNotIn("BTC", validated_symbols, "BTC should not be supported")
@@ -60,8 +60,8 @@ class TestLoader(unittest.TestCase):
         """
         Test the prepare_for_ingestion method to check job preparation.
         """
-        ingestion_jobs = self.loader.prepare_for_ingestion()
-        expected_jobs = [
+        ingestion_jobs: List[Dict[str, Any]] = self.loader.prepare_for_ingestion()
+        expected_jobs: List[Dict[str, Any]] = [
             {"symbol": "AAPL", "asset_type": "EQUITY", "provider": "databento", "aggregation_level": "ohlcv-1d"},
             {"symbol": "ES", "asset_type": "FUTURES", "provider": "databento", "aggregation_level": "ohlcv-1d"}
         ]
