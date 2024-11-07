@@ -11,6 +11,8 @@ pandas = "^2.2.3"
 yfinance = "^0.2.48"
 databento = "^0.44.1"
 python-dotenv = "^1.0.1"
+pyyaml = "^6.0.2"
+psycopg2 = "^2.9.10"
 
 
 [build-system]
