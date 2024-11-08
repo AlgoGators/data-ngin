@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Union
 from datetime import datetime, timedelta
 import logging
-
+import pandas as pd
 logging.basicConfig(level=logging.INFO)
 
 class Fetcher(ABC):
@@ -76,25 +76,36 @@ class Fetcher(ABC):
         
         return all_data
 
-    def clean_data(self, data: List[Dict[str, Any]]) -> List[Dict[str, Union[str, float, int]]]:
+    def clean_data(self, data: pd.DataFrame) -> List[Dict[str, Any]]:
         """
-        Cleans and prepares raw data for database insertion, handling missing values and type conversions.
+        Cleans and prepares raw data for database insertion, ensuring required fields are present.
         
         Args:
-            data (List[Dict[str, Any]]): Raw data to be cleaned.
+            data (pd.DataFrame): Raw data from Databento API.
         
         Returns:
-            List[Dict[str, Union[str, float, int]]]: Cleaned data formatted for database insertion.
+            List[Dict[str, Any]]: Cleaned data as a list of dictionaries.
         """
-        cleaned_data: List[Dict[str, Union[str, float, int]]] = []
-        for row in data:
-            if all(key in row for key in ["time", "open", "high", "low", "close", "volume"]):
-                cleaned_data.append({
-                    "time": row["time"],
-                    "open": float(row["open"]),
-                    "high": float(row["high"]),
-                    "low": float(row["low"]),
-                    "close": float(row["close"]),
-                    "volume": int(row["volume"])
-                })
+        required_columns: List[str] = ["time", "open", "high", "low", "close", "volume"]
+        
+        # Verify required columns are in the DataFrame
+        if not all(col in data.columns for col in required_columns):
+            self.logger.warning("Some required columns are missing from the data.")
+            return []
+
+        # Process each row and ensure all required columns are included
+        cleaned_data: List[Dict[str, Any]] = [
+            {
+                "time": row["time"],
+                "open": float(row["open"]),
+                "high": float(row["high"]),
+                "low": float(row["low"]),
+                "close": float(row["close"]),
+                "volume": int(row["volume"])
+            }
+            for _, row in data.iterrows()
+            if pd.notnull(row["time"]) and all(pd.notnull(row[col]) for col in required_columns[1:])
+        ]
+        
         return cleaned_data
+
