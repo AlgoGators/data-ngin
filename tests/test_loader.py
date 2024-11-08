@@ -30,7 +30,7 @@ class TestLoader(unittest.TestCase):
         """
         Set up a mock loader instance with a test configuration.
         """
-        self.loader: Loader = MockLoader(config_path='config/test_config.yaml')
+        self.loader: Loader = MockLoader(config_path='data\config\config.yaml')
         self.loader.config = {
             "providers": {
                 "databento": {

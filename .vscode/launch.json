@@ -5,7 +5,9 @@
         "name": "Python Debugger: Module",
         "type": "debugpy",
         "request": "launch",
-        "module": "data",  
+        "module": "data",
+        "cwd": "${workspaceFolder}",
+        "console": "integratedTerminal"
       },
       {
         "name": "Python: Current File",

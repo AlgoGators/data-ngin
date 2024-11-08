@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 from typing import Dict
-from loader import Loader
+from data.modules.loader import Loader
 
 class CSVLoader(Loader):
     """
