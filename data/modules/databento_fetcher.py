@@ -1,7 +1,7 @@
 import requests
 from datetime import datetime
 from typing import List, Dict, Any
-from fetcher import Fetcher
+from data.modules.fetcher import Fetcher
 
 class DatabentoFetcher(Fetcher):
     """
