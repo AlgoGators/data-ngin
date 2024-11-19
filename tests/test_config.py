@@ -61,12 +61,6 @@ class TestConfig(unittest.TestCase):
         """Test that the 'database' section exists in the configuration."""
         self.assertIn("database", self.config, "Database settings missing from config")
 
-    def test_database_fields(self) -> None:
-        """Test that essential fields exist in the 'database' configuration section."""
-        db = self.config["database"]
-        self.assertIn("table_prefix", db, "Database table prefix missing")
-        self.assertIn("aggregation_levels", db, "Database aggregation levels missing")
-
 class TestEnvVariables(unittest.TestCase):
     """
     Unit tests to verify that all required environment variables are loaded.
@@ -74,6 +68,7 @@ class TestEnvVariables(unittest.TestCase):
 
     def test_databento_api_key_exists(self) -> None:
         """Test that the Databento API key is set in the environment."""
+        load_dotenv()
         self.assertTrue(os.getenv("DATABENTO_API_KEY"), "Databento API key missing in .env")
 
     def test_database_credentials_exist(self) -> None:

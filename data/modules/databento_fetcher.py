@@ -56,6 +56,7 @@ class DatabentoFetcher(Fetcher):
         Returns:
             List[Dict[str, Any]]: List of dictionaries containing cleaned data ready for TimescaleDB insertion.
         """
+        print(f"Using Historical client: {self.client}")
         symbols: str = f"{symbol}.{roll_type}.{contract_type}"
         self.logger.info(f"Fetching data for {symbol} from {start_date} to {end_date}")
 

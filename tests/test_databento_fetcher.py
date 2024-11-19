@@ -43,9 +43,10 @@ class TestDatabentoFetcher(unittest.IsolatedAsyncioTestCase):
         """
         with patch("data.modules.databento_fetcher.db.Historical") as mock_historical:
             # Mock the Databento Historical client
-            mock_client_instance: MagicMock = mock_historical.return_value
+            mock_client_instance: MagicMock = MagicMock()
+            mock_historical.return_value = mock_client_instance
 
-            # Define mocked API response for `get_range`
+            # Mock the `timeseries.get_range` response
             mock_client_instance.timeseries.get_range.return_value.to_df.return_value = pd.DataFrame({
                 "date": ["2023-01-01", "2023-01-02"],
                 "open": [100.5, 101.0],
@@ -56,8 +57,11 @@ class TestDatabentoFetcher(unittest.IsolatedAsyncioTestCase):
                 "symbol": ["ES", "ES"]
             })
 
+            # Reinitialize DatabentoFetcher after applying the mock
+            fetcher: DatabentoFetcher = DatabentoFetcher(config=self.config)
+
             # Call the method under test
-            result: List[Dict[str, Any]] = await self.fetcher.fetch_and_process_data(
+            result: List[Dict[str, Any]] = await fetcher.fetch_and_process_data(
                 symbol="ES",
                 start_date="2023-01-01",
                 end_date="2023-01-02",
@@ -79,11 +83,11 @@ class TestDatabentoFetcher(unittest.IsolatedAsyncioTestCase):
             mock_client_instance.timeseries.get_range.assert_called_once_with(
                 dataset="GLBX.MDP3",
                 symbols=["ES.c.front"],
-                schema=MagicMock.from_str("ohlcv-1d"),
+                schema="ohlcv-1d",
                 start="2023-01-01",
                 end="2023-01-02",
-                stype_in=MagicMock.CONTINUOUS,
-                stype_out=MagicMock.INSTRUMENT_ID,
+                stype_in="continuous",
+                stype_out="instrument_id",
             )
 
     def test_clean_data(self) -> None:

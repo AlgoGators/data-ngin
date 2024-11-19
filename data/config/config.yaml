@@ -1,36 +1,49 @@
 # Data providers and associated configurations
 providers:
   databento:
+    fetcher_class: "DatabentoFetcher"     # Fetcher class name
+    cleaner_class: "DatabentoCleaner"     # Cleaner class name 
     supported_assets:
-      - FUTURE  # Supported asset types
+      FUTURE: ["GLOBEX"]                  # Map asset types to datasets
     datasets:
       GLOBEX:
-        aggregation_levels: ["ohlcv-1d"]   # Available aggregation levels
-        schema_name: "futures_data"        # Schema name in database
-        table_prefix: "ohlcv_"             # Table prefix
+        aggregation_levels: ["ohlcv-1d"]  # Available aggregation levels
+        schema_name: "futures_data"       # Schema name in database
+        table_prefix: "ohlcv_"            # Table prefix for TimescaleDB
 
-# Database configuration (non-sensitive)
+# Loaders
+loader:
+  class: "CSVLoader"
+  file_path: "contracts/contract.csv"
+
+# Inserters
+inserter:
+  class: "TimescaleDBInserter"
+
+# Time range for data fetching
+time_range:
+  start_date: "2023-01-01"                # Start date for fetching data
+  end_date: "2023-01-31"                  # End date for fetching data
+
+# Database configuration
 database:
-  table_prefix: "futures_data"             # Prefix for tables storing futures data
-  aggregation_levels:
-    - "daily"
-    - "hourly"
-    - "minute"
-
-# Assets and their settings
+  target_schema: "futures_data"           # Schema for storing futures data
+  
+# Supported assets and their types
 assets:
   - FUTURE
   - OPTION
 
 # Additional configurations for data handling
 fetcher:
-  batch_size_days: 30                      # Number of days to fetch in each batch
+  batch_size_days: 30                     # Number of days to fetch in each batch
+  retry_attempts: 3                       # Number of retry attempts for fetching
 
 # Logging and data management options
 logging:
-  level: "INFO"                            # Log level (e.g., DEBUG, INFO, WARNING)
+  level: "INFO"                           # Log level (DEBUG, INFO, WARNING)
 
-# Settings related to data processing and caching
+# Data processing settings
 data_processing:
-  cache_results: true                      # Whether to cache results locally
-  retry_attempts: 3                        # Number of retry attempts for data fetching
+  cache_results: true                     # Whether to cache results locally
+  sort_by_time: true                      # Whether to sort fetched data by timestamp
