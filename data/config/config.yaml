@@ -1,0 +1,36 @@
+# Data providers and associated configurations
+providers:
+  databento:
+    supported_assets:
+      - FUTURE  # Supported asset types
+    datasets:
+      GLOBEX:
+        aggregation_levels: ["ohlcv-1d"]   # Available aggregation levels
+        schema_name: "futures_data"        # Schema name in database
+        table_prefix: "ohlcv_"             # Table prefix
+
+# Database configuration (non-sensitive)
+database:
+  table_prefix: "futures_data"             # Prefix for tables storing futures data
+  aggregation_levels:
+    - "daily"
+    - "hourly"
+    - "minute"
+
+# Assets and their settings
+assets:
+  - FUTURE
+  - OPTION
+
+# Additional configurations for data handling
+fetcher:
+  batch_size_days: 30                      # Number of days to fetch in each batch
+
+# Logging and data management options
+logging:
+  level: "INFO"                            # Log level (e.g., DEBUG, INFO, WARNING)
+
+# Settings related to data processing and caching
+data_processing:
+  cache_results: true                      # Whether to cache results locally
+  retry_attempts: 3                        # Number of retry attempts for data fetching

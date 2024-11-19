@@ -14,7 +14,7 @@ class TestCSVLoader(unittest.TestCase):
         Set up a CSVLoader instance with a test configuration and sample CSV file.
         """
         # Create a sample test CSV file
-        self.test_csv_path: str = 'data/contracts/contract.csv'
+        self.test_csv_path: str = 'data/contracts'
         sample_data: pd.DataFrame = pd.DataFrame({
             'dataSymbol': ['AAPL', 'ES', 'BTC'],
             'instrumentType': ['EQUITY', 'FUTURES', 'CRYPTO']
