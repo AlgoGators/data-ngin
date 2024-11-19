@@ -2,8 +2,9 @@ import logging
 import os
 import yaml
 import asyncio
+from typing import Dict, Any, List
 from dotenv import load_dotenv
-from utils.dynamic_loader import get_instance  # Import the dynamic loader functions
+from utils.dynamic_loader import get_instance
 
 # Load environment variables
 load_dotenv()
@@ -28,28 +29,28 @@ class Orchestrator:
         Initializes the Orchestrator with a given configuration.
 
         Args:
-            config_path (str): Path to the configuration file.
+            config_path (str): Path to the YAML configuration file.
         """
         # Load configuration file
         with open(config_path, "r") as file:
-            self.config = yaml.safe_load(file)
+            self.config: Dict[str, Any] = yaml.safe_load(file)
 
-        # Dynamically load the loader, fetcher, cleaner, and inserter
-        self.loader = get_instance(self.config, "loader", "class", file_path=self.config["loader"]["file_path"])
-        self.fetcher = get_instance(self.config, "providers", "fetcher_class", provider="databento")
-        self.cleaner = get_instance(self.config, "providers", "cleaner_class", provider="databento")
-        self.inserter = get_instance(self.config, "inserter", "class")
+        # Dynamically load modules
+        self.loader: Any = get_instance(self.config, "loader", "class", file_path=self.config["loader"]["file_path"])
+        self.fetcher: Any = get_instance(self.config, "providers", "fetcher_class", provider="databento")
+        self.cleaner: Any = get_instance(self.config, "providers", "cleaner_class", provider="databento")
+        self.inserter: Any = get_instance(self.config, "inserter", "class")
 
-    async def fetch_and_process(self, symbol: dict) -> None:
+    async def fetch_and_process(self, symbol: Dict[str, str]) -> None:
         """
         Fetch, clean, and insert data for a single symbol.
 
         Args:
-            symbol (dict): Metadata for the symbol (e.g., from contract.csv).
+            symbol (Dict[str, str]): Metadata for the symbol (e.g., from contract.csv).
         """
         try:
             logging.info(f"Fetching data for symbol: {symbol['dataSymbol']}")
-            raw_data = await self.fetcher.fetch_and_process_data(
+            raw_data: List[Dict[str, Any]] = await self.fetcher.fetch_and_process_data(
                 symbol=symbol["dataSymbol"],
                 start_date=self.config["time_range"]["start_date"],
                 end_date=self.config["time_range"]["end_date"],
@@ -59,7 +60,7 @@ class Orchestrator:
             )
 
             logging.info(f"Cleaning data for symbol: {symbol['dataSymbol']}")
-            cleaned_data = self.cleaner.clean(raw_data)
+            cleaned_data: List[Dict[str, Any]] = self.cleaner.clean(raw_data)
 
             logging.info(f"Inserting data for symbol: {symbol['dataSymbol']}")
             self.inserter.insert_data(
@@ -78,7 +79,7 @@ class Orchestrator:
         try:
             # Step 1: Load metadata
             logging.info("Loading metadata...")
-            symbols = self.loader.load_symbols(self.config["loader"]["file_path"])
+            symbols: List[Dict[str, str]] = self.loader.load_symbols(self.config["loader"]["file_path"])
 
             # Step 2: Fetch, clean, and insert data for all symbols concurrently
             await asyncio.gather(*[self.fetch_and_process(symbol) for symbol in symbols])

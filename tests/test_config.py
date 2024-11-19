@@ -68,7 +68,6 @@ class TestEnvVariables(unittest.TestCase):
 
     def test_databento_api_key_exists(self) -> None:
         """Test that the Databento API key is set in the environment."""
-        load_dotenv()
         self.assertTrue(os.getenv("DATABENTO_API_KEY"), "Databento API key missing in .env")
 
     def test_database_credentials_exist(self) -> None:

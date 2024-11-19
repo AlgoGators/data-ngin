@@ -2,28 +2,11 @@ import unittest
 import yaml
 import psycopg2
 import os
+from dotenv import load_dotenv
 from typing import Dict, Any
 
-def load_config() -> Dict[str, Any]:
-    """
-    Loads the configuration settings from the config.yaml file.
+load_dotenv()
 
-    Returns:
-        Dict[str, Any]: The configuration settings as a dictionary.
-
-    Raises:
-        FileNotFoundError: If the configuration file is not found.
-        yaml.YAMLError: If there is an error parsing the YAML file.
-    """
-    config_path = os.path.join("data", "config", "config.yaml")
-    
-    if not os.path.exists(config_path):
-        raise FileNotFoundError(f"Configuration file not found at {config_path}")
-    
-    with open(config_path, 'r') as file:
-        config = yaml.safe_load(file)
-    
-    return config
 
 class TestDatabaseConnection(unittest.TestCase):
     """
@@ -33,19 +16,16 @@ class TestDatabaseConnection(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         """
-        Set up database connection and load configuration.
         This connection will be shared across all test methods.
         """
-        config = load_config()
-        db_config = config["database"]
         
         # Establish a database connection
         cls.conn = psycopg2.connect(
-            dbname=db_config["db_name"],
-            user=db_config["user"],
-            password=db_config["password"],
-            host=db_config["host"],
-            port=db_config["port"]
+            dbname=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT")
         )
 
     @classmethod

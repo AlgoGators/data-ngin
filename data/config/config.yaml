@@ -14,6 +14,7 @@ providers:
 # Loaders
 loader:
   class: "CSVLoader"
+  module: "csv_loader"
   file_path: "contracts/contract.csv"
 
 # Inserters

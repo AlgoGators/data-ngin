@@ -1,6 +1,7 @@
 import unittest
-from unittest.mock import patch, MagicMock
-from utils.dynamic_loader import load_class, get_instance
+from unittest.mock import MagicMock, patch
+from data.utils.dynamic_loader import load_class, get_instance
+from typing import Dict, Any
 
 
 class TestDynamicLoader(unittest.TestCase):
@@ -8,15 +9,15 @@ class TestDynamicLoader(unittest.TestCase):
     Tests for the dynamic_loader utility functions.
     """
 
-    def test_load_class_valid(self):
+    def test_load_class_valid(self) -> None:
         """
         Test that load_class successfully loads a valid class from a module.
         """
         # Example: Load the CSVLoader class
-        loaded_class = load_class("data.modules.csv_loader", "CSVLoader")
-        self.assertTrue(loaded_class.__name__, "CSVLoader")
+        loaded_class: Any = load_class("data.modules.csv_loader", "CSVLoader")
+        self.assertEqual(loaded_class.__name__, "CSVLoader")
 
-    def test_load_class_invalid(self):
+    def test_load_class_invalid(self) -> None:
         """
         Test that load_class raises ImportError when the class or module is invalid.
         """
@@ -24,31 +25,34 @@ class TestDynamicLoader(unittest.TestCase):
             load_class("data.modules.invalid_module", "InvalidClass")
 
     @patch("data.modules.csv_loader.CSVLoader")
-    def test_get_instance_valid(self, MockCSVLoader: MagicMock):
+    def test_get_instance_valid(self, MockCSVLoader: MagicMock) -> None:
         """
         Test that get_instance successfully creates an instance of a class with valid configuration.
+
+        Args:
+            MockCSVLoader (MagicMock): Mocked CSVLoader class.
         """
         # Mock configuration
-        config = {
+        config: Dict[str, Any] = {
             "loader": {
                 "class": "CSVLoader",
-                "module": "csv_loader"
+                "module": "csv_loader"  # Explicit module name
             }
         }
 
         # Create an instance dynamically
-        instance = get_instance(config, "loader", "class", file_path="contracts/contract.csv")
+        instance: Any = get_instance(config, "loader", "class", file_path="data/contracts/contract.csv")
 
         # Verify that the mock CSVLoader was instantiated with the correct arguments
-        MockCSVLoader.assert_called_once_with(config=config, file_path="contracts/contract.csv")
+        MockCSVLoader.assert_called_once_with(config=config, file_path="data/contracts/contract.csv")
         self.assertIsInstance(instance, MagicMock)
 
-    def test_get_instance_missing_keys(self):
+    def test_get_instance_missing_keys(self) -> None:
         """
         Test that get_instance raises ValueError when keys are missing in the configuration.
         """
         # Missing module_key
-        config = {}
+        config: Dict[str, Any] = {}
         with self.assertRaises(ValueError):
             get_instance(config, "loader", "class")
 
