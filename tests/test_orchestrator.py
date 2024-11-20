@@ -18,11 +18,8 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
         self.config_path: str = "data/config/config.yaml"
         self.mock_config: Dict[str, Any] = {
             "loader": {"class": "CSVLoader", "module": "csv_loader"},
-            "providers": {
-                "fetcher_class": "DatabentoFetcher",
-                "cleaner_class": "DatabentoCleaner",
-                "module": "databento_fetcher",
-            },
+            "fetcher": {"class": "DatabentoFetcher", "module": "databento_fetcher"},
+            "cleaner": {"class": "DatabentoCleaner", "module": "databento_cleaner"},
             "inserter": {"class": "TimescaleDBInserter", "module": "timescaledb_inserter"},
             "time_range": {
                 "start_date": "2023-01-01",
@@ -30,7 +27,7 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
             },
         }
 
-    @patch("utils.dynamic_loader.py.utils.dynamic_loader.get_instance")
+    @patch("utils.dynamic_loader.get_instance")
     def test_orchestrator_initialization(self, mock_get_instance: MagicMock) -> None:
         """
         Test that Orchestrator initializes all modules dynamically.
@@ -75,7 +72,7 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
         await orchestrator.run()
 
         # Verify that load_symbols was called once
-        mock_load_symbols.assert_called_once_with("data/contracts/contract.csv")
+        mock_load_symbols.assert_called_once_with("contracts/contract.csv")
 
         # Verify that fetch_and_process was called for each symbol
         self.assertEqual(mock_fetch_and_process.call_count, 2)

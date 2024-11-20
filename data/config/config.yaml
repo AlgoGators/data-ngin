@@ -1,8 +1,6 @@
 # Data providers and associated configurations
 providers:
   databento:
-    fetcher_class: "DatabentoFetcher"     # Fetcher class name
-    cleaner_class: "DatabentoCleaner"     # Cleaner class name 
     supported_assets:
       FUTURE: ["GLOBEX"]                  # Map asset types to datasets
     datasets:
@@ -10,6 +8,8 @@ providers:
         aggregation_levels: ["ohlcv-1d"]  # Available aggregation levels
         schema_name: "futures_data"       # Schema name in database
         table_prefix: "ohlcv_"            # Table prefix for TimescaleDB
+    roll_type: ["c"]
+    contract_type: ["front"]
 
 # Loaders
 loader:
@@ -17,9 +17,20 @@ loader:
   module: "csv_loader"
   file_path: "contracts/contract.csv"
 
+# Fetchers
+fetcher:
+  class: "DatabentoFetcher"
+  module: "databento_fetcher"
+
+# Cleaners
+cleaner:
+  class: "DatabentoCleaner"
+  module: "databento_cleaner"
+
 # Inserters
 inserter:
   class: "TimescaleDBInserter"
+  module: "timescaledb_inserter"
 
 # Time range for data fetching
 time_range:
@@ -34,11 +45,6 @@ database:
 assets:
   - FUTURE
   - OPTION
-
-# Additional configurations for data handling
-fetcher:
-  batch_size_days: 30                     # Number of days to fetch in each batch
-  retry_attempts: 3                       # Number of retry attempts for fetching
 
 # Logging and data management options
 logging:

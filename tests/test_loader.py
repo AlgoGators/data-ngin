@@ -30,21 +30,16 @@ class TestLoader(unittest.TestCase):
         """
         Set up a mock loader instance with a test configuration.
         """
-        self.loader: Loader = MockLoader(config_path='data\config\config.yaml')
-        self.loader.config = {
+        config = {
             "providers": {
                 "databento": {
                     "supported_assets": ["EQUITY", "FUTURES"]
                 }
             }
         }
+        self.loader: Loader = MockLoader(config=config)
 
-    def test_load_config(self) -> None:
-        """
-        Test if the configuration loads correctly.
-        """
-        config: Dict[str, Any] = self.loader.load_config()
-        self.assertIn("providers", config, "Config should contain 'providers' key")
+
 
     def test_validate_symbols(self) -> None:
         """

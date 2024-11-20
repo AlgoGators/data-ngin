@@ -22,14 +22,16 @@ class TestCSVLoader(unittest.TestCase):
         sample_data.to_csv(self.test_csv_path, index=False)
 
         # Set up CSVLoader with a test configuration
-        self.loader: CSVLoader = CSVLoader(config_path='data/config/config.yaml', contract_path=self.test_csv_path)
-        self.loader.config = {
+        config = {
             "providers": {
                 "databento": {
                     "supported_assets": ["EQUITY", "FUTURES"]
                 }
             }
         }
+        
+        self.loader: CSVLoader = CSVLoader(config=config, contract_path=self.test_csv_path)
+
 
     def tearDown(self) -> None:
         """

@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import List, Dict, Any
 import databento as db
 import pandas as pd
@@ -21,7 +22,7 @@ class DatabentoFetcher(Fetcher):
             config (Dict[str, Any]): Configuration settings, including API details.
         """
         super().__init__(config)
-        self.api_key: str = config["providers"]["databento"]["api_key"]
+        self.api_key: str = os.getenv("DATABENTO_API_KEY")
         self.client: db.Historical = db.Historical(self.api_key)
         self.logger: logging.Logger = logging.getLogger("DatabentoFetcher")
 

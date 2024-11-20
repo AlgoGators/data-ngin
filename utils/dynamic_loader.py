@@ -1,5 +1,22 @@
 import importlib
+import os
+import yaml
 from typing import Any, Dict
+
+def load_config(config_path: str = 'data\config\config.yaml') -> Dict[str, Any]:
+    """
+    Loads configuration settings from a YAML file.
+    
+    Returns:
+        Dict[str, Any]: The loaded configuration as a dictionary.
+    """
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Configuration file not found at {config_path}")
+    
+    with open(config_path, 'r') as file:
+        config = yaml.safe_load(file)
+    
+    return config
 
 
 def load_class(module_name: str, class_name: str) -> Any:
@@ -41,6 +58,7 @@ def get_instance(config: Dict[str, Any], module_key: str, class_key: str, **kwar
         ValueError: If the module_key or class_key is not found in the configuration.
         ImportError: If the module or class cannot be loaded.
     """
+    print(f"get_instance called with module_key={module_key}, class_key={class_key}, kwargs={kwargs}")
     if module_key not in config:
         raise ValueError(f"Module key '{module_key}' not found in configuration.")
     if class_key not in config[module_key]:

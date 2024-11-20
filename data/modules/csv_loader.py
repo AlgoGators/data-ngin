@@ -1,6 +1,6 @@
 import pandas as pd
 import os
-from typing import Dict
+from typing import Dict, Any
 from data.modules.loader import Loader
 
 class CSVLoader(Loader):
@@ -12,7 +12,7 @@ class CSVLoader(Loader):
         contract_path (str): Path to the CSV file containing contract symbols and asset types.
     """
     
-    def __init__(self, config_path: str = 'config/config.yaml', contract_path: str = 'contracts/contract.csv') -> None:
+    def __init__(self, config: Dict[str, Any], contract_path: str = 'contracts/contract.csv') -> None:
         """
         Initializes the CSVLoader with paths to the configuration file and the CSV file.
         
@@ -20,7 +20,7 @@ class CSVLoader(Loader):
             config_path (str): Path to the configuration file. Defaults to 'config/config.yaml'.
             contract_path (str): Path to the CSV file with symbols and asset types. Defaults to 'contracts/contract.csv'.
         """
-        super().__init__(config_path)
+        super().__init__(config=config)
         self.contract_path: str = contract_path
 
     def load_symbols(self) -> Dict[str, str]:

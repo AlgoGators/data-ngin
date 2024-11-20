@@ -13,30 +13,14 @@ class Loader(ABC):
         config (Dict[str, Any]): Configuration settings loaded from config.yaml.
     """
     
-    def __init__(self, config_path: str = 'config/config.yaml') -> None:
+    def __init__(self, config: Dict[str, Any]) -> None:
         """
         Initializes the Loader with a specified configuration file.
         
         Args:
             config_path (str): Path to the configuration file. Defaults to 'config/config.yaml'.
         """
-        self.config_path: str = config_path
-        self.config: Dict[str, Any] = self.load_config()
-
-    def load_config(self) -> Dict[str, Any]:
-        """
-        Loads configuration settings from a YAML file.
-        
-        Returns:
-            Dict[str, Any]: The loaded configuration as a dictionary.
-        """
-        if not os.path.exists(self.config_path):
-            raise FileNotFoundError(f"Configuration file not found at {self.config_path}")
-        
-        with open(self.config_path, 'r') as file:
-            config: Dict[str, Any] = yaml.safe_load(file)
-        
-        return config
+        self.config: Dict[str, Any] = config
 
     @abstractmethod
     def load_symbols(self) -> Dict[str, str]:

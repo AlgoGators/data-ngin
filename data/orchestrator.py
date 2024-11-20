@@ -4,7 +4,7 @@ import yaml
 import asyncio
 from typing import Dict, Any, List
 from dotenv import load_dotenv
-from utils.dynamic_loader import get_instance
+from utils.dynamic_loader import load_config, get_instance
 
 # Load environment variables
 load_dotenv()
@@ -32,13 +32,12 @@ class Orchestrator:
             config_path (str): Path to the YAML configuration file.
         """
         # Load configuration file
-        with open(config_path, "r") as file:
-            self.config: Dict[str, Any] = yaml.safe_load(file)
+        self.config: Dict[str, Any] = load_config(config_path=config_path)
 
         # Dynamically load modules
-        self.loader: Any = get_instance(self.config, "loader", "class", file_path=self.config["loader"]["file_path"])
-        self.fetcher: Any = get_instance(self.config, "providers", "fetcher_class", provider="databento")
-        self.cleaner: Any = get_instance(self.config, "providers", "cleaner_class", provider="databento")
+        self.loader: Any = get_instance(self.config, "loader", "class")
+        self.fetcher: Any = get_instance(self.config, "fetcher", "class")
+        self.cleaner: Any = get_instance(self.config, "cleaner", "class")
         self.inserter: Any = get_instance(self.config, "inserter", "class")
 
     async def fetch_and_process(self, symbol: Dict[str, str]) -> None:
@@ -55,8 +54,8 @@ class Orchestrator:
                 start_date=self.config["time_range"]["start_date"],
                 end_date=self.config["time_range"]["end_date"],
                 schema=self.config["providers"]["databento"]["datasets"]["GLOBEX"]["aggregation_levels"][0],
-                roll_type=self.config["providers"]["databento"]["roll_type"],
-                contract_type=self.config["providers"]["databento"]["contract_type"]
+                roll_type=self.config["providers"]["databento"]["roll_type"][0],
+                contract_type=self.config["providers"]["databento"]["contract_type"][0]
             )
 
             logging.info(f"Cleaning data for symbol: {symbol['dataSymbol']}")
