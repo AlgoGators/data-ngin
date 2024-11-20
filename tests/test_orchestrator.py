@@ -30,7 +30,7 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
             },
         }
 
-    @patch("data.utils.dynamic_loader.get_instance")
+    @patch("utils.dynamic_loader.py.utils.dynamic_loader.get_instance")
     def test_orchestrator_initialization(self, mock_get_instance: MagicMock) -> None:
         """
         Test that Orchestrator initializes all modules dynamically.

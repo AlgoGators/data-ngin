@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import MagicMock, patch
-from data.utils.dynamic_loader import load_class, get_instance
+from utils.dynamic_loader import load_class, get_instance
 from typing import Dict, Any
 
 
