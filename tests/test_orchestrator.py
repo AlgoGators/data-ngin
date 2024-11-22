@@ -77,17 +77,17 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
         mock_get_instance.assert_any_call(self.mock_config, "inserter", "class")
 
 
-    @patch("data.orchestrator.Orchestrator.fetch_and_process", new_callable=AsyncMock)
+    @patch("data.orchestrator.Orchestrator.fetch_data", new_callable=AsyncMock)
     @patch("data.modules.csv_loader.CSVLoader.load_symbols", return_value=[
         {"dataSymbol": "ES"}, {"dataSymbol": "NQ"}
     ])
-    async def test_orchestrator_run(self, mock_load_symbols: MagicMock, mock_fetch_and_process: AsyncMock) -> None:
+    async def test_orchestrator_run(self, mock_load_symbols: MagicMock, mock_fetch_data: AsyncMock) -> None:
         """
         Test that the Orchestrator run() processes all symbols asynchronously.
 
         Args:
             mock_load_symbols (MagicMock): Mocked load_symbols method.
-            mock_fetch_and_process (AsyncMock): Mocked fetch_and_process method.
+            mock_fetch_data (AsyncMock): Mocked fetch_data method.
         """
         # Initialize the Orchestrator
         orchestrator: Orchestrator = Orchestrator(config=self.mock_config)
@@ -98,27 +98,27 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
         # Verify that load_symbols was called once
         mock_load_symbols.assert_called_once_with("contracts/contract.csv")
 
-        # Verify that fetch_and_process was called for each symbol
-        self.assertEqual(mock_fetch_and_process.call_count, 2)
-        mock_fetch_and_process.assert_any_call({"dataSymbol": "ES"})
-        mock_fetch_and_process.assert_any_call({"dataSymbol": "NQ"})
+        # Verify that fetch_data was called for each symbol
+        self.assertEqual(mock_fetch_data.call_count, 2)
+        mock_fetch_data.assert_any_call({"dataSymbol": "ES"})
+        mock_fetch_data.assert_any_call({"dataSymbol": "NQ"})
 
-    @patch("data.modules.databento_fetcher.DatabentoFetcher.fetch_and_process_data", new_callable=AsyncMock)
+    @patch("data.modules.databento_fetcher.DatabentoFetcher.fetch_data", new_callable=AsyncMock)
     @patch("data.modules.databento_cleaner.DatabentoCleaner.clean", return_value=[{"time": "2023-01-01"}])
     @patch("data.modules.timescaledb_inserter.TimescaleDBInserter.insert_data")
-    async def test_fetch_and_process(
+    async def test_fetch_data(
         self,
         mock_insert_data: MagicMock,
         mock_clean: MagicMock,
         mock_fetch: AsyncMock
     ) -> None:
         """
-        Test that fetch_and_process calls fetcher, cleaner, and inserter in sequence.
+        Test that fetch_data calls fetcher, cleaner, and inserter in sequence.
 
         Args:
             mock_insert_data (MagicMock): Mocked insert_data method.
             mock_clean (MagicMock): Mocked clean method.
-            mock_fetch (AsyncMock): Mocked fetch_and_process_data method.
+            mock_fetch (AsyncMock): Mocked fetch_data method.
         """
         # Mock fetch data return
         mock_fetch.return_value = [{"time": "2023-01-01", "symbol": "ES", "open": 100.5}]
@@ -126,8 +126,8 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
         # Initialize the Orchestrator
         orchestrator: Orchestrator = Orchestrator(config=self.mock_config)
 
-        # Call fetch_and_process
-        await orchestrator.fetch_and_process({"dataSymbol": "ES"})
+        # Call fetch_data
+        await orchestrator.fetch_data({"dataSymbol": "ES"})
 
         # Verify the fetcher was called with the correct arguments
         mock_fetch.assert_called_once_with(

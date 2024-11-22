@@ -40,7 +40,7 @@ class Orchestrator:
         self.cleaner: Any = get_instance(self.config, "cleaner", "class")
         self.inserter: Any = get_instance(self.config, "inserter", "class")
 
-    async def fetch_and_process(self, symbol: Dict[str, str]) -> None:
+    async def fetch_data(self, symbol: Dict[str, str]) -> None:
         """
         Fetch, clean, and insert data for a single symbol.
 
@@ -49,7 +49,7 @@ class Orchestrator:
         """
         try:
             logging.info(f"Fetching data for symbol: {symbol['dataSymbol']}")
-            raw_data: List[Dict[str, Any]] = await self.fetcher.fetch_and_process_data(
+            raw_data: List[Dict[str, Any]] = await self.fetcher.fetch_data(
                 symbol=symbol["dataSymbol"],
                 start_date=self.config["time_range"]["start_date"],
                 end_date=self.config["time_range"]["end_date"],
@@ -81,7 +81,7 @@ class Orchestrator:
             symbols: List[Dict[str, str]] = self.loader.load_symbols(self.config["loader"]["file_path"])
 
             # Step 2: Fetch, clean, and insert data for all symbols concurrently
-            await asyncio.gather(*[self.fetch_and_process(symbol) for symbol in symbols])
+            await asyncio.gather(*[self.fetch_data(symbol) for symbol in symbols])
 
             logging.info("Pipeline execution completed successfully.")
 

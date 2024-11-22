@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import pandas as pd
 from typing import List, Dict, Any
 
+
 class Cleaner(ABC):
     """
     Abstract base class for Cleaner modules responsible for standardizing raw data
@@ -20,10 +21,13 @@ class Cleaner(ABC):
         Validates that required fields are present and valid in the data.
 
         Args:
-            data (pd.DataFrame): The raw data to validate.
+            data (pd.DataFrame): The raw data to validate. Must include required columns.
 
         Returns:
-            pd.DataFrame: The validated data.
+            pd.DataFrame: The validated data, with only rows meeting field requirements.
+
+        Raises:
+            ValueError: If required fields are missing or invalid.
         """
         pass
 
@@ -36,7 +40,10 @@ class Cleaner(ABC):
             data (pd.DataFrame): The raw data with missing values.
 
         Returns:
-            pd.DataFrame: The data after handling missing values.
+            pd.DataFrame: The data after handling missing values (e.g., dropped rows or imputed values).
+
+        Notes:
+            - This method can be customized by subclasses to drop rows, fill missing values, or flag issues.
         """
         pass
 
@@ -50,6 +57,9 @@ class Cleaner(ABC):
 
         Returns:
             pd.DataFrame: The transformed, standardized data.
+
+        Notes:
+            - Transformation could include renaming columns, changing data types, or formatting timestamps.
         """
         pass
 
@@ -62,6 +72,11 @@ class Cleaner(ABC):
 
         Returns:
             pd.DataFrame: The cleaned data ready for database insertion.
+
+        Process:
+            1. Validate fields.
+            2. Handle missing or corrupt data.
+            3. Transform data into the desired format.
         """
         data = self.validate_fields(data)
         data = self.handle_missing_data(data)

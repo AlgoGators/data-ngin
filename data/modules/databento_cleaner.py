@@ -1,7 +1,9 @@
 import pandas as pd
 from enum import Enum
-from typing import Dict, Any
+from typing import Dict, Any, List
 from data.modules.cleaner import Cleaner
+import logging
+
 
 class RequiredFields(Enum):
     """
@@ -22,6 +24,7 @@ class RequiredFields(Enum):
     CLOSE = "close"
     VOLUME = "volume"
 
+
 class DatabentoCleaner(Cleaner):
     """
     A Cleaner subclass for standardizing Databento data.
@@ -39,7 +42,7 @@ class DatabentoCleaner(Cleaner):
         Args:
             config (Dict[str, Any]): Configuration settings, including rules for missing data handling.
         """
-        self.config = config
+        self.config: Dict[str, Any] = config
 
     def validate_fields(self, data: pd.DataFrame) -> pd.DataFrame:
         """
@@ -54,9 +57,10 @@ class DatabentoCleaner(Cleaner):
         Raises:
             ValueError: If required fields are missing.
         """
-        required_fields = [field.value for field in RequiredFields]
-        missing_fields = [field for field in required_fields if field not in data.columns]
+        required_fields: List[str] = [field.value for field in RequiredFields]
+        missing_fields: List[str] = [field for field in required_fields if field not in data.columns]
         if missing_fields:
+            logging.error(f"Missing required fields: {missing_fields}")
             raise ValueError(f"Missing required fields: {missing_fields}")
         return data
 
@@ -70,11 +74,11 @@ class DatabentoCleaner(Cleaner):
         Returns:
             pd.DataFrame: The data after handling missing values.
         """
-        # Drop rows with any missing values
         if self.config.get("drop_missing", True):
+            logging.info("Dropping rows with missing values.")
             data = data.dropna()
         else:
-            # Fill missing values with default value of 0
+            logging.info("Filling missing values with defaults.")
             data = data.fillna({
                 RequiredFields.OPEN.value: 0.0,
                 RequiredFields.HIGH.value: 0.0,
@@ -94,20 +98,30 @@ class DatabentoCleaner(Cleaner):
         Returns:
             pd.DataFrame: The transformed, standardized data.
         """
+        logging.info("Starting data transformation.")
+
         # Rename columns if needed
         if "date" in data.columns:
+            logging.info("Renaming 'date' column to 'time'.")
             data = data.rename(columns={"date": "time"})
 
         # Convert timestamps to UTC
+        logging.info("Converting timestamps to UTC.")
         data["time"] = pd.to_datetime(data["time"]).dt.tz_localize("UTC")
 
         # Ensure correct data types
+        logging.info("Converting data types for price and volume columns.")
         data["open"] = data["open"].astype(float)
         data["high"] = data["high"].astype(float)
         data["low"] = data["low"].astype(float)
         data["close"] = data["close"].astype(float)
         data["volume"] = data["volume"].astype(int)
 
+        # Check for duplicates in the time column
+        if data["time"].duplicated().any():
+            logging.warning("Duplicate timestamps found in 'time' column. Consider deduplication.")
+
         # Sort the data by the time column
+        logging.info("Sorting data by 'time' column.")
         data = data.sort_values(by="time")
         return data

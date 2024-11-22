@@ -24,14 +24,30 @@ class TestDatabentoFetcher(unittest.IsolatedAsyncioTestCase):
         This configuration is passed to the DatabentoFetcher for testing.
         """
         self.config: Dict[str, Any] = {
-            "providers": {"databento": {"api_key": "mock_api_key"}},
-            "dataset": "GLBX.MDP3"
-        }
+        "providers": {
+            "databento": {
+                "datasets": {
+                    "GLOBEX": {
+                        "schema_name": "GLBX.MDP3",
+                        "aggregation_levels": ["ohlcv-1d"],
+                        "table_prefix": "ohlcv_",
+                    }
+                },
+                "roll_type": ["c"],
+                "contract_type": ["front"],
+            }
+        },
+        "time_range": {
+            "start_date": "2023-01-01",
+            "end_date": "2023-01-02",
+        },
+    }
+
         self.fetcher: DatabentoFetcher = DatabentoFetcher(config=self.config)
 
-    async def test_fetch_and_process_data(self) -> None:
+    async def test_fetch_data(self) -> None:
         """
-        Test the `fetch_and_process_data` method using mocked Databento API calls.
+        Test the `fetch_data` method using mocked Databento API calls.
 
         This test validates the data fetching and processing workflow. It ensures:
         - Data is fetched from the mocked Databento API.
@@ -61,7 +77,7 @@ class TestDatabentoFetcher(unittest.IsolatedAsyncioTestCase):
             fetcher: DatabentoFetcher = DatabentoFetcher(config=self.config)
 
             # Call the method under test
-            result: List[Dict[str, Any]] = await fetcher.fetch_and_process_data(
+            result: List[Dict[str, Any]] = await fetcher.fetch_data(
                 symbol="ES",
                 start_date="2023-01-01",
                 end_date="2023-01-02",
@@ -126,7 +142,7 @@ class TestDatabentoFetcher(unittest.IsolatedAsyncioTestCase):
 
     async def test_fetch_data_error_handling(self) -> None:
         """
-        Test error handling in `fetch_and_process_data`.
+        Test error handling in `fetch__data`.
 
         This test ensures:
         - The method raises an exception when the Databento API encounters an error.
@@ -147,7 +163,7 @@ class TestDatabentoFetcher(unittest.IsolatedAsyncioTestCase):
 
             # Use `assertRaises` to verify exception handling
             with self.assertRaises(Exception) as context:
-                await fetcher.fetch_and_process_data(
+                await fetcher.fetch_data(
                     symbol="ES",
                     start_date="2023-01-01",
                     end_date="2023-01-02",
