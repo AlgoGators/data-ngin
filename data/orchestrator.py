@@ -24,15 +24,15 @@ class Orchestrator:
         - Inserter
     """
 
-    def __init__(self, config_path: str) -> None:
+    def __init__(self, config: Dict[str, Any]) -> None:
         """
         Initializes the Orchestrator with a given configuration.
 
         Args:
-            config_path (str): Path to the YAML configuration file.
+            config (Dict[str, Any]): Configuration settings        
         """
         # Load configuration file
-        self.config: Dict[str, Any] = load_config(config_path=config_path)
+        self.config: Dict[str, Any] = config
 
         # Dynamically load modules
         self.loader: Any = get_instance(self.config, "loader", "class")

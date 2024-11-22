@@ -15,19 +15,34 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
         Set up mock configuration and patch dynamic imports.
         """
         # Mock configuration
-        self.config_path: str = "data/config/config.yaml"
         self.mock_config: Dict[str, Any] = {
-            "loader": {"class": "CSVLoader", "module": "csv_loader"},
-            "fetcher": {"class": "DatabentoFetcher", "module": "databento_fetcher"},
-            "cleaner": {"class": "DatabentoCleaner", "module": "databento_cleaner"},
-            "inserter": {"class": "TimescaleDBInserter", "module": "timescaledb_inserter"},
-            "time_range": {
-                "start_date": "2023-01-01",
-                "end_date": "2023-01-31",
-            },
+        "loader": {"class": "CSVLoader", "module": "csv_loader", "file_path": "contracts/contract.csv"},
+        "fetcher": {"class": "DatabentoFetcher", "module": "databento_fetcher"},
+        "cleaner": {"class": "DatabentoCleaner", "module": "databento_cleaner"},
+        "inserter": {"class": "TimescaleDBInserter", "module": "timescaledb_inserter"},
+        "time_range": {
+            "start_date": "2023-01-01",
+            "end_date": "2023-01-31",
+        },
+        "providers": {
+            "databento": {
+                "datasets": {
+                    "GLOBEX": {
+                        "aggregation_levels": ["ohlcv-1d"],
+                        "table_prefix": "ohlcv_",
+                    }
+                },
+                "roll_type": ["c"],
+                "contract_type": ["front"],
+            }
+        },
+        "database": {
+            "target_schema": "futures_data"
         }
+    }
 
-    @patch("utils.dynamic_loader.get_instance")
+
+    @patch("data.orchestrator.get_instance")
     def test_orchestrator_initialization(self, mock_get_instance: MagicMock) -> None:
         """
         Test that Orchestrator initializes all modules dynamically.
@@ -44,14 +59,23 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
         mock_get_instance.side_effect = [mock_loader, mock_fetcher, mock_cleaner, mock_inserter]
 
         # Initialize the Orchestrator
-        orchestrator: Orchestrator = Orchestrator(config_path=self.config_path)
+        orchestrator: Orchestrator = Orchestrator(config=self.mock_config)
 
         # Verify get_instance was called for each module
         self.assertEqual(mock_get_instance.call_count, 4)
+
+        # Verify the correct objects were assigned
         self.assertEqual(orchestrator.loader, mock_loader)
         self.assertEqual(orchestrator.fetcher, mock_fetcher)
         self.assertEqual(orchestrator.cleaner, mock_cleaner)
         self.assertEqual(orchestrator.inserter, mock_inserter)
+
+        # Verify arguments passed to get_instance
+        mock_get_instance.assert_any_call(self.mock_config, "loader", "class")
+        mock_get_instance.assert_any_call(self.mock_config, "fetcher", "class")
+        mock_get_instance.assert_any_call(self.mock_config, "cleaner", "class")
+        mock_get_instance.assert_any_call(self.mock_config, "inserter", "class")
+
 
     @patch("data.orchestrator.Orchestrator.fetch_and_process", new_callable=AsyncMock)
     @patch("data.modules.csv_loader.CSVLoader.load_symbols", return_value=[
@@ -66,7 +90,7 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
             mock_fetch_and_process (AsyncMock): Mocked fetch_and_process method.
         """
         # Initialize the Orchestrator
-        orchestrator: Orchestrator = Orchestrator(config_path=self.config_path)
+        orchestrator: Orchestrator = Orchestrator(config=self.mock_config)
 
         # Call run()
         await orchestrator.run()
@@ -82,7 +106,12 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
     @patch("data.modules.databento_fetcher.DatabentoFetcher.fetch_and_process_data", new_callable=AsyncMock)
     @patch("data.modules.databento_cleaner.DatabentoCleaner.clean", return_value=[{"time": "2023-01-01"}])
     @patch("data.modules.timescaledb_inserter.TimescaleDBInserter.insert_data")
-    async def test_fetch_and_process(self, mock_insert_data: MagicMock, mock_clean: MagicMock, mock_fetch: AsyncMock) -> None:
+    async def test_fetch_and_process(
+        self,
+        mock_insert_data: MagicMock,
+        mock_clean: MagicMock,
+        mock_fetch: AsyncMock
+    ) -> None:
         """
         Test that fetch_and_process calls fetcher, cleaner, and inserter in sequence.
 
@@ -95,7 +124,7 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
         mock_fetch.return_value = [{"time": "2023-01-01", "symbol": "ES", "open": 100.5}]
 
         # Initialize the Orchestrator
-        orchestrator: Orchestrator = Orchestrator(config_path=self.config_path)
+        orchestrator: Orchestrator = Orchestrator(config=self.mock_config)
 
         # Call fetch_and_process
         await orchestrator.fetch_and_process({"dataSymbol": "ES"})
@@ -117,6 +146,7 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
             schema="futures_data",
             table="ohlcv_1d"
         )
+
 
 
 if __name__ == "__main__":

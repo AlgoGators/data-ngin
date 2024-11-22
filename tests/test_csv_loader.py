@@ -1,78 +1,173 @@
 import unittest
-import pandas as pd
-from data.modules.csv_loader import CSVLoader
-from typing import Dict, List, Any
+import tempfile
 import os
+import pandas as pd
+from typing import Dict, Any, List
+from data.modules.csv_loader import CSVLoader
+
 
 class TestCSVLoader(unittest.TestCase):
     """
-    Unit tests for the CSVLoader class.
+    Unit tests for the CSVLoader module.
+
+    This test suite includes:
+    - Valid CSV loading.
+    - Handling of missing or malformed data.
+    - Validation of duplicate or null values in the CSV.
     """
 
     def setUp(self) -> None:
         """
-        Set up a CSVLoader instance with a test configuration and sample CSV file.
+        Set up the test environment, including mock configuration and test data.
         """
-        # Create a sample test CSV file
-        self.test_csv_path: str = 'data/contracts'
-        sample_data: pd.DataFrame = pd.DataFrame({
-            'dataSymbol': ['AAPL', 'ES', 'BTC'],
-            'instrumentType': ['EQUITY', 'FUTURES', 'CRYPTO']
-        })
-        sample_data.to_csv(self.test_csv_path, index=False)
-
-        # Set up CSVLoader with a test configuration
-        config = {
-            "providers": {
-                "databento": {
-                    "supported_assets": ["EQUITY", "FUTURES"]
-                }
+        self.mock_config: Dict[str, Any] = {
+            "loader": {
+                "class": "CSVLoader",
+                "module": "csv_loader",
+                "file_path": "mock_path.csv"
             }
         }
-        
-        self.loader: CSVLoader = CSVLoader(config=config, contract_path=self.test_csv_path)
 
+    def create_mock_csv(self, data: List[Dict[str, Any]]) -> str:
+        """
+        Create a temporary CSV file with the given data.
+
+        Args:
+            data (List[Dict[str, Any]]): A list of dictionaries where each dictionary represents a row in the CSV.
+
+        Returns:
+            str: The path to the temporary CSV file.
+        """
+        temp_file: tempfile.NamedTemporaryFile = tempfile.NamedTemporaryFile(
+            delete=False, suffix=".csv", mode="w", newline=""
+        )
+        file_path: str = temp_file.name
+        df: pd.DataFrame = pd.DataFrame(data)
+        df.to_csv(temp_file, index=False)
+        temp_file.close()
+        return file_path
 
     def tearDown(self) -> None:
         """
-        Clean up by removing the test CSV file.
+        Clean up temporary files after each test.
         """
-        if os.path.exists(self.test_csv_path):
-            os.remove(self.test_csv_path)
+        file_path: str = self.mock_config["loader"]["file_path"]
+        if os.path.exists(file_path):
+            os.remove(file_path)
 
-    def test_load_symbols(self) -> None:
+    def test_load_symbols_valid_csv(self) -> None:
         """
-        Test if symbols are loaded correctly from the CSV file.
-        """
-        symbols: Dict[str, str] = self.loader.load_symbols()
-        expected_symbols: Dict[str, str] = {
-            "AAPL": "EQUITY",
-            "ES": "FUTURES",
-            "BTC": "CRYPTO"
-        }
-        self.assertEqual(symbols, expected_symbols, "Loaded symbols do not match expected values")
+        Test that CSVLoader correctly parses a valid CSV file.
 
-    def test_validate_symbols(self) -> None:
+        Raises:
+            AssertionError: If the test fails to validate the parsed symbols.
         """
-        Test if validate_symbols correctly filters supported symbols.
-        """
-        symbols: Dict[str, str] = self.loader.load_symbols()
-        validated_symbols: Dict[str, str] = self.loader.validate_symbols(symbols)
-        self.assertIn("AAPL", validated_symbols, "AAPL should be validated as supported")
-        self.assertIn("ES", validated_symbols, "ES should be validated as supported")
-        self.assertNotIn("BTC", validated_symbols, "BTC should not be validated as supported")
-
-    def test_prepare_for_ingestion(self) -> None:
-        """
-        Test if ingestion jobs are prepared correctly for validated symbols.
-        """
-        ingestion_jobs: List[Dict[str, Any]] = self.loader.prepare_for_ingestion()
-        expected_jobs: List[Dict[str, Any]] = [
-            {"symbol": "AAPL", "asset_type": "EQUITY", "provider": "databento", "aggregation_level": "ohlcv-1d"},
-            {"symbol": "ES", "asset_type": "FUTURES", "provider": "databento", "aggregation_level": "ohlcv-1d"}
+        # Mock CSV data
+        mock_csv_data: List[Dict[str, str]] = [
+            {"dataSymbol": "ES", "instrumentType": "FUTURE"},
+            {"dataSymbol": "NQ", "instrumentType": "FUTURE"}
         ]
-        self.assertEqual(len(ingestion_jobs), 2, "Only 2 ingestion jobs should be prepared for supported symbols")
-        self.assertEqual(ingestion_jobs, expected_jobs, "Ingestion jobs do not match expected jobs")
+        temp_csv_path: str = self.create_mock_csv(mock_csv_data)
+        self.mock_config["loader"]["file_path"] = temp_csv_path
+
+        # Initialize CSVLoader
+        loader: CSVLoader = CSVLoader(config=self.mock_config)
+
+        # Call load_symbols and verify results
+        symbols: Dict[str, str] = loader.load_symbols()
+        expected_symbols: Dict[str, str] = {
+            "ES": "FUTURE",
+            "NQ": "FUTURE"
+        }
+        self.assertEqual(symbols, expected_symbols)
+
+    def test_load_symbols_missing_columns(self) -> None:
+        """
+        Test that CSVLoader raises a ValueError if required columns are missing.
+
+        Raises:
+            AssertionError: If the exception is not raised or contains incorrect details.
+        """
+        # Mock CSV data with missing 'instrumentType' column
+        mock_csv_data: List[Dict[str, str]] = [
+            {"dataSymbol": "ES"},
+            {"dataSymbol": "NQ"}
+        ]
+        temp_csv_path: str = self.create_mock_csv(mock_csv_data)
+        self.mock_config["loader"]["file_path"] = temp_csv_path
+
+        # Initialize CSVLoader
+        loader: CSVLoader = CSVLoader(config=self.mock_config)
+
+        # Verify exception
+        with self.assertRaises(ValueError) as context:
+            loader.load_symbols()
+        self.assertIn("Missing columns", str(context.exception))
+
+    def test_load_symbols_duplicates(self) -> None:
+        """
+        Test that CSVLoader raises a ValueError if duplicate symbols exist in the CSV.
+
+        Raises:
+            AssertionError: If the exception is not raised or contains incorrect details.
+        """
+        # Mock CSV data with duplicate 'dataSymbol' entries
+        mock_csv_data: List[Dict[str, str]] = [
+            {"dataSymbol": "ES", "instrumentType": "FUTURE"},
+            {"dataSymbol": "ES", "instrumentType": "FUTURE"}
+        ]
+        temp_csv_path: str = self.create_mock_csv(mock_csv_data)
+        self.mock_config["loader"]["file_path"] = temp_csv_path
+
+        # Initialize CSVLoader
+        loader: CSVLoader = CSVLoader(config=self.mock_config)
+
+        # Verify exception
+        with self.assertRaises(ValueError) as context:
+            loader.load_symbols()
+        self.assertIn("Duplicate symbols", str(context.exception))
+
+    def test_load_symbols_null_values(self) -> None:
+        """
+        Test that CSVLoader raises a ValueError if null values exist in the 'dataSymbol' column.
+
+        Raises:
+            AssertionError: If the exception is not raised or contains incorrect details.
+        """
+        # Mock CSV data with a null value in 'dataSymbol'
+        mock_csv_data: List[Dict[str, Any]] = [
+            {"dataSymbol": "ES", "instrumentType": "FUTURE"},
+            {"dataSymbol": None, "instrumentType": "FUTURE"}
+        ]
+        temp_csv_path: str = self.create_mock_csv(mock_csv_data)
+        self.mock_config["loader"]["file_path"] = temp_csv_path
+
+        # Initialize CSVLoader
+        loader: CSVLoader = CSVLoader(config=self.mock_config)
+
+        # Verify exception
+        with self.assertRaises(ValueError) as context:
+            loader.load_symbols()
+        self.assertIn("Null values", str(context.exception))
+
+    def test_load_symbols_missing_file(self) -> None:
+        """
+        Test that CSVLoader raises a FileNotFoundError if the file does not exist.
+
+        Raises:
+            AssertionError: If the exception is not raised or contains incorrect details.
+        """
+        # Mock configuration with a non-existent file path
+        self.mock_config["loader"]["file_path"] = "non_existent_file.csv"
+
+        # Initialize CSVLoader
+        loader: CSVLoader = CSVLoader(config=self.mock_config)
+
+        # Verify exception
+        with self.assertRaises(FileNotFoundError) as context:
+            loader.load_symbols()
+        self.assertIn("Contract file not found", str(context.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

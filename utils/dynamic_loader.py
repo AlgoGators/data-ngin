@@ -3,25 +3,39 @@ import os
 import yaml
 from typing import Any, Dict
 
-def load_config(config_path: str = 'data\config\config.yaml') -> Dict[str, Any]:
+
+def load_config(config_path: str = "data/config/config.yaml") -> Dict[str, Any]:
     """
-    Loads configuration settings from a YAML file.
-    
+    Load configuration settings from a YAML file.
+
+    Args:
+        config_path (str): The path to the YAML configuration file.
+
     Returns:
         Dict[str, Any]: The loaded configuration as a dictionary.
+
+    Raises:
+        FileNotFoundError: If the specified configuration file does not exist.
+        ValueError: If the configuration file is empty or invalid.
     """
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Configuration file not found at {config_path}")
-    
-    with open(config_path, 'r') as file:
-        config = yaml.safe_load(file)
-    
+
+    with open(config_path, "r") as file:
+        try:
+            config: Dict[str, Any] = yaml.safe_load(file)
+        except yaml.YAMLError as e:
+            raise ValueError(f"Error parsing configuration file at {config_path}: {e}")
+
+    if not config:
+        raise ValueError(f"Configuration file at {config_path} is empty or invalid.")
+
     return config
 
 
 def load_class(module_name: str, class_name: str) -> Any:
     """
-    Dynamically load a class from a module.
+    Dynamically load a class from a specified module.
 
     Args:
         module_name (str): The name of the module to import the class from.
@@ -31,19 +45,21 @@ def load_class(module_name: str, class_name: str) -> Any:
         Any: The dynamically loaded class.
 
     Raises:
-        ImportError: If the module or class cannot be loaded.
+        ImportError: If the module cannot be imported or the class does not exist.
     """
     try:
         module: Any = importlib.import_module(module_name)
         cls: Any = getattr(module, class_name)
         return cls
-    except (ImportError, AttributeError) as e:
-        raise ImportError(f"Could not load class '{class_name}' from module '{module_name}': {e}")
+    except ImportError as e:
+        raise ImportError(f"Module '{module_name}' could not be imported: {e}")
+    except AttributeError:
+        raise ImportError(f"Class '{class_name}' does not exist in module '{module_name}'.")
 
 
 def get_instance(config: Dict[str, Any], module_key: str, class_key: str, **kwargs: Any) -> Any:
     """
-    Create an instance of a dynamically loaded class based on configuration.
+    Create an instance of a dynamically loaded class based on the configuration.
 
     Args:
         config (Dict[str, Any]): The configuration dictionary.
@@ -58,16 +74,22 @@ def get_instance(config: Dict[str, Any], module_key: str, class_key: str, **kwar
         ValueError: If the module_key or class_key is not found in the configuration.
         ImportError: If the module or class cannot be loaded.
     """
-    print(f"get_instance called with module_key={module_key}, class_key={class_key}, kwargs={kwargs}")
-    if module_key not in config:
+    # Validate the presence of module_key and class_key
+    module_config = config.get(module_key)
+    if module_config is None:
         raise ValueError(f"Module key '{module_key}' not found in configuration.")
-    if class_key not in config[module_key]:
+
+    class_name: str = module_config.get(class_key)
+    if class_name is None:
         raise ValueError(f"Class key '{class_key}' not found in '{module_key}' configuration.")
 
-    # Extract module and class information
-    module_name: str = f"data.modules.{config[module_key].get('module', module_key)}"
-    class_name: str = config[module_key][class_key]
+    # Extract module name and load class
+    module_name: str = f"data.modules.{module_config.get('module', module_key)}"
+    try:
+        cls: Any = load_class(module_name, class_name)
+        print(f"Successfully loaded class '{class_name}' from module '{module_name}'.")
+    except ImportError as e:
+        raise ImportError(f"Error loading class '{class_name}' from module '{module_name}': {e}")
 
-    # Dynamically load the class and create an instance
-    cls: Any = load_class(module_name, class_name)
+    # Create and return an instance of the class
     return cls(config=config, **kwargs)

@@ -1,40 +1,33 @@
-import databento as db
-import pandas as pd
-from dotenv import load_dotenv
-import os
+import logging
+import asyncio
+from utils.dynamic_loader import load_config
+from data.orchestrator import Orchestrator
 
-load_dotenv()
+def main() -> None:
+    """
+    Main entry point for the data pipeline.
+    """
+    # Step 1: Configure logging
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
+    try:
+        # Step 2: Load configuration
+        config_path = "data/config/config.yaml"  # Path to the YAML configuration file
+        logging.info(f"Loading configuration from {config_path}")
+        config = load_config(config_path)
 
-# Establish connection and authenticate
+        # Step 3: Initialize the Orchestrator
+        logging.info("Initializing orchestrator...")
+        orchestrator = Orchestrator(config=config)
 
-client = db.Historical()
+        # Step 4: Run the pipeline
+        logging.info("Starting the data pipeline...")
+        asyncio.run(orchestrator.run())
 
-# Authenticated reqeust
-# print(client.metadata.list_publishers())
+        logging.info("Pipeline execution completed successfully.")
 
-data = client.timeseries.get_range(
-    dataset="GLBX.MDP3",
-    symbols="ESM2",
-    schema="ohlcv-1d",
-    start="2022-06-06T00:00:00",
-    end="2022-06-10T00:10:00",
-    limit=1,
-)
+    except Exception as e:
+        logging.error(f"Pipeline execution failed: {e}")
 
-df = data.to_df()
-
-pd.set_option("display.max_columns", None)
-print(df.head())
-
-def get_data(dataset, symbols, schema, start, end, limit):
-    data = client.timeseries.get_range(
-        dataset=dataset,
-        symbols=symbols,
-        schema=schema,
-        start=start,
-        end=end,
-        limit=limit,
-    )
-
-
+if __name__ == "__main__":
+    main()
