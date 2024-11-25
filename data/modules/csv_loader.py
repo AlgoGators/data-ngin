@@ -1,10 +1,11 @@
 import pandas as pd
 import os
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, List
+from data.modules.loader import Loader
 
 
-class CSVLoader:
+class CSVLoader(Loader):
     """
     A Loader subclass that reads symbols and their asset types from a CSV file and validates them
     against the configuration settings.
@@ -27,6 +28,7 @@ class CSVLoader:
         Raises:
             KeyError: If the 'file_path' key is missing from the configuration.
         """
+        super().__init__(config=config)
         try:
             self.contract_path: str = config["loader"]["file_path"]
         except KeyError as e:
