@@ -5,11 +5,12 @@ import logging
 
 class Fetcher(ABC):
     """
-    Abstract base class for Fetcher modules that handle fetching financial data
+    Abstract base class for Fetcher modules responsible for retrieving financial data
     for validated symbols from various data providers.
 
     Attributes:
         config (Dict[str, Any]): Configuration settings loaded from config.yaml.
+        logger (logging.Logger): Logger for fetcher-specific logging.
     """
 
     def __init__(self, config: Dict[str, Any]) -> None:
@@ -20,12 +21,14 @@ class Fetcher(ABC):
             config (Dict[str, Any]): Configuration settings.
         
         Raises:
-            ValueError: If the configuration is invalid or incomplete.
+            ValueError: If the provided configuration is invalid or incomplete.
         """
+        if not isinstance(config, dict):
+            raise ValueError("Configuration must be a dictionary.")
+
         self.config: Dict[str, Any] = config
         self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
-        if not isinstance(self.config, dict):
-            raise ValueError("Configuration must be a dictionary.")
+        self.logger.setLevel(logging.INFO)
 
     @abstractmethod
     def fetch_data(self, symbol: str, start_date: str, end_date: str) -> List[Dict[str, Any]]:
@@ -39,5 +42,8 @@ class Fetcher(ABC):
 
         Returns:
             List[Dict[str, Any]]: A list of dictionaries, each representing a row of data.
+
+        Raises:
+            NotImplementedError: If the subclass does not implement this method.
         """
         pass
