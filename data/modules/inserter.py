@@ -11,7 +11,7 @@ class Inserter(ABC):
         connection (Any): Placeholder for the database connection object.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, config: Dict[str, str]) -> None:
         """
         Initializes the Inserter base class. Subclasses should initialize a connection.
         """

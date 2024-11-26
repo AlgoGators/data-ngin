@@ -23,6 +23,7 @@ class TestTimescaleDBInserter(unittest.TestCase):
         """
         self.inserter.connect()
         mock_connect.assert_called_once()
+        self.assertIsNotNone(self.inserter.connection)
 
     @patch("data.modules.timescaledb_inserter.psycopg2.connect")
     def test_insert_data(self, mock_connect: MagicMock) -> None:

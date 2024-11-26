@@ -18,17 +18,17 @@ class TimescaleDBInserter(Inserter):
         Initializes the TimescaleDBInserter with configuration settings.
 
         Args:
-            config (Dict[str, Any]): Configuration settings, including database credentials and table mappings.
+            config (Dict[str, Any]): Configuration settings.
         """
-        self.config = config
-        self.connection = None
+        super().__init__(config=config)
+        self.config: Dict[str, Any] = config
 
     def connect(self) -> None:
         """
         Establishes a connection to the TimescaleDB database.
 
         Raises:
-            psycopg2.OperationalError: If the connection to the database fails.
+            ConnectionError: If the connection to the database fails.
         """
         try:
             self.connection = psycopg2.connect(
@@ -53,12 +53,12 @@ class TimescaleDBInserter(Inserter):
 
         Raises:
             ValueError: If the data is empty.
-            psycopg2.DatabaseError: If the insertion into the database fails.
+            RuntimError: If the insertion into the database fails.
         """
         if not data:
             raise ValueError("No data provided for insertion.")
 
-        query = f"""
+        query: str = f"""
         INSERT INTO {schema}.{table} (time, symbol, open, high, low, close, volume)
         VALUES (%(time)s, %(symbol)s, %(open)s, %(high)s, %(low)s, %(close)s, %(volume)s)
         ON CONFLICT (time, symbol) DO NOTHING;
@@ -68,4 +68,13 @@ class TimescaleDBInserter(Inserter):
             with self.connection.cursor() as cursor:
                 cursor.executemany(query, data)
         except Exception as e:
+            self.connection.rollback()
             raise RuntimeError(f"Failed to insert data into {schema}.{table}: {e}")
+        
+    def close(self) -> None:
+        """
+        Closes the database connection if it is open.
+        """
+        if self.connection:
+            self.connection.close()
+            self.connection = None
