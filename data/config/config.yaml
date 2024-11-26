@@ -1,15 +1,11 @@
 # Data providers and associated configurations
 providers:
   databento:
-    supported_assets:
-      FUTURE: ["GLOBEX"]                  # Map asset types to datasets
-    datasets:
-      GLOBEX:
-        aggregation_levels: ["ohlcv-1d"]  # Available aggregation levels
-        schema_name: "futures_data"       # Schema name in database
-        table_prefix: "ohlcv_"            # Table prefix for TimescaleDB
-    roll_type: ["c"]
-    contract_type: ["front"]
+    supported_assets: "FUTURE"               # Map asset types to datasets
+    dataset: "GLBX.MDP3"
+    schema: "ohlcv-1d"                       # Schema from Databento
+    roll_type: "c"
+    contract_type: "front"
 
 # Loaders
 loader:
@@ -40,6 +36,7 @@ time_range:
 # Database configuration
 database:
   target_schema: "futures_data"           # Schema for storing futures data
+  table: "ohlcv_1d"
   
 # Supported assets and their types
 assets:

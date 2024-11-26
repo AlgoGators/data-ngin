@@ -50,12 +50,12 @@ class Orchestrator:
         try:
             logging.info(f"Fetching data for symbol: {symbol['dataSymbol']}")
             raw_data: List[Dict[str, Any]] = await self.fetcher.fetch_data(
-                symbol=symbol["dataSymbol"],
+                symbol=symbol.keys,
                 start_date=self.config["time_range"]["start_date"],
                 end_date=self.config["time_range"]["end_date"],
-                schema=self.config["providers"]["databento"]["datasets"]["GLOBEX"]["aggregation_levels"][0],
-                roll_type=self.config["providers"]["databento"]["roll_type"][0],
-                contract_type=self.config["providers"]["databento"]["contract_type"][0]
+                schema=self.config[["providers"]["databento"]["schema"]],
+                roll_type=self.config["providers"]["databento"]["roll_type"],
+                contract_type=self.config["providers"]["databento"]["contract_type"]
             )
 
             logging.info(f"Cleaning data for symbol: {symbol['dataSymbol']}")
@@ -65,7 +65,7 @@ class Orchestrator:
             self.inserter.insert_data(
                 data=cleaned_data,
                 schema=self.config["database"]["target_schema"],
-                table=self.config["providers"]["databento"]["datasets"]["GLOBEX"]["table_prefix"] + "1d"
+                table=self.config["database"]["table"]
             )
 
         except Exception as e:
@@ -76,12 +76,17 @@ class Orchestrator:
         Executes the data pipeline for all symbols asynchronously.
         """
         try:
-            # Step 1: Load metadata
+            # Load metadata
             logging.info("Loading metadata...")
-            symbols: List[Dict[str, str]] = self.loader.load_symbols(self.config["loader"]["file_path"])
+            symbols: Dict[str, str] = self.loader.load_symbols()
 
-            # Step 2: Fetch, clean, and insert data for all symbols concurrently
-            await asyncio.gather(*[self.fetch_data(symbol) for symbol in symbols])
+            # Fetch, clean, and insert data for all symbols concurrently
+            await asyncio.gather(
+                *[
+                    self.fetch_data({"dataSymbol": symbol, "instrumentType": asset_type})
+                    for symbol, asset_type in symbols.items()
+                ]
+            )
 
             logging.info("Pipeline execution completed successfully.")
 

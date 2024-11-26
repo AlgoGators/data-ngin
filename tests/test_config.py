@@ -52,10 +52,11 @@ class TestConfig(unittest.TestCase):
         """Test that essential fields exist in the 'databento' provider configuration."""
         databento = self.config["providers"]["databento"]
         self.assertIn("supported_assets", databento, "Supported assets missing for Databento")
-        self.assertIn("datasets", databento, "Databento datasets missing")
-        self.assertIn("GLOBEX", databento["datasets"], "GLOBEX dataset missing for Databento")
-        self.assertIn("aggregation_levels", databento["datasets"]["GLOBEX"], "Aggregation levels missing for GLOBEX")
-        self.assertIn("schema_name", databento["datasets"]["GLOBEX"], "Schema name missing for GLOBEX dataset")
+        self.assertIn("dataset", databento, "Databento datasets missing")
+        self.assertIn("schema", databento, "Schema missing for Databento")
+        self.assertIn("roll_type", databento, "Roll type missing for Databento")
+        self.assertIn("contract_type", databento, "Contract type missing for Databento")
+
 
     def test_database_section_exists(self) -> None:
         """Test that the 'database' section exists in the configuration."""

@@ -27,18 +27,16 @@ class TestIntegrationPipeline(unittest.IsolatedAsyncioTestCase):
             },
             "providers": {
                 "databento": {
-                    "datasets": {
-                        "GLOBEX": {
-                            "aggregation_levels": ["ohlcv-1d"],
-                            "table_prefix": "ohlcv_",
-                        }
-                    },
-                    "roll_type": ["c"],
-                    "contract_type": ["front"],
+                    "supported_assets": "FUTURE",
+                    "dataset": "GLBX.MDP3",
+                    "schema_name": "ohlcv-1d",
+                    "roll_type": "c",
+                    "contract_type": "front"
                 }
             },
             "database": {
-                "target_schema": "futures_data"
+                "target_schema": "futures_data",
+                "table": "ohlcv_1d"
             },
         }
 
@@ -57,9 +55,10 @@ class TestIntegrationPipeline(unittest.IsolatedAsyncioTestCase):
         if os.path.exists(self.temp_csv.name):
             os.remove(self.temp_csv.name)
 
-    @patch("data.modules.csv_loader.CSVLoader.load_symbols", return_value=[
-        {"dataSymbol": "ES"}, {"dataSymbol": "NQ"}
-    ])
+    @patch("data.modules.csv_loader.CSVLoader.load_symbols", 
+           return_value={
+                "ES": "FUTURE", 
+                "NQ": "FUTURE"})
     @patch("data.modules.databento_fetcher.DatabentoFetcher.fetch_data", new_callable=AsyncMock)
     @patch("data.modules.databento_cleaner.DatabentoCleaner.clean", return_value=[{"time": "2023-01-01"}])
     @patch("data.modules.timescaledb_inserter.TimescaleDBInserter.insert_data")
@@ -89,7 +88,7 @@ class TestIntegrationPipeline(unittest.IsolatedAsyncioTestCase):
         await orchestrator.run()
 
         # Verify loader was called
-        mock_load_symbols.assert_called_once_with(self.temp_csv.name)
+        mock_load_symbols.assert_called_once
 
         # Verify fetcher was called twice (once for each symbol)
         self.assertEqual(mock_fetch_data.call_count, 2)
