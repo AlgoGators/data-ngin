@@ -5,7 +5,6 @@ import pandas as pd
 from data.modules.databento_fetcher import DatabentoFetcher
 from typing import List, Dict, Any
 
-
 class TestDatabentoFetcher(unittest.IsolatedAsyncioTestCase):
     """
     Unit and integration tests for the DatabentoFetcher class.

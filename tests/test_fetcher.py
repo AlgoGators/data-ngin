@@ -1,5 +1,4 @@
 import unittest
-from unittest.mock import MagicMock
 from typing import List, Dict, Any
 from data.modules.fetcher import Fetcher
 

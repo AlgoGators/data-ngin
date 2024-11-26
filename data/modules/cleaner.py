@@ -78,7 +78,7 @@ class Cleaner(ABC):
             2. Handle missing or corrupt data.
             3. Transform data into the desired format.
         """
-        data = self.validate_fields(data)
-        data = self.handle_missing_data(data)
-        data = self.transform_data(data)
+        data: pd.DataFrame = self.validate_fields(data)
+        data: pd.DataFrame = self.handle_missing_data(data)
+        data: pd.DataFrame = self.transform_data(data)
         return data

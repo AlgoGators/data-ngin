@@ -4,7 +4,7 @@ import yaml
 import asyncio
 from typing import Dict, Any, List
 from dotenv import load_dotenv
-from utils.dynamic_loader import load_config, get_instance
+from utils.dynamic_loader import get_instance
 
 # Load environment variables
 load_dotenv()

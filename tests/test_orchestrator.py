@@ -14,7 +14,7 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
         """
         Set up mock configuration and patch dynamic imports.
         """
-        # Mock configuration
+        # Mock config
         self.mock_config: Dict[str, Any] = {
         "loader": {"class": "CSVLoader", "module": "csv_loader", "file_path": "contracts/contract.csv"},
         "fetcher": {"class": "DatabentoFetcher", "module": "databento_fetcher"},

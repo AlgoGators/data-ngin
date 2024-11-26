@@ -76,10 +76,10 @@ class DatabentoCleaner(Cleaner):
         """
         if self.config.get("drop_missing", True):
             logging.info("Dropping rows with missing values.")
-            data = data.dropna()
+            data: pd.DataFrame = data.dropna()
         else:
             logging.info("Filling missing values with defaults.")
-            data = data.fillna({
+            data: pd.DataFrame = data.fillna({
                 RequiredFields.OPEN.value: 0.0,
                 RequiredFields.HIGH.value: 0.0,
                 RequiredFields.LOW.value: 0.0,
@@ -103,7 +103,7 @@ class DatabentoCleaner(Cleaner):
         # Rename columns if needed
         if "date" in data.columns:
             logging.info("Renaming 'date' column to 'time'.")
-            data = data.rename(columns={"date": "time"})
+            data: pd.DataFrame = data.rename(columns={"date": "time"})
 
         # Convert timestamps to UTC
         logging.info("Converting timestamps to UTC.")

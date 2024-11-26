@@ -111,7 +111,7 @@ class DatabentoFetcher(Fetcher):
                 "low": float(row["low"]),
                 "close": float(row["close"]),
                 "volume": int(row["volume"]),
-                "symbol": row.get("symbol", None)  # Include symbol if needed for DB
+                "symbol": row.get("symbol", None)
             }
             for _, row in data.iterrows()
         ]
