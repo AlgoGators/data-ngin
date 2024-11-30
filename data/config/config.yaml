@@ -3,9 +3,9 @@ providers:
   databento:
     supported_assets: "FUTURE"               # Map asset types to datasets
     dataset: "GLBX.MDP3"
-    schema: "ohlcv-1d"                       # Schema from Databento
+    schema: "OHLCV_1D"                       # Schema from Databento
     roll_type: "c"
-    contract_type: "front"
+    contract_type: "0"
 
 # Loaders
 loader:

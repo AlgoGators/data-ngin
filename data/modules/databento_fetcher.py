@@ -9,8 +9,7 @@ from data.modules.fetcher import Fetcher
 
 class DatabentoFetcher(Fetcher):
     """
-    A Fetcher subclass for retrieving data from Databento's API, processing it,
-    and preparing it for insertion into TimescaleDB.
+    A Fetcher subclass for retrieving raw data from Databento's API.
     """
 
     def __init__(self, config: Dict[str, Any]) -> None:
@@ -18,7 +17,7 @@ class DatabentoFetcher(Fetcher):
         Initializes the DatabentoFetcher with API connection settings and configurations.
 
         Args:
-            config (Dict[str, Any]): Configuration settings, including API details.
+            config (Dict[str, Any]): Configuration settings.
         """
         super().__init__(config)
         self.api_key: str = os.getenv("DATABENTO_API_KEY")
@@ -29,6 +28,7 @@ class DatabentoFetcher(Fetcher):
     async def fetch_data(
         self,
         symbol: str,
+        dataset: str,
         start_date: str,
         end_date: str,
         schema: str = None,
@@ -50,9 +50,9 @@ class DatabentoFetcher(Fetcher):
         Returns:
             List[Dict[str, Any]]: List of dictionaries containing cleaned data ready for TimescaleDB insertion.
         """
-        schema = schema or self.config["providers"]["databento"]["datasets"]["GLOBEX"]["aggregation_levels"][0]
-        roll_type = roll_type or self.config["providers"]["databento"]["roll_type"][0]
-        contract_type = contract_type or self.config["providers"]["databento"]["contract_type"][0]
+        schema = schema or self.config["providers"]["databento"]["schema"]
+        roll_type = roll_type or self.config["providers"]["databento"]["roll_type"]
+        contract_type = contract_type or self.config["providers"]["databento"]["contract_type"]
 
         self.logger.info(f"Fetching data for {symbol} from {start_date} to {end_date}")
         symbols: str = f"{symbol}.{roll_type}.{contract_type}"
@@ -61,7 +61,7 @@ class DatabentoFetcher(Fetcher):
             # Fetch data
             data: db.Timeseries = await asyncio.to_thread(
                 self.client.timeseries.get_range,
-                dataset=self.config["providers"]["databento"]["datasets"]["GLOBEX"]["schema_name"],
+                dataset=dataset,
                 symbols=[symbols],
                 schema=db.Schema.from_str(schema),
                 start=start_date,
@@ -70,49 +70,10 @@ class DatabentoFetcher(Fetcher):
                 stype_out=db.SType.INSTRUMENT_ID,
             )
             self.logger.info(f"Data fetched successfully for {symbol}.")
-            
-            # Clean data
-            cleaned_data: List[Dict[str, Any]] = self.clean_data(data.to_df())
-            self.logger.info(f"Data cleaned successfully for {symbol}.")
-            return cleaned_data
+            return data.to_df()
 
         except Exception as e:
             self.logger.error(f"Error fetching data for {symbol}: {e}")
             raise
 
-    def clean_data(self, data: pd.DataFrame) -> List[Dict[str, Any]]:
-        """
-        Cleans and formats raw OHLCV data fetched from Databento.
-
-        Args:
-            data (pd.DataFrame): Raw data from Databento API.
-
-        Returns:
-            List[Dict[str, Any]]: Cleaned data as a list of dictionaries.
-
-        Raises:
-            ValueError: If required columns are missing in the data.
-        """
-        if data.empty:
-            self.logger.error("Received empty DataFrame for cleaning.")
-            raise ValueError("DataFrame is empty. Cannot clean data.")
-
-        required_columns = {"date", "open", "high", "low", "close", "volume"}
-        missing_columns = required_columns - set(data.columns)
-        if missing_columns:
-            self.logger.error(f"Missing columns in data: {missing_columns}")
-            raise ValueError(f"Missing columns in data: {missing_columns}")
-
-        cleaned_data: List[Dict[str, Any]] = [
-            {
-                "time": row["date"],
-                "open": float(row["open"]),
-                "high": float(row["high"]),
-                "low": float(row["low"]),
-                "close": float(row["close"]),
-                "volume": int(row["volume"]),
-                "symbol": row.get("symbol", None)
-            }
-            for _, row in data.iterrows()
-        ]
-        return cleaned_data
+    

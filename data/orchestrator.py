@@ -48,12 +48,11 @@ class Orchestrator:
             symbol (Dict[str, str]): Metadata for the symbol (e.g., from contract.csv).
         """
         try:
-            logging.info(f"Fetching data for symbol: {symbol['dataSymbol']}")
             raw_data: List[Dict[str, Any]] = await self.fetcher.fetch_data(
-                symbol=symbol.keys,
+                symbol=symbol['dataSymbol'],
                 start_date=self.config["time_range"]["start_date"],
                 end_date=self.config["time_range"]["end_date"],
-                schema=self.config[["providers"]["databento"]["schema"]],
+                schema=self.config["providers"]["databento"]["schema"],
                 roll_type=self.config["providers"]["databento"]["roll_type"],
                 contract_type=self.config["providers"]["databento"]["contract_type"]
             )
@@ -80,14 +79,11 @@ class Orchestrator:
             logging.info("Loading metadata...")
             symbols: Dict[str, str] = self.loader.load_symbols()
 
-            # Fetch, clean, and insert data for all symbols concurrently
-            await asyncio.gather(
-                *[
-                    self.fetch_data({"dataSymbol": symbol, "instrumentType": asset_type})
-                    for symbol, asset_type in symbols.items()
-                ]
-            )
-
+    
+            await asyncio.gather(*[
+                self.fetch_data({"dataSymbol": symbol, "instrumentType": asset_type})
+                for symbol, asset_type in symbols.items()
+            ])
             logging.info("Pipeline execution completed successfully.")
 
         except Exception as e:

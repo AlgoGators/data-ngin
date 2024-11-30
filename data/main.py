@@ -3,6 +3,13 @@ import asyncio
 from utils.dynamic_loader import load_config
 from data.orchestrator import Orchestrator
 
+"""
+TO-DO:
+- Some symbols from contract.csv aren't in CME dataset
+- Remove checking for 'date' or reevaluate how DB gives raw data (might
+use different column name for date)
+"""
+
 def main() -> None:
     """
     Main entry point for the data pipeline.

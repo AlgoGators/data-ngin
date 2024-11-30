@@ -22,27 +22,31 @@ class TestDatabentoFetcher(unittest.IsolatedAsyncioTestCase):
         A mock configuration is created with a fake API key and dataset.
         This configuration is passed to the DatabentoFetcher for testing.
         """
-        self.config: Dict[str, Any] = {
-        "providers": {
-            "databento": {
-                "datasets": {
-                    "GLOBEX": {
-                        "schema_name": "GLBX.MDP3",
-                        "aggregation_levels": ["ohlcv-1d"],
-                        "table_prefix": "ohlcv_",
-                    }
-                },
-                "roll_type": ["c"],
-                "contract_type": ["front"],
-            }
-        },
-        "time_range": {
-            "start_date": "2023-01-01",
-            "end_date": "2023-01-02",
-        },
-    }
+        self.mock_config: Dict[str, Any] = {
+            "loader": {"class": "CSVLoader", "module": "csv_loader", "file_path": ""},
+            "fetcher": {"class": "DatabentoFetcher", "module": "databento_fetcher"},
+            "cleaner": {"class": "DatabentoCleaner", "module": "databento_cleaner"},
+            "inserter": {"class": "TimescaleDBInserter", "module": "timescaledb_inserter"},
+            "time_range": {
+                "start_date": "2023-01-01",
+                "end_date": "2023-01-02",
+            },
+            "providers": {
+                "databento": {
+                    "supported_assets": "FUTURE",
+                    "dataset": "GLBX.MDP3",
+                    "schema": "ohlcv-1d",
+                    "roll_type": "c",
+                    "contract_type": "0"
+                }
+            },
+            "database": {
+                "target_schema": "futures_data",
+                "table": "ohlcv_1d"
+            },
+        }
 
-        self.fetcher: DatabentoFetcher = DatabentoFetcher(config=self.config)
+        self.fetcher: DatabentoFetcher = DatabentoFetcher(config=self.mock_config)
 
     async def test_fetch_data(self) -> None:
         """
@@ -63,7 +67,7 @@ class TestDatabentoFetcher(unittest.IsolatedAsyncioTestCase):
 
             # Mock the `timeseries.get_range` response
             mock_client_instance.timeseries.get_range.return_value.to_df.return_value = pd.DataFrame({
-                "date": ["2023-01-01", "2023-01-02"],
+                "time": ["2023-01-01", "2023-01-02"],
                 "open": [100.5, 101.0],
                 "high": [101.0, 102.0],
                 "low": [99.5, 100.0],
@@ -73,71 +77,38 @@ class TestDatabentoFetcher(unittest.IsolatedAsyncioTestCase):
             })
 
             # Reinitialize DatabentoFetcher after applying the mock
-            fetcher: DatabentoFetcher = DatabentoFetcher(config=self.config)
+            fetcher: DatabentoFetcher = DatabentoFetcher(config=self.mock_config)
 
             # Call the method under test
             result: List[Dict[str, Any]] = await fetcher.fetch_data(
                 symbol="ES",
-                start_date="2023-01-01",
-                end_date="2023-01-02",
-                schema="ohlcv-1d",
-                roll_type="c",
-                contract_type="front"
+                dataset=self.mock_config["providers"]["databento"]["dataset"],
+                start_date=self.mock_config["time_range"]["start_date"],
+                end_date=self.mock_config["time_range"]["end_date"],
+                schema=self.mock_config["providers"]["databento"]["schema"],
+                roll_type=self.mock_config["providers"]["databento"]["roll_type"],
+                contract_type=self.mock_config["providers"]["databento"]["contract_type"],
             )
 
             # Define expected cleaned data
-            expected_result: List[Dict[str, Any]] = [
+            expected_result: pd.DataFrame = pd.DataFrame( [
                 {"time": "2023-01-01", "open": 100.5, "high": 101.0, "low": 99.5, "close": 100.0, "volume": 1500, "symbol": "ES"},
                 {"time": "2023-01-02", "open": 101.0, "high": 102.0, "low": 100.0, "close": 101.5, "volume": 1600, "symbol": "ES"}
-            ]
+            ])
 
-            # Assert the returned data matches the expected cleaned result
-            self.assertEqual(result, expected_result)
+            # Assert the returned data matches the expected result
+            self.assertTrue(expected_result.equals(result))
 
             # Verify the mocked API was called with the correct arguments
             mock_client_instance.timeseries.get_range.assert_called_once_with(
                 dataset="GLBX.MDP3",
-                symbols=["ES.c.front"],
+                symbols=["ES.c.0"],
                 schema="ohlcv-1d",
                 start="2023-01-01",
                 end="2023-01-02",
                 stype_in="continuous",
                 stype_out="instrument_id",
             )
-
-    def test_clean_data(self) -> None:
-        """
-        Test the `clean_data` method to ensure proper cleaning of raw data.
-
-        This test validates:
-        - Handling of valid data.
-        - Conversion of raw data into the cleaned, structured format.
-
-        Assertions:
-            - Cleaned data matches the expected result.
-        """
-        # Define raw data simulating Databento API response
-        raw_data: pd.DataFrame = pd.DataFrame({
-            "date": [datetime(2023, 1, 1), datetime(2023, 1, 2)],
-            "open": [100.5, 101.0],
-            "high": [101.0, 102.0],
-            "low": [99.5, 100.0],
-            "close": [100.0, 101.5],
-            "volume": [1500, 1600],
-            "symbol": ["ES", "ES"]
-        })
-
-        # Define expected cleaned data
-        expected_cleaned_data: List[Dict[str, Any]] = [
-            {"time": datetime(2023, 1, 1), "open": 100.5, "high": 101.0, "low": 99.5, "close": 100.0, "volume": 1500, "symbol": "ES"},
-            {"time": datetime(2023, 1, 2), "open": 101.0, "high": 102.0, "low": 100.0, "close": 101.5, "volume": 1600, "symbol": "ES"}
-        ]
-
-        # Call the method under test
-        result: List[Dict[str, Any]] = self.fetcher.clean_data(raw_data)
-
-        # Assert the cleaned data matches the expected result
-        self.assertEqual(result, expected_cleaned_data)
 
     async def test_fetch_data_error_handling(self) -> None:
         """
@@ -158,17 +129,18 @@ class TestDatabentoFetcher(unittest.IsolatedAsyncioTestCase):
             mock_client_instance.timeseries.get_range.side_effect = Exception("API error")
 
             # Reinitialize DatabentoFetcher after applying the mock
-            fetcher: DatabentoFetcher = DatabentoFetcher(config=self.config)
+            fetcher: DatabentoFetcher = DatabentoFetcher(config=self.mock_config)
 
             # Use `assertRaises` to verify exception handling
             with self.assertRaises(Exception) as context:
                 await fetcher.fetch_data(
                     symbol="ES",
-                    start_date="2023-01-01",
-                    end_date="2023-01-02",
-                    schema="ohlcv-1d",
-                    roll_type="c",
-                    contract_type="front"
+                    dataset=self.mock_config["providers"]["databento"]["dataset"],
+                    start_date=self.mock_config["time_range"]["start_date"],
+                    end_date=self.mock_config["time_range"]["end_date"],
+                    schema=self.mock_config["providers"]["databento"]["schema"],
+                    roll_type=self.mock_config["providers"]["databento"]["roll_type"],
+                    contract_type=self.mock_config["providers"]["databento"]["contract_type"],
                 )
 
             # Assert the exception message matches the simulated API error

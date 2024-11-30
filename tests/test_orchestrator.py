@@ -28,7 +28,7 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
                 "databento": {
                     "supported_assets": "FUTURE",
                     "dataset": "GLBX.MDP3",
-                    "schema_name": "ohlcv-1d",
+                    "schema": "ohlcv-1d",
                     "roll_type": "c",
                     "contract_type": "front"
                 }
@@ -133,7 +133,7 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
             symbol="ES",
             start_date=self.mock_config["time_range"]["start_date"],
             end_date=self.mock_config["time_range"]["end_date"],
-            schema=self.mock_config["providers"]["databento"]["schema_name"],
+            schema=self.mock_config["providers"]["databento"]["schema"],
             roll_type=self.mock_config["providers"]["databento"]["roll_type"],
             contract_type=self.mock_config["providers"]["databento"]["contract_type"],
         )

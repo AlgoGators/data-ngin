@@ -29,7 +29,7 @@ class TestIntegrationPipeline(unittest.IsolatedAsyncioTestCase):
                 "databento": {
                     "supported_assets": "FUTURE",
                     "dataset": "GLBX.MDP3",
-                    "schema_name": "ohlcv-1d",
+                    "schema": "ohlcv-1d",
                     "roll_type": "c",
                     "contract_type": "front"
                 }
