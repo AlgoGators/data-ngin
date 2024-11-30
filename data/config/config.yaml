@@ -1,9 +1,9 @@
 # Data providers and associated configurations
 providers:
   databento:
-    supported_assets: "FUTURE"               # Map asset types to datasets
+    supported_assets: "FUTURE"               
     dataset: "GLBX.MDP3"
-    schema: "OHLCV_1D"                       # Schema from Databento
+    schema: "OHLCV_1D"                       
     roll_type: "c"
     contract_type: "0"
 
@@ -11,7 +11,7 @@ providers:
 loader:
   class: "CSVLoader"
   module: "csv_loader"
-  file_path: "contracts/contract.csv"
+  file_path: "contracts/contract_valid.csv"
 
 # Fetchers
 fetcher:
@@ -30,12 +30,12 @@ inserter:
 
 # Time range for data fetching
 time_range:
-  start_date: "2023-01-01"                # Start date for fetching data
-  end_date: "2023-01-31"                  # End date for fetching data
+  start_date: "2023-01-01"                
+  end_date: "2023-01-31"                  
 
 # Database configuration
 database:
-  target_schema: "futures_data"           # Schema for storing futures data
+  target_schema: "futures_data"           
   table: "ohlcv_1d"
   
 # Supported assets and their types
