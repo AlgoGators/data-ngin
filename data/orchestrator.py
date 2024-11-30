@@ -50,6 +50,7 @@ class Orchestrator:
         try:
             raw_data: List[Dict[str, Any]] = await self.fetcher.fetch_data(
                 symbol=symbol['dataSymbol'],
+                dataset=self.config['providers']['databento']['dataset'],
                 start_date=self.config["time_range"]["start_date"],
                 end_date=self.config["time_range"]["end_date"],
                 schema=self.config["providers"]["databento"]["schema"],
@@ -61,6 +62,7 @@ class Orchestrator:
             cleaned_data: List[Dict[str, Any]] = self.cleaner.clean(raw_data)
 
             logging.info(f"Inserting data for symbol: {symbol['dataSymbol']}")
+            self.inserter.connect()
             self.inserter.insert_data(
                 data=cleaned_data,
                 schema=self.config["database"]["target_schema"],

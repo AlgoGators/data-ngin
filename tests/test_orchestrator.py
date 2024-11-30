@@ -131,6 +131,7 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
         # Verify the fetcher was called with the expected arguments
         mock_fetch.assert_called_once_with(
             symbol="ES",
+            dataset=self.mock_config['providers']['databento']['dataset'],
             start_date=self.mock_config["time_range"]["start_date"],
             end_date=self.mock_config["time_range"]["end_date"],
             schema=self.mock_config["providers"]["databento"]["schema"],

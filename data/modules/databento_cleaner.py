@@ -94,6 +94,11 @@ class DatabentoCleaner(Cleaner):
         Raises:
             ValueError: If required fields are missing.
         """
+
+        # Reset index if needed
+        if "ts_event" in data.index.names:
+            data = data.reset_index()
+
         # Rename columns if needed
         if "ts_event" in data.columns:
             data: pd.DataFrame = data.rename(columns={"ts_event": "time"})
@@ -143,9 +148,9 @@ class DatabentoCleaner(Cleaner):
 
         # Convert timestamps to UTC
         logging.info("Converting timestamps to UTC.")
-        if pd.api.types.is_datetime64tz_dtype(data["time"]):
+        if isinstance(data["time"].dtype, pd.DatetimeTZDtype):
             # If already tz-aware, use tz_convert
-            data["time"] = pd.to_datetime(data["time"]).dt.tz_convert("UTC")
+            data["time"] = data["time"].dt.tz_convert("UTC")
         else:
             # If not tz-aware, localize to UTC
             data["time"] = pd.to_datetime(data["time"]).dt.tz_localize("UTC")

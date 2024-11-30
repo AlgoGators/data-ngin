@@ -40,6 +40,7 @@ class TimescaleDBInserter(Inserter):
             )
             self.connection.autocommit = True
         except psycopg2.OperationalError as e:
+            self.connection = None
             raise ConnectionError(f"Failed to connect to TimescaleDB: {e}")
 
     def insert_data(self, data: List[Dict[str, Any]], schema: str, table: str) -> None:
@@ -55,6 +56,8 @@ class TimescaleDBInserter(Inserter):
             ValueError: If the data is empty.
             RuntimError: If the insertion into the database fails.
         """
+        if not self.connection:
+            raise RuntimeError("Database connection is not established.")
         if not data:
             raise ValueError("No data provided for insertion.")
 

@@ -94,6 +94,7 @@ class TestIntegrationPipeline(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(mock_fetch_data.call_count, 2)
         mock_fetch_data.assert_any_call(
             symbol="ES",
+            dataset='GLBX.MDP3',
             start_date="2023-01-01",
             end_date="2023-01-02",
             schema="ohlcv-1d",
@@ -102,6 +103,7 @@ class TestIntegrationPipeline(unittest.IsolatedAsyncioTestCase):
         )
         mock_fetch_data.assert_any_call(
             symbol="NQ",
+            dataset='GLBX.MDP3',
             start_date="2023-01-01",
             end_date="2023-01-02",
             schema="ohlcv-1d",
