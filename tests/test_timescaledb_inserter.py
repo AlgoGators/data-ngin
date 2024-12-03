@@ -56,6 +56,64 @@ class TestTimescaleDBInserter(unittest.TestCase):
         data
         )
 
+    @patch("psycopg2.connect")
+    def test_get_date_range(self, mock_connect: MagicMock) -> None:
+        """
+        Test the get_date_range method.
+        """
+        # Mock database connection and cursor
+        mock_cursor = MagicMock()
+        mock_connect.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+        # Mock query result
+        mock_cursor.fetchone.return_value = ["2023-01-01", "2023-12-31"]
+
+        # Initialize inserter
+        config = {"database": {"target_schema": "futures_data", "table": "ohlcv_1d"}}
+        inserter = TimescaleDBInserter(config)
+        inserter.connect()
+
+        # Call the method
+        result = inserter.get_date_range("futures_data", "ohlcv_1d")
+
+        # Assertions
+        self.assertEqual(result, ("2023-01-01", "2023-12-31"))
+        mock_cursor.execute.assert_called_once_with("""
+        SELECT 
+            MIN(time) AS earliest_date,
+            MAX(time) AS latest_date
+        FROM futures_data.ohlcv_1d;
+        """.strip())
+
+    @patch("psycopg2.connect")
+    def test_get_date_range_empty_table(self, mock_connect: MagicMock) -> None:
+        """
+        Test the get_date_range method for an empty table.
+        """
+        # Mock database connection and cursor
+        mock_cursor = MagicMock()
+        mock_connect.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+        # Mock empty result
+        mock_cursor.fetchone.return_value = [None, None]
+
+        # Initialize inserter
+        config = {"database": {"target_schema": "futures_data", "table": "ohlcv_1d"}}
+        inserter = TimescaleDBInserter(config)
+        inserter.connect()
+
+        # Call the method
+        result = inserter.get_date_range("futures_data", "ohlcv_1d")
+
+        # Assertions
+        self.assertIsNone(result)
+        mock_cursor.execute.assert_called_once_with("""
+        SELECT 
+            MIN(time) AS earliest_date,
+            MAX(time) AS latest_date
+        FROM futures_data.ohlcv_1d;
+        """.strip())
+
 
 if __name__ == "__main__":
     unittest.main()

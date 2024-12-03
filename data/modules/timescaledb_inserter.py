@@ -1,7 +1,8 @@
 import os
 import psycopg2
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Tuple
 from data.modules.inserter import Inserter
+import logging
 
 
 class TimescaleDBInserter(Inserter):
@@ -22,6 +23,8 @@ class TimescaleDBInserter(Inserter):
         """
         super().__init__(config=config)
         self.config: Dict[str, Any] = config
+        self.connection = None
+        self.logger = logging.getLogger(self.__class__.__name__)
 
     def connect(self) -> None:
         """
@@ -70,6 +73,7 @@ class TimescaleDBInserter(Inserter):
         try:
             with self.connection.cursor() as cursor:
                 cursor.executemany(query, data)
+            self.logger.info(f"Inserted {len(data)} rows into {schema}.{table}")
         except Exception as e:
             self.connection.rollback()
             raise RuntimeError(f"Failed to insert data into {schema}.{table}: {e}")
@@ -81,3 +85,40 @@ class TimescaleDBInserter(Inserter):
         if self.connection:
             self.connection.close()
             self.connection = None
+
+    def get_date_range(self, schema: str, table: str) -> Optional[Tuple[str, str]]:
+        """
+        Retrieves the earliest and latest dates from the specified schema and table.
+
+        Args:
+            schema (str): The schema name (e.g., 'futures_data').
+            table (str): The table name (e.g., 'ohlcv_1d').
+
+        Returns:
+            Optional[Tuple[str, str]]: A tuple containing the earliest and latest dates in 'YYYY-MM-DD' format,
+            or None if the table is empty.
+        """
+        query: str = f"""
+        SELECT 
+            MIN(time) AS earliest_date,
+            MAX(time) AS latest_date
+        FROM {schema}.{table};
+        """.strip()
+
+        try:
+            connection: psycopg2.extensions.connection = self.connection
+            with connection.cursor() as cursor:  # Cursor type is inferred by psycopg2
+                cursor.execute(query)
+                result: Optional[Tuple[Optional[str], Optional[str]]] = cursor.fetchone()
+
+            # If result contains valid dates, return them directly
+            if result and result[0] and result[1]:
+                earliest_date: str = result[0]
+                latest_date: str = result[1]
+                return earliest_date, latest_date
+
+            # If no dates are found, return None
+            return None
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to retrieve date range from {schema}.{table}: {e}")

@@ -7,6 +7,10 @@ from data.orchestrator import Orchestrator
 def main() -> None:
     """
     Main entry point for the data pipeline.
+
+    TO-DO:
+    - Create file for interacting with database and pulling data (look into ORMs)
+    - Dockerize and implement Airflow
     """
     # Configure logging
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
