@@ -10,6 +10,7 @@ def main() -> None:
 
     TO-DO:
     - Create file for interacting with database and pulling data (look into ORMs)
+    - Change OHLCV class to to handle more than just _1d
     - Dockerize and implement Airflow
     """
     # Configure logging

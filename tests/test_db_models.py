@@ -25,6 +25,7 @@ class TestDBModels(unittest.TestCase):
         try:
             Base.metadata.create_all(cls.engine)  # Ensure all tables are created
             logging.info("All tables created successfully.")
+            logging.info(f"Engine connected to: {cls.engine}")
         except Exception as e:
             logging.error(f"Error creating tables: {e}")
             raise
@@ -36,7 +37,6 @@ class TestDBModels(unittest.TestCase):
         This method runs once after all tests in this class.
         """
         cls.session.close()
-        Base.metadata.drop_all(cls.engine)
 
     def setUp(self) -> None:
         """
@@ -66,7 +66,7 @@ class TestDBModels(unittest.TestCase):
         Test that the `ohlcv` table exists in the database.
         """
         inspector = inspect(self.engine)
-        tables: List[str] = inspector.get_table_names()
+        tables: List[str] = inspector.get_table_names(schema="futures_data")
         print(tables)
         self.assertIn("ohlcv_1d", tables, "The `ohlcv_1d` table was not found in the database.")
 
@@ -75,24 +75,26 @@ class TestDBModels(unittest.TestCase):
         Test the `OHLCV` model schema for correct columns and types.
         """
         inspector = inspect(self.engine)
-        print(inspector.get_table_names())
-        if "ohlcv_1d" not in inspector.get_table_names():
-            self.fail("The `ohlcv_1d` table does not exist in the database.")
+        tables: List[str] = inspector.get_table_names(schema="futures_data")
+        print(f"Tables found: {tables}")
 
-        columns: Dict[str, str] = {col["name"]: col["type"] for col in inspector.get_columns("ohlcv")}
+        
+        self.assertIn("ohlcv_1d", tables, "The `ohlcv_1d` table was not found in the database.")
+
+        columns: Dict[str, str] = {col["name"]: col["type"] for col in inspector.get_columns("ohlcv_1d", schema="futures_data")}
         expected_columns: Dict[str, str] = {
             "time": "TIMESTAMP",
             "symbol": "VARCHAR",
-            "open": "FLOAT",
-            "high": "FLOAT",
-            "low": "FLOAT",
-            "close": "FLOAT",
+            "open": "DOUBLE PRECISION",
+            "high": "DOUBLE PRECISION",
+            "low": "DOUBLE PRECISION",
+            "close": "DOUBLE PRECISION",
             "volume": "INTEGER",
         }
 
         for column, col_type in expected_columns.items():
             self.assertIn(column, columns, f"Column `{column}` is missing from the `ohlcv` table.")
-            self.assertEqual(str(columns[column]), col_type, f"Column `{column}` has an incorrect type.")
+            self.assertEqual(str(columns[column]), col_type, f"Column `{column}` type mismatch: expected {col_type}, got {columns[column]}.")
 
     def test_insert_ohlcv(self) -> None:
         """
