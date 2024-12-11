@@ -24,7 +24,7 @@ class TestDatabaseConnection(unittest.TestCase):
             ConnectionError: If the database connection fails.
         """
         try:
-            cls.conn: psycopg2.extensions.connection = psycopg2.connect(
+            cls.conn = psycopg2.connect(
                 dbname=os.getenv("DB_NAME"),
                 user=os.getenv("DB_USER"),
                 password=os.getenv("DB_PASSWORD"),
