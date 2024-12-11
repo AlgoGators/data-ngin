@@ -7,10 +7,6 @@ from typing import Dict, Any, Optional
 from dotenv import load_dotenv
 import os
 
-
-# Load environment variables from .env file
-load_dotenv()
-
 # Base class for SQLAlchemy models
 Base = declarative_base()
 
@@ -58,6 +54,9 @@ def get_engine() -> Engine:
     Raises:
         ValueError: If any required environment variable is missing.
     """
+    # Load environment variables from .env file
+    load_dotenv()
+
     # Retrieve database connection parameters from environment variables
     db_user: Optional[str] = os.getenv("DB_USER")
     db_password: Optional[str] = os.getenv("DB_PASSWORD")
