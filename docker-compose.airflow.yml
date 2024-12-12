@@ -1,0 +1,58 @@
+services:
+  postgres_db:
+    image: postgres:16
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: "${DB_USER}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+      POSTGRES_DB: "${DB_NAME}"
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  airflow-init:
+    image: apache/airflow:2.10.3
+    container_name: airflow-init
+    depends_on:
+      - postgres_db
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@postgres_db:5432/${DB_NAME}
+    volumes:
+      - airflow_data:/opt/airflow
+    command: 
+      bash -c "airflow db migrate &&
+               airflow connections create-default-connections"
+
+  airflow-webserver:
+    image: apache/airflow:2.10.3
+    container_name: airflow-webserver
+    restart: always
+    depends_on:
+      - airflow-init
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@postgres_db:5432/${DB_NAME}
+    ports:
+      - "8080:8080"
+    volumes:
+      - airflow_data:/opt/airflow
+
+  airflow-scheduler:
+    image: apache/airflow:2.10.3
+    container_name: airflow-scheduler
+    restart: always
+    depends_on:
+      - airflow-init
+      - airflow-webserver
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@postgres_db:5432/${DB_NAME}
+    volumes:
+      - airflow_data:/opt/airflow
+
+volumes:
+  db_data:
+  airflow_data:
