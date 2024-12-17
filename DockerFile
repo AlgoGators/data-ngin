@@ -1,33 +1,29 @@
-# Use a slim version of Python 3.11
-FROM python:3.11-slim
+FROM apache/airflow:2.10.3-python3.11
 
-# Environment Variables
-ENV PYTHONUNBUFFERED=1 \
-    POETRY_HOME="/opt/poetry" \
-    POETRY_VERSION=1.8.2 \
-    PATH="/opt/poetry/bin:$PATH"
+# Set Poetry home so it installs globally (not in root's home dir)
+ENV POETRY_HOME=/opt/poetry
+ENV PATH="$POETRY_HOME/bin:$PATH"
 
-# Install system dependencies and Poetry
-RUN apt-get update && apt-get install -y \
-    curl git build-essential libpq-dev && \
-    curl -sSL https://install.python-poetry.org | POETRY_HOME=/opt/poetry python3 - --version $POETRY_VERSION && \
+USER root
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y curl git build-essential libpq-dev && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
-WORKDIR /app
+# Install Poetry
+RUN curl -sSL https://install.python-poetry.org | python3 -
 
-# Copy only the necessary project files for dependency installation
+# Now switch to the airflow user
+USER airflow
+WORKDIR /opt/airflow
+
+# Copy and install project dependencies
 COPY pyproject.toml poetry.lock* ./
+RUN poetry config virtualenvs.create false && \
+    poetry install --no-interaction --no-ansi --only main
 
-# Install dependencies with Poetry
-RUN poetry config virtualenvs.create false \
-    && poetry install --no-interaction --no-ansi
+# Copy the entire project
+COPY . /opt/airflow/data_engine
+ENV PYTHONPATH=/opt/airflow/data_engine
 
-# Copy the rest of the project files
-COPY . .
-
-# Set the PYTHONPATH to include the "data" directory
-ENV PYTHONPATH="/app"
-
-# Default command to run the application
-CMD ["poetry", "run", "python", "-m", "data.main"]
+EXPOSE 8080
