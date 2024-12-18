@@ -1,53 +1,52 @@
-# Data providers and associated configurations
-providers:
-  databento:
-    supported_assets: "FUTURE"               
-    dataset: "GLBX.MDP3"
-    schema: "OHLCV_1D"                       
-    roll_type: "c"
-    contract_type: "0"
-
-# Loaders
+# Global components configuration
 loader:
   class: "CSVLoader"
   module: "csv_loader"
   file_path: "/opt/airflow/data_engine/contracts/contract_valid.csv" # Change to contracts/contract_valid.csv if running locally
 
-# Fetchers
-fetcher:
-  class: "DatabentoFetcher"
-  module: "databento_fetcher"
-
-# Cleaners
-cleaner:
-  class: "DatabentoCleaner"
-  module: "databento_cleaner"
-
-# Inserters
 inserter:
   class: "TimescaleDBInserter"
   module: "timescaledb_inserter"
 
-# Time range for data fetching
-time_range:
-  start_date: "2024-12-16"                
-  end_date: "2024-12-16"                  
+fetcher:
+  class: "DatabentoFetcher"
+  module: "databento_fetcher"
+
+cleaner:
+  class: "DatabentoCleaner"
+  module: "databento_cleaner"
+
+# Data provider configuration
+provider:
+  name: "databento"
+  asset: "FUTURE"                   # FUTURE, EQUITY, OPTION
+  dataset: "GLBX.MDP3"              
+  schema: "OHLCV_1D"
+  roll_type: "c"                    # Calendar = c, Open Interest = n, Volume = v
+  contract_type: "0"                # AKA Rank: 0 = front, 1 = second, 2 = third, etc.
 
 # Database configuration
 database:
   target_schema: "futures_data"           
   table: "ohlcv_1d"
-  
-# Supported assets and their types
-assets:
-  - FUTURE
-  - OPTION
 
-# Logging and data management options
+# Time range for data fetching YYYY-MM-DD (Leave empty to fetch missing data)
+time_range:
+  start_date: ""                
+  end_date: ""
+
+# Options to handle missing data
+missing_data:
+  forward_fill: "False"
+  backward_fill: "False"            
+  interpolate: "False"
+  drop_nan: "True"
+  zero_fill: "False"
+  mean_fill: "False"
+  median_fill: "False"
+  custom_fill: "False"
+  custom_value: "0"
+
+# Logging options
 logging:
-  level: "INFO"                           # Log level (DEBUG, INFO, WARNING)
-
-# Data processing settings
-data_processing:
-  cache_results: true                     # Whether to cache results locally
-  sort_by_time: true                      # Whether to sort fetched data by timestamp
+  level: "INFO"                           

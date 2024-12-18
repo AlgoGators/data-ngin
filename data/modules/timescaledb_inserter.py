@@ -22,7 +22,6 @@ class TimescaleDBInserter(Inserter):
             config (Dict[str, Any]): Configuration settings.
         """
         super().__init__(config=config)
-        self.config: Dict[str, Any] = config
         self.connection = None
         self.logger = logging.getLogger(self.__class__.__name__)
 
@@ -46,7 +45,7 @@ class TimescaleDBInserter(Inserter):
             self.connection = None
             raise ConnectionError(f"Failed to connect to TimescaleDB: {e}")
 
-    def insert_data(self, data: List[Dict[str, Any]], schema: str, table: str) -> None:
+    def insert_data(self, data: List[Dict[str, Any]]) -> None:
         """
         Inserts cleaned data into the specified TimescaleDB table.
 
@@ -63,6 +62,9 @@ class TimescaleDBInserter(Inserter):
             raise RuntimeError("Database connection is not established.")
         if not data:
             raise ValueError("No data provided for insertion.")
+        
+        schema: str = self.config["database"]["target_schema"]
+        table: str = self.config["database"]["table"]
 
         query: str = f"""
         INSERT INTO {schema}.{table} (time, symbol, open, high, low, close, volume)
@@ -85,40 +87,3 @@ class TimescaleDBInserter(Inserter):
         if self.connection:
             self.connection.close()
             self.connection = None
-
-    def get_date_range(self, schema: str, table: str) -> Optional[Tuple[str, str]]:
-        """
-        Retrieves the earliest and latest dates from the specified schema and table.
-
-        Args:
-            schema (str): The schema name (e.g., 'futures_data').
-            table (str): The table name (e.g., 'ohlcv_1d').
-
-        Returns:
-            Optional[Tuple[str, str]]: A tuple containing the earliest and latest dates in 'YYYY-MM-DD' format,
-            or None if the table is empty.
-        """
-        query: str = f"""
-        SELECT 
-            MIN(time) AS earliest_date,
-            MAX(time) AS latest_date
-        FROM {schema}.{table};
-        """.strip()
-
-        try:
-            connection: psycopg2.extensions.connection = self.connection
-            with connection.cursor() as cursor:  # Cursor type is inferred by psycopg2
-                cursor.execute(query)
-                result: Optional[Tuple[Optional[str], Optional[str]]] = cursor.fetchone()
-
-            # If result contains valid dates, return them directly
-            if result and result[0] and result[1]:
-                earliest_date: str = result[0]
-                latest_date: str = result[1]
-                return earliest_date, latest_date
-
-            # If no dates are found, return None
-            return None
-
-        except Exception as e:
-            raise RuntimeError(f"Failed to retrieve date range from {schema}.{table}: {e}")

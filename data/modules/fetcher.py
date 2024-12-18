@@ -19,13 +19,7 @@ class Fetcher(ABC):
 
         Args:
             config (Dict[str, Any]): Configuration settings.
-        
-        Raises:
-            ValueError: If the provided configuration is invalid or incomplete.
         """
-        if not isinstance(config, dict):
-            raise ValueError("Configuration must be a dictionary.")
-
         self.config: Dict[str, Any] = config
         self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
         self.logger.setLevel(logging.INFO)

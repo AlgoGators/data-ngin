@@ -15,6 +15,7 @@ class Inserter(ABC):
         """
         Initializes the Inserter base class. Subclasses should initialize a connection.
         """
+        self.config: Dict[str, str] = config
         self.connection: Any = None
 
     @abstractmethod
