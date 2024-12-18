@@ -130,14 +130,17 @@ class DatabentoCleaner(Cleaner):
         Returns:
             pd.DataFrame: The data after handling missing values.
         """
+        # Get numeric columns
+        numeric_columns = data.select_dtypes(include=['int64', 'float64']).columns
+
         method_switch = {
             "drop_nan": lambda d: d.dropna(),
-            "forward_fill": lambda d: d.fillna(method="ffill"),
-            "backward_fill": lambda d: d.fillna(method="bfill"),
-            "interpolate": lambda d: d.interpolate(),
+            "forward_fill": lambda d: d.ffill(),
+            "backward_fill": lambda d: d.bfill(),
+            "interpolate": lambda d: d.infer_objects().interpolate(),
             "zero_fill": lambda d: d.fillna(0),
-            "mean_fill": lambda d: d.fillna(d.mean()),
-            "median_fill": lambda d: d.fillna(d.median()),
+            "mean_fill": lambda d: d.fillna({col: d[col].mean() for col in numeric_columns}),
+            "median_fill": lambda d: d.fillna({col: d[col].median() for col in numeric_columns}),
             "custom_fill": lambda d: d.fillna(self.config["missing_data"].get("custom_value", 0)),
         }
 
