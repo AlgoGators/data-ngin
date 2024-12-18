@@ -26,22 +26,27 @@ class DatabentoFetcher(Fetcher):
         self.logger.setLevel(logging.INFO)
 
     async def fetch_data(
-        self,
-        symbol: str,
-        loaded_asset_type: str,
-        start_date: str,
-        end_date: str,
-    ) -> List[Dict[str, Any]]:
+    self,
+    symbol: str,
+    loaded_asset_type: str,
+    start_date: str,
+    end_date: str,
+) -> pd.DataFrame: 
         """
         Asynchronously fetches historical data based on asset type and dataset settings.
 
         Args:
             symbol (str): The symbol to fetch data for.
+            loaded_asset_type (str): Type of asset to load (e.g., "FUTURE")
             start_date (str): Start date for fetching.
             end_date (str): End date for fetching.
 
         Returns:
-            List[Dict[str, Any]]: Retrieved data as a list of dictionaries.
+            pd.DataFrame: Retrieved data as a pandas DataFrame.
+
+        Raises:
+            ValueError: If asset type doesn't match configuration
+            Exception: If API call fails
         """
         # Get schema and dataset settings from config
         schema: str = self.config["provider"]["schema"]
@@ -69,9 +74,8 @@ class DatabentoFetcher(Fetcher):
             pass
 
         try:
-            # Fetch data
-            data: db.Timeseries = await asyncio.to_thread(
-                self.client.timeseries.get_range_async,
+            # Fetch data - note we await the result directly
+            data = await self.client.timeseries.get_range_async(
                 dataset=dataset,
                 symbols=formatted_symbol,
                 schema=db.Schema.from_str(schema),
@@ -80,8 +84,21 @@ class DatabentoFetcher(Fetcher):
                 stype_in=stype_in,
                 stype_out=stype_out,
             )
+            
+            # Convert to DataFrame
+            df = data.to_df()
+            
+            # Check if we got any data
+            if df.empty:
+                self.logger.warning(f"No data found for {symbol} between {start_date} and {end_date}")
+                # Create DataFrame with expected columns but no rows
+                return pd.DataFrame(columns=[
+                    "time", "open", "high", "low", "close", 
+                    "volume", "symbol"
+                ])
+                
             self.logger.info(f"Data fetched successfully for {symbol}.")
-            return data.to_df()
+            return df
 
         except Exception as e:
             self.logger.error(f"Error fetching data for {symbol}: {e}")
