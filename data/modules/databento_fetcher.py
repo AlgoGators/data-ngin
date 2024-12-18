@@ -20,54 +20,65 @@ class DatabentoFetcher(Fetcher):
             config (Dict[str, Any]): Configuration settings.
         """
         super().__init__(config)
-        self.api_key: str = os.getenv("DATABENTO_API_KEY")
-        self.client: db.Historical = db.Historical(self.api_key)
+        api_key: str = os.getenv("DATABENTO_API_KEY")
+        self.client: db.Historical = db.Historical(api_key)
         self.logger: logging.Logger = logging.getLogger("DatabentoFetcher")
         self.logger.setLevel(logging.INFO)
 
     async def fetch_data(
         self,
         symbol: str,
-        dataset: str,
+        loaded_asset_type: str,
         start_date: str,
         end_date: str,
-        schema: str = None,
-        roll_type: str = None,
-        contract_type: str = None,
     ) -> List[Dict[str, Any]]:
         """
-        Asynchronously fetches historical OHLCV data from Databento, cleans it,
-        and prepares it for database insertion.
+        Asynchronously fetches historical data based on asset type and dataset settings.
 
         Args:
             symbol (str): The symbol to fetch data for.
-            start_date (str): Start date in 'YYYY-MM-DD' format.
-            end_date (str): End date in 'YYYY-MM-DD' format.
-            schema (str): Data aggregation schema (e.g., 'ohlcv-1d').
-            roll_type (str): Roll type for futures contracts (e.g., 'c').
-            contract_type (str): Contract type to retrieve (e.g., 'front').
+            start_date (str): Start date for fetching.
+            end_date (str): End date for fetching.
 
         Returns:
-            List[Dict[str, Any]]: List of dictionaries containing cleaned data ready for TimescaleDB insertion.
+            List[Dict[str, Any]]: Retrieved data as a list of dictionaries.
         """
-        schema = schema or self.config["providers"]["databento"]["schema"]
-        roll_type = roll_type or self.config["providers"]["databento"]["roll_type"]
-        contract_type = contract_type or self.config["providers"]["databento"]["contract_type"]
+        # Get schema and dataset settings from config
+        schema: str = self.config["provider"]["schema"]
+        dataset: str = self.config["provider"]["dataset"]
+        
+        # Check if loaded asset type matches config
+        asset_type_config: str = self.config["provider"]["asset"]
+        if loaded_asset_type != asset_type_config:
+            raise ValueError(f"Asset type mismatch: {loaded_asset_type} != {asset_type_config}")
+        else:
+            asset_type = loaded_asset_type
 
-        self.logger.info(f"Fetching data for {symbol} from {start_date} to {end_date}")
-        symbols: str = f"{symbol}.{roll_type}.{contract_type}"
+        if asset_type == "FUTURE":
+            # If pulling futures data, grab roll type and contract type from config then format symbol
+            roll_type: str = self.config["provider"]["roll_type"]
+            contract_type: str = self.config["provider"]["contract_type"]
+            formatted_symbol: str = f"{symbol}.{roll_type}.{contract_type}"
+            stype_in = db.SType.CONTINUOUS
+            stype_out = db.SType.INSTRUMENT_ID
+        elif asset_type == "EQUITY":
+            # TODO: Implement equity data fetching
+            pass
+        elif asset_type == "OPTION":
+            # TODO: Implement option data fetching
+            pass
 
         try:
             # Fetch data
             data: db.Timeseries = await asyncio.to_thread(
-                self.client.timeseries.get_range,
+                self.client.timeseries.get_range_async,
                 dataset=dataset,
-                symbols=[symbols],
+                symbols=formatted_symbol,
                 schema=db.Schema.from_str(schema),
                 start=start_date,
                 end=end_date,
-                stype_in=db.SType.CONTINUOUS,
-                stype_out=db.SType.INSTRUMENT_ID,
+                stype_in=stype_in,
+                stype_out=stype_out,
             )
             self.logger.info(f"Data fetched successfully for {symbol}.")
             return data.to_df()

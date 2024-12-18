@@ -64,8 +64,8 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
 
         # Verify the correct objects were assigned
         self.assertEqual(orchestrator.loader, mock_loader)
-        self.assertEqual(orchestrator.fetcher, mock_fetcher)
-        self.assertEqual(orchestrator.cleaner, mock_cleaner)
+        self.assertEqual(orchestrator.fetchers, mock_fetcher)
+        self.assertEqual(orchestrator.cleaners, mock_cleaner)
         self.assertEqual(orchestrator.inserter, mock_inserter)
 
         # Verify arguments passed to get_instance
@@ -99,8 +99,8 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
 
         # Verify that fetch_data was called for each symbol
         self.assertEqual(mock_fetch_data.call_count, 2)
-        mock_fetch_data.assert_any_call({"dataSymbol": "ES", "instrumentType": "FUTURE"})
-        mock_fetch_data.assert_any_call({"dataSymbol": "NQ", "instrumentType": "FUTURE"})
+        mock_fetch_data.assert_any_call("databento", {"dataSymbol": "ES", "instrumentType": "FUTURE"}, "2023-01-01", "2023-01-02")
+        mock_fetch_data.assert_any_call("databento", {"dataSymbol": "NQ", "instrumentType": "FUTURE"}, "2023-01-01", "2023-01-02")
 
     @patch("data.modules.databento_fetcher.DatabentoFetcher.fetch_data", new_callable=AsyncMock)
     @patch("data.modules.databento_cleaner.DatabentoCleaner.clean", return_value=[{"time": "2023-01-01"}])
@@ -126,7 +126,7 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
         orchestrator: Orchestrator = Orchestrator(config=self.mock_config)
 
         # Call fetch_data
-        await orchestrator.fetch_data({"dataSymbol": "ES", "instrumentType": "FUTURE"})
+        await orchestrator.retrieve_and_process_data({"dataSymbol": "ES", "instrumentType": "FUTURE"})
 
         # Verify the fetcher was called with the expected arguments
         mock_fetch.assert_called_once_with(

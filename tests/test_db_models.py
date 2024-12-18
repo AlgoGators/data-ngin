@@ -88,10 +88,10 @@ class TestDBModels(unittest.TestCase):
         expected_columns: Dict[str, str] = {
             "time": "TIMESTAMP",
             "symbol": "TEXT",
-            "open": "DOUBLE PRECISION",
-            "high": "DOUBLE PRECISION",
-            "low": "DOUBLE PRECISION",
-            "close": "DOUBLE PRECISION",
+            "open": "DOUBLE_PRECISION",
+            "high": "DOUBLE_PRECISION",
+            "low": "DOUBLE_PRECISION",
+            "close": "DOUBLE_PRECISION",
             "volume": "INTEGER",
         }
 

@@ -16,7 +16,8 @@ databento = "^0.44.1"
 python-dotenv = "^1.0.1"
 pyyaml = "^6.0.2"
 psycopg2 = "^2.9.10"
-sqlalchemy = "^2.0.36"
+sqlalchemy = "1.4.36"
+apache-airflow = "^2.10.4"
 
 
 [build-system]

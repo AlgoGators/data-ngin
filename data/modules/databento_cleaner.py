@@ -112,7 +112,17 @@ class DatabentoCleaner(Cleaner):
 
     def handle_missing_data(self, data: pd.DataFrame) -> pd.DataFrame:
         """
-        Handles missing or corrupt data by either dropping rows or filling values.
+        Handles missing or corrupt data based on the configuration.
+
+        Supported Methods:
+            - forward_fill: Fill missing data forward.
+            - backward_fill: Fill missing data backward.
+            - interpolate: Interpolate missing data.
+            - drop_nan: Drop rows with missing data.
+            - zero_fill: Fill missing values with zeros.
+            - mean_fill: Fill missing values with the column mean.
+            - median_fill: Fill missing values with the column median.
+            - custom_fill: Fill missing values with a custom value from the config.
 
         Args:
             data (pd.DataFrame): The raw data with potential missing values.
@@ -120,18 +130,22 @@ class DatabentoCleaner(Cleaner):
         Returns:
             pd.DataFrame: The data after handling missing values.
         """
-        if self.config.get("drop_missing", True):
-            logging.info("Dropping rows with missing values.")
-            data: pd.DataFrame = data.dropna()
-        else:
-            logging.info("Filling missing values with defaults.")
-            data: pd.DataFrame = data.fillna({
-                RequiredFields.OPEN.value: 0.0,
-                RequiredFields.HIGH.value: 0.0,
-                RequiredFields.LOW.value: 0.0,
-                RequiredFields.CLOSE.value: 0.0,
-                RequiredFields.VOLUME.value: 0
-            })
+        method_switch = {
+            "drop_nan": lambda d: d.dropna(),
+            "forward_fill": lambda d: d.fillna(method="ffill"),
+            "backward_fill": lambda d: d.fillna(method="bfill"),
+            "interpolate": lambda d: d.interpolate(),
+            "zero_fill": lambda d: d.fillna(0),
+            "mean_fill": lambda d: d.fillna(d.mean()),
+            "median_fill": lambda d: d.fillna(d.median()),
+            "custom_fill": lambda d: d.fillna(self.config["missing_data"].get("custom_value", 0)),
+        }
+
+        for method, action in method_switch.items():
+            if self.config.get("missing_data", {}).get(method, "False") == "True":
+                logging.info(f"Applying {method.replace('_', ' ')}.")
+                data = action(data)
+
         return data
 
     def transform_data(self, data: pd.DataFrame) -> pd.DataFrame:

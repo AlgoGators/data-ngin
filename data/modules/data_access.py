@@ -63,6 +63,28 @@ class DataAccess:
         with self.Session() as session:  
             symbols: List[Tuple[str]] = session.query(OHLCV.symbol).distinct().all()
             return [symbol[0] for symbol in symbols]
+    
+    def get_latest_date(self) -> Optional[str]:
+        """
+        Retrieves the most recent date from the OHLCV table.
+
+        Returns:
+            Optional[str]: The latest available date in 'YYYY-MM-DD' format, or None if the table is empty.
+        """
+        with self.Session() as session:
+            try:
+                latest_date: Optional[Tuple[Optional[str]]] = (
+                    session.query(OHLCV.time)
+                    .order_by(OHLCV.time.desc())
+                    .first()
+                )
+                if latest_date and latest_date[0]:
+                    self.logger.info(f"Latest available date in the database: {latest_date[0]}")
+                    return latest_date[0].strftime("%Y-%m-%d")
+                return None
+            except SQLAlchemyError as e:
+                self.logger.error(f"Error retrieving latest date: {e}")
+                raise
 
     def get_latest_data(self, symbol: str) -> Optional[Dict[str, Any]]:
         """
@@ -140,3 +162,13 @@ class DataAccess:
                 session.rollback()
                 self.logger.error(f"Error deleting data: {e}")
                 raise
+
+
+if __name__ == "__main__":
+    data = DataAccess()
+    print(data.get_symbols())
+    print(data.get_latest_date())
+    print(data.get_latest_data("MES.c.0"))
+    print(data.get_ohlcv_data("2023-02-01", "2023-02-02", ["MES.c.0"]))
+    print(data.get_ohlcv_data("2023-02-01", "2023-02-02"))
+

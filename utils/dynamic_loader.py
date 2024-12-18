@@ -1,7 +1,9 @@
 import importlib
 import os
 import yaml
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
+from datetime import datetime, timedelta
+from data.modules.data_access import DataAccess 
 
 
 def load_config(config_path: str = "data/config/config.yaml") -> Dict[str, Any]:
@@ -93,3 +95,40 @@ def get_instance(config: Dict[str, Any], module_key: str, class_key: str, **kwar
 
     # Create and return an instance of the class
     return cls(config=config, **kwargs)
+
+
+def determine_date_range(config: Dict[str, Any]) -> Tuple[str, str]:
+    """
+    Determines the start and end dates for processing by checking config first. 
+    If not found, it queries the database for the latest date and adds one day.
+
+    Args:
+        config (Dict[str, Any]): The configuration dictionary.
+
+    Returns:
+        Tuple[str, str]: containing the start_date and end_date as strings.
+    
+    Raises:
+        ValueError: If neither the config nor the database can determine the start_date.
+    """
+    data_access: DataAccess = DataAccess()
+
+    # Check if 'start_date' exists in the config
+    if config['time_range'].get('start_date'):
+        start_date = config['time_range']['start_date']
+    else:
+        # Get the latest date from the database and add one day
+        latest_date = data_access.get_latest_date()
+        if latest_date:
+            start_date = (datetime.strptime(latest_date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+        else:
+            raise ValueError("Cannot determine start_date: No config date and no latest database date.")
+
+    # Check if 'end_date' exists in the config
+    if config['time_range'].get('end_date'):
+        end_date = config['time_range']['end_date']
+    else:
+        # Use today's date plus one day (since end_date is exclusive)
+        end_date = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+
+    return start_date, end_date
