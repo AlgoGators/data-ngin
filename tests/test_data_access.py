@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from typing import List, Dict, Any, Optional
 from sqlalchemy.exc import SQLAlchemyError
 from data.modules.data_access import DataAccess
@@ -51,29 +51,35 @@ class TestDataAccess(unittest.TestCase):
         self.assertEqual(inserted_obj.time, records[0]["time"])
         self.mock_session.commit.assert_called_once()
 
-    def test_get_ohlcv_data(self) -> None:
-        """
-        Test retrieving OHLCV data within a date range.
-        """
-        mock_query_result: List[OHLCV] = [
-            OHLCV(
-                time=datetime.fromisoformat("2023-01-01T00:00:00+00:00"),
-                symbol="NQ",
-                open=200.0,
-                high=201.0,
-                low=199.0,
-                close=200.5,
-                volume=2000,
-            )
-        ]
+    @patch("data.modules.data_access.sessionmaker")
+    def test_get_ohlcv_data(self, mock_session_factory):
+        # Create DataAccess after patch is in place
+        data_access = DataAccess()
+        with patch.object(data_access, 'Session', return_value=MagicMock()) as mock_session_factory:
+            mock_session = mock_session_factory.return_value.__enter__.return_value
+            # Mock chain, run test...
 
-        self.mock_session.query.return_value.filter.return_value.all.return_value = mock_query_result
+            mock_query_result = [
+                OHLCV(
+                    time=datetime.fromisoformat("2023-01-01T00:00:00+00:00"),
+                    symbol="NQ",
+                    open=200.0,
+                    high=201.0,
+                    low=199.0,
+                    close=200.5,
+                    volume=2000,
+                )
+            ]
 
-        result: List[Dict[str, Any]] = self.data_access.get_ohlcv_data(
-            start_date="2023-01-01", end_date="2023-01-01"
-        )
-        self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]["symbol"], "NQ")
+            # Set return values on the mock query chain
+            mock_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = mock_query_result
+
+            result: List[Dict[str, Any]] = data_access.get_ohlcv_data("2023-01-01", "2023-01-01")
+            print(f"Mock Query Call Chain: {mock_session.query.return_value.filter.return_value.order_by.return_value.all.call_args_list}")
+            print(f"Returned Data: {result}")
+
+            self.assertEqual(len(result), 1, "Expected one record to be returned")
+            self.assertEqual(result[0]["symbol"], "NQ", "Expected symbol 'NQ' to be returned")
 
     def test_get_symbols(self) -> None:
         """
