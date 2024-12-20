@@ -4,6 +4,10 @@ from airflow.operators.python import PythonOperator
 from data.orchestrator import Orchestrator
 from utils.dynamic_loader import load_config
 import logging
+import pendulum
+
+# Define ET timezone using pendulum
+local_tz = pendulum.timezone("America/New_York")
 
 # Define default arguments for the DAG
 default_args: dict[str, any] = {
@@ -27,9 +31,10 @@ dag: DAG = DAG(
     "data_pipeline_dag",
     default_args=default_args,
     description="Daily data pipeline for market data ingestion",
-    schedule_interval="@daily",
-    start_date=datetime(2023, 2, 1),
+    schedule_interval="0 5 * * *", # Run daily at 5:00 AM
+    start_date=datetime(2024, 12, 1, tzinfo=local_tz),
     catchup=False,
+    tags=["data_pipeline"],
     max_active_runs=1,
 )
 
