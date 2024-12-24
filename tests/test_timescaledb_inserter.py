@@ -2,7 +2,6 @@ import unittest
 from unittest.mock import patch, MagicMock
 from data.modules.timescaledb_inserter import TimescaleDBInserter
 from typing import List, Dict, Any
-import textwrap
 import re
 
 
@@ -53,13 +52,13 @@ class TestTimescaleDBInserter(unittest.TestCase):
         ]
 
         self.inserter.connect()
-        self.inserter.insert_data(data)
+        self.inserter.insert_data(data, schema="futures_data", table="ohlcv_1d")
 
         # Compare queries without extra whitespace
         expected_query = re.sub(r"\s+", " ", """
             INSERT INTO futures_data.ohlcv_1d (time, symbol, open, high, low, close, volume)
             VALUES (%(time)s, %(symbol)s, %(open)s, %(high)s, %(low)s, %(close)s, %(volume)s)
-            ON CONFLICT (time, symbol) DO NOTHING;
+            ON CONFLICT DO NOTHING;
         """).strip()
 
         # Extract the actual query from the call arguments
@@ -76,7 +75,7 @@ class TestTimescaleDBInserter(unittest.TestCase):
         """
         self.inserter.connect()
         with self.assertRaises(ValueError, msg="No data provided for insertion."):
-            self.inserter.insert_data([])
+            self.inserter.insert_data([], schema="futures_data", table="ohlcv_1d")
 
     @patch("data.modules.timescaledb_inserter.psycopg2.connect")
     def test_insert_data_no_connection(self, mock_connect: MagicMock) -> None:
@@ -84,7 +83,7 @@ class TestTimescaleDBInserter(unittest.TestCase):
         Test inserting data without a database connection, expecting RuntimeError.
         """
         with self.assertRaises(RuntimeError, msg="Database connection is not established."):
-            self.inserter.insert_data([{"time": "2023-01-01"}])
+            self.inserter.insert_data([{"time": "2023-01-01"}], schema="futures_data", table="ohlcv_1d")
 
     @patch("data.modules.timescaledb_inserter.psycopg2.connect")
     def test_close_connection(self, mock_connect: MagicMock) -> None:
