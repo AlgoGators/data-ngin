@@ -1,17 +1,17 @@
 import os
 import psycopg2
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
 from data.modules.inserter import Inserter
 import logging
 
-
 class TimescaleDBInserter(Inserter):
     """
-    Inserter subclass for inserting data into TimescaleDB.
+    Inserter subclass for dynamically inserting data into TimescaleDB.
 
     Methods:
         connect: Establish a connection to the TimescaleDB database.
-        insert_data: Insert cleaned data into the appropriate schema and table.
+        insert_data: Insert data into the specified schema and table dynamically.
+        close: Close the database connection.
     """
 
     def __init__(self, config: Dict[str, Any]) -> None:
@@ -24,6 +24,7 @@ class TimescaleDBInserter(Inserter):
         super().__init__(config=config)
         self.connection = None
         self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.setLevel(logging.INFO)
 
     def connect(self) -> None:
         """
@@ -41,35 +42,40 @@ class TimescaleDBInserter(Inserter):
                 port=os.getenv("DB_PORT")
             )
             self.connection.autocommit = True
+            self.logger.info("Connected to TimescaleDB successfully.")
         except psycopg2.OperationalError as e:
             self.connection = None
             raise ConnectionError(f"Failed to connect to TimescaleDB: {e}")
 
-    def insert_data(self, data: List[Dict[str, Any]]) -> None:
+    def insert_data(self, data: List[Dict[str, Any]], schema: str, table: str) -> None:
         """
-        Inserts cleaned data into the specified TimescaleDB table.
+        Inserts data into the specified TimescaleDB schema and table dynamically.
 
         Args:
-            data (List[Dict[str, Any]]): A list of dictionaries representing cleaned data rows.
+            data (List[Dict[str, Any]]): A list of dictionaries representing data rows.
             schema (str): The target schema in TimescaleDB.
             table (str): The target table in TimescaleDB.
+            columns (Optional[List[str]]): List of column names to insert into (must match dictionary keys in data).
 
         Raises:
-            ValueError: If the data is empty.
-            RuntimError: If the insertion into the database fails.
+            ValueError: If the data is empty or columns are not specified.
+            RuntimeError: If the insertion into the database fails.
         """
         if not self.connection:
             raise RuntimeError("Database connection is not established.")
         if not data:
             raise ValueError("No data provided for insertion.")
         
-        schema: str = self.config["database"]["target_schema"]
-        table: str = self.config["database"]["table"]
+        # Determine columns based on first row of data 
+        columns = list(data[0].keys())
 
-        query: str = f"""
-        INSERT INTO {schema}.{table} (time, symbol, open, high, low, close, volume)
-        VALUES (%(time)s, %(symbol)s, %(open)s, %(high)s, %(low)s, %(close)s, %(volume)s)
-        ON CONFLICT (time, symbol) DO NOTHING;
+        # Dynamically construct query based on provided columns
+        column_names = ", ".join(columns)
+        placeholders = ", ".join([f"%({col})s" for col in columns])
+        query = f"""
+        INSERT INTO {schema}.{table} ({column_names})
+        VALUES ({placeholders})
+        ON CONFLICT DO NOTHING;
         """.strip()
 
         try:
@@ -79,7 +85,7 @@ class TimescaleDBInserter(Inserter):
         except Exception as e:
             self.connection.rollback()
             raise RuntimeError(f"Failed to insert data into {schema}.{table}: {e}")
-        
+
     def close(self) -> None:
         """
         Closes the database connection if it is open.
@@ -87,3 +93,4 @@ class TimescaleDBInserter(Inserter):
         if self.connection:
             self.connection.close()
             self.connection = None
+            self.logger.info("Database connection closed.")

@@ -199,7 +199,7 @@ if __name__ == "__main__":
                                 columns=['time', 'open', 'high', 'low', 'close', 'volume', 'symbol'])
 
     print(f"Symbols:\n {list(data.get_symbols())}\n")
-    print(f"Earliest Date:\n {data.get_earliest_date()}\n")
+    print(f"Earliest Date: {data.get_earliest_date()}\n")
     print(f"Latest Date: {data.get_latest_date()}\n")
     print(f"OHLCV: \n{ohlcv_df}\n")
     print(f"OHLCV for 6B: \n{ohclv_6B_df}\n")
