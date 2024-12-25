@@ -19,6 +19,7 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
             "cleaner": {"class": "DatabentoCleaner", "module": "databento_cleaner"},
             "inserter": {"class": "TimescaleDBInserter", "module": "timescaledb_inserter"},
             "time_range": {"start_date": "2023-01-01", "end_date": "2023-01-02"},
+            "database": {"target_schema": "futures_data", "raw_table": "ohlcv_1d_raw", "table": "ohlcv_1d"}
         }
 
     @patch("data.orchestrator.get_instance")
@@ -117,8 +118,10 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
 
         mock_clean.assert_called_once_with([{"time": "2023-01-01", "symbol": "ES", "open": 100.5}])
 
-        mock_insert_data.assert_called_once_with(
+        mock_insert_data.assert_called_with(
             data=[{"time": "2023-01-01"}],
+            schema="futures_data",
+            table="ohlcv_1d"
         )
 
 

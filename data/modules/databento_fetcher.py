@@ -43,6 +43,10 @@ class DatabentoFetcher(Fetcher):
 
         Returns:
             pd.DataFrame: Retrieved data as a pandas DataFrame.
+
+        Raises:
+            ValueError: If asset type doesn't match the configuration or an unsupported asset type is provided.
+            Exception: If an error occurs during data retrieval.
         """
         schema: str = self.config["provider"]["schema"]
         dataset: str = self.config["provider"]["dataset"]
@@ -76,10 +80,16 @@ class DatabentoFetcher(Fetcher):
                 stype_in=stype_in,
                 stype_out=stype_out,
             )
+            # Convert to DataFrame
             df = data.to_df()
+
+            # Check if data is empty
             if df.empty:
                 self.logger.warning(f"No data found for {symbol} between {start_date} and {end_date}")
                 return pd.DataFrame(columns=["time", "open", "high", "low", "close", "volume", "symbol"])
+
+            if "ts_event" in df.index.names:
+                df.reset_index(inplace=True)
 
             self.logger.info(f"Data fetched successfully for {symbol}.")
             return df

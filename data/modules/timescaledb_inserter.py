@@ -55,7 +55,6 @@ class TimescaleDBInserter(Inserter):
             data (List[Dict[str, Any]]): A list of dictionaries representing data rows.
             schema (str): The target schema in TimescaleDB.
             table (str): The target table in TimescaleDB.
-            columns (Optional[List[str]]): List of column names to insert into (must match dictionary keys in data).
 
         Raises:
             ValueError: If the data is empty or columns are not specified.
@@ -63,8 +62,6 @@ class TimescaleDBInserter(Inserter):
         """
         if not self.connection:
             raise RuntimeError("Database connection is not established.")
-        if not data:
-            raise ValueError("No data provided for insertion.")
         
         # Determine columns based on first row of data 
         columns = list(data[0].keys())

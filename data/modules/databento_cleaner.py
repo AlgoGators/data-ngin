@@ -11,6 +11,7 @@ class RequiredFields(Enum):
 
     Attributes:
         TIME (str): The timestamp of the data row.
+        SYMBOL (str): The symbol or identifier for the asset.
         OPEN (str): The opening price.
         HIGH (str): The highest price.
         LOW (str): The lowest price.
@@ -18,6 +19,7 @@ class RequiredFields(Enum):
         VOLUME (str): The trading volume.
     """
     TIME = "time"
+    SYMBOL = "symbol"
     OPEN = "open"
     HIGH = "high"
     LOW = "low"
@@ -64,15 +66,12 @@ class DatabentoCleaner(Cleaner):
             raise ValueError("DataFrame is empty. Cannot clean data.")
 
         # Validate required fields
-        self.logger.info("Validating required fields.")
         data = self.validate_fields(data)
 
         # Handle missing or corrupt data
-        self.logger.info("Handling missing or corrupt data.")
         data = self.handle_missing_data(data)
 
         # Transform the data into the desired format
-        self.logger.info("Transforming data.")
         data = self.transform_data(data)
 
         # Convert to a list of dictionaries for database insertion
@@ -179,6 +178,12 @@ class DatabentoCleaner(Cleaner):
         data["low"] = data["low"].astype(float)
         data["close"] = data["close"].astype(float)
         data["volume"] = data["volume"].astype(int)
+
+        # Drop columns not needed for the database
+        logging.info("Dropping unnecessary columns.")
+        for column in data.columns:
+            if column not in [field.value for field in RequiredFields]:
+                data = data.drop(columns=column)
 
         # Check for duplicates in the time column
         if data["time"].duplicated().any():

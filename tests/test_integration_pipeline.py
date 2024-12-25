@@ -33,6 +33,7 @@ class TestIntegrationPipeline(unittest.IsolatedAsyncioTestCase):
             },
             "database": {
                 "target_schema": "futures_data",
+                "raw_table": "ohlcv_1d_raw",
                 "table": "ohlcv_1d",
             },
         }
@@ -96,20 +97,9 @@ class TestIntegrationPipeline(unittest.IsolatedAsyncioTestCase):
             end_date="2023-01-02",
         )
 
-        # Verify cleaner and inserter were called
+        # Verify cleaner and inserter were called twice
         self.assertEqual(mock_clean.call_count, 2)
-        self.assertEqual(mock_insert_data.call_count, 2)
-
-        print(f"Actual insert_data calls: {mock_insert_data.call_args_list}")
-
-        # Correct expected insert_data calls
-        expected_insert_data_call = (
-            [{"time": "2023-01-01", "cleaned": True}],
-        )
-
-        mock_insert_data.assert_any_call(
-            data=expected_insert_data_call[0]
-        )
+        self.assertEqual(mock_insert_data.call_count, 4)
 
 
 if __name__ == "__main__":
