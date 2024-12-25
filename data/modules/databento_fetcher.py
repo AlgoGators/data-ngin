@@ -1,7 +1,7 @@
 import asyncio
 import os
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import databento as db
 import pandas as pd
 from data.modules.fetcher import Fetcher
@@ -31,47 +31,47 @@ class DatabentoFetcher(Fetcher):
         loaded_asset_type: str,
         start_date: str,
         end_date: str,
-    ) -> List[Dict[str, Any]]:
+    ) -> pd.DataFrame:
         """
         Asynchronously fetches historical data based on asset type and dataset settings.
 
         Args:
             symbol (str): The symbol to fetch data for.
+            loaded_asset_type (str): Type of asset to load (e.g., "FUTURE")
             start_date (str): Start date for fetching.
             end_date (str): End date for fetching.
 
         Returns:
-            List[Dict[str, Any]]: Retrieved data as a list of dictionaries.
+            pd.DataFrame: Retrieved data as a pandas DataFrame.
+
+        Raises:
+            ValueError: If asset type doesn't match the configuration or an unsupported asset type is provided.
+            Exception: If an error occurs during data retrieval.
         """
-        # Get schema and dataset settings from config
         schema: str = self.config["provider"]["schema"]
         dataset: str = self.config["provider"]["dataset"]
-        
-        # Check if loaded asset type matches config
         asset_type_config: str = self.config["provider"]["asset"]
+
+        # Check asset type
         if loaded_asset_type != asset_type_config:
             raise ValueError(f"Asset type mismatch: {loaded_asset_type} != {asset_type_config}")
-        else:
-            asset_type = loaded_asset_type
-
-        if asset_type == "FUTURE":
-            # If pulling futures data, grab roll type and contract type from config then format symbol
+        
+        if loaded_asset_type == "FUTURE":
             roll_type: str = self.config["provider"]["roll_type"]
             contract_type: str = self.config["provider"]["contract_type"]
             formatted_symbol: str = f"{symbol}.{roll_type}.{contract_type}"
             stype_in = db.SType.CONTINUOUS
             stype_out = db.SType.INSTRUMENT_ID
-        elif asset_type == "EQUITY":
-            # TODO: Implement equity data fetching
-            pass
-        elif asset_type == "OPTION":
-            # TODO: Implement option data fetching
-            pass
-
+        elif loaded_asset_type == "EQUITY":
+            formatted_symbol = symbol
+            stype_in = db.SType.RAW_SYMBOL
+            stype_out = db.SType.INSTRUMENT_ID
+        else:
+            raise ValueError(f"Unsupported asset type: {loaded_asset_type}")
+        
         try:
             # Fetch data
-            data: db.Timeseries = await asyncio.to_thread(
-                self.client.timeseries.get_range_async,
+            data = await self.client.timeseries.get_range_async(
                 dataset=dataset,
                 symbols=formatted_symbol,
                 schema=db.Schema.from_str(schema),
@@ -80,11 +80,21 @@ class DatabentoFetcher(Fetcher):
                 stype_in=stype_in,
                 stype_out=stype_out,
             )
+            # Convert to DataFrame
+            df = data.to_df()
+
+            # Check if data is empty
+            if df.empty:
+                self.logger.warning(f"No data found for {symbol} between {start_date} and {end_date}")
+                return pd.DataFrame(columns=["time", "open", "high", "low", "close", "volume", "symbol"])
+
+            if "ts_event" in df.index.names:
+                df.reset_index(inplace=True)
+
             self.logger.info(f"Data fetched successfully for {symbol}.")
-            return data.to_df()
+            return df
 
         except Exception as e:
             self.logger.error(f"Error fetching data for {symbol}: {e}")
             raise
-
-    
+        

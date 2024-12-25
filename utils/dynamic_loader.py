@@ -128,7 +128,6 @@ def determine_date_range(config: Dict[str, Any]) -> Tuple[str, str]:
     if config['time_range'].get('end_date'):
         end_date = config['time_range']['end_date']
     else:
-        # Use today's date plus one day (since end_date is exclusive)
-        end_date = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
-
+        # Use today's date minus one day
+        end_date = (datetime.now()).strftime("%Y-%m-%d")
     return start_date, end_date

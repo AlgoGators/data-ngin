@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 from data.modules.timescaledb_inserter import TimescaleDBInserter
 from typing import List, Dict, Any
+import re
 
 
 class TestTimescaleDBInserter(unittest.TestCase):
@@ -13,7 +14,12 @@ class TestTimescaleDBInserter(unittest.TestCase):
         """
         Set up a TimescaleDBInserter instance with mock configuration.
         """
-        self.config: Dict[str, Any] = {"schema": "futures_data", "table": "ohlcv_1d"}
+        self.config: Dict[str, Any] = {
+            "database": {
+                "target_schema": "futures_data",
+                "table": "ohlcv_1d",
+            }
+        }
         self.inserter = TimescaleDBInserter(config=self.config)
 
     @patch("data.modules.timescaledb_inserter.psycopg2.connect")
@@ -23,96 +29,72 @@ class TestTimescaleDBInserter(unittest.TestCase):
         """
         self.inserter.connect()
         mock_connect.assert_called_once()
-        self.assertIsNotNone(self.inserter.connection)
+        self.assertIsNotNone(self.inserter.connection, "Database connection should not be None")
 
     @patch("data.modules.timescaledb_inserter.psycopg2.connect")
     def test_insert_data(self, mock_connect: MagicMock) -> None:
         """
         Test that data is inserted into the database using executemany.
         """
-        # Mock the connection object returned by psycopg2.connect
         mock_connection = mock_connect.return_value
-        
-        # Mock the cursor object and its context manager behavior
-        mock_cursor = mock_connection.cursor.return_value
-        mock_cursor.__enter__.return_value = mock_cursor  # Make __enter__ return the mock_cursor itself
+        mock_cursor = mock_connection.cursor.return_value.__enter__.return_value
 
-        # Sample data to insert
         data: List[Dict[str, Any]] = [
-            {"time": "2023-01-01 00:00:00", "symbol": "ES", "open": 100.5, "high": 101.0, "low": 99.5, "close": 100.0, "volume": 1500}
+            {
+                "time": "2023-01-01 00:00:00",
+                "symbol": "ES",
+                "open": 100.5,
+                "high": 101.0,
+                "low": 99.5,
+                "close": 100.0,
+                "volume": 1500,
+            }
         ]
 
-        # Call the inserter logic
-        self.inserter.connect()  # Ensure the mock connection is used
+        self.inserter.connect()
         self.inserter.insert_data(data, schema="futures_data", table="ohlcv_1d")
 
-        # Verify the cursor's executemany method was called with the correct query and data
-        mock_cursor.executemany.assert_called_once_with(
+        # Compare queries without extra whitespace
+        expected_query = re.sub(r"\s+", " ", """
+            INSERT INTO futures_data.ohlcv_1d (time, symbol, open, high, low, close, volume)
+            VALUES (%(time)s, %(symbol)s, %(open)s, %(high)s, %(low)s, %(close)s, %(volume)s)
+            ON CONFLICT DO NOTHING;
+        """).strip()
+
+        # Extract the actual query from the call arguments
+        actual_query, actual_data = mock_cursor.executemany.call_args[0]
+
+        # Assert that the queries are equivalent
+        self.assertEqual(re.sub(r"\s+", " ", actual_query.strip()), expected_query)
+        self.assertEqual(actual_data, data)
+
+    @patch("data.modules.timescaledb_inserter.psycopg2.connect")
+    def test_insert_data_empty(self, mock_connect: MagicMock) -> None:
         """
-        INSERT INTO futures_data.ohlcv_1d (time, symbol, open, high, low, close, volume)
-        VALUES (%(time)s, %(symbol)s, %(open)s, %(high)s, %(low)s, %(close)s, %(volume)s)
-        ON CONFLICT (time, symbol) DO NOTHING;
-        """.strip(),
-        data
-        )
-
-    @patch("psycopg2.connect")
-    def test_get_date_range(self, mock_connect: MagicMock) -> None:
+        Test inserting empty data, expecting ValueError.
         """
-        Test the get_date_range method.
+        self.inserter.connect()
+        with self.assertRaises(ValueError, msg="No data provided for insertion."):
+            self.inserter.insert_data([], schema="futures_data", table="ohlcv_1d")
+
+    @patch("data.modules.timescaledb_inserter.psycopg2.connect")
+    def test_insert_data_no_connection(self, mock_connect: MagicMock) -> None:
         """
-        # Mock database connection and cursor
-        mock_cursor = MagicMock()
-        mock_connect.return_value.cursor.return_value.__enter__.return_value = mock_cursor
-
-        # Mock query result
-        mock_cursor.fetchone.return_value = ["2023-01-01", "2023-12-31"]
-
-        # Initialize inserter
-        config = {"database": {"target_schema": "futures_data", "table": "ohlcv_1d"}}
-        inserter = TimescaleDBInserter(config)
-        inserter.connect()
-
-        # Call the method
-        result = inserter.get_date_range("futures_data", "ohlcv_1d")
-
-        # Assertions
-        self.assertEqual(result, ("2023-01-01", "2023-12-31"))
-        mock_cursor.execute.assert_called_once_with("""
-        SELECT 
-            MIN(time) AS earliest_date,
-            MAX(time) AS latest_date
-        FROM futures_data.ohlcv_1d;
-        """.strip())
-
-    @patch("psycopg2.connect")
-    def test_get_date_range_empty_table(self, mock_connect: MagicMock) -> None:
+        Test inserting data without a database connection, expecting RuntimeError.
         """
-        Test the get_date_range method for an empty table.
+        with self.assertRaises(RuntimeError, msg="Database connection is not established."):
+            self.inserter.insert_data([{"time": "2023-01-01"}], schema="futures_data", table="ohlcv_1d")
+
+    @patch("data.modules.timescaledb_inserter.psycopg2.connect")
+    def test_close_connection(self, mock_connect: MagicMock) -> None:
         """
-        # Mock database connection and cursor
-        mock_cursor = MagicMock()
-        mock_connect.return_value.cursor.return_value.__enter__.return_value = mock_cursor
-
-        # Mock empty result
-        mock_cursor.fetchone.return_value = [None, None]
-
-        # Initialize inserter
-        config = {"database": {"target_schema": "futures_data", "table": "ohlcv_1d"}}
-        inserter = TimescaleDBInserter(config)
-        inserter.connect()
-
-        # Call the method
-        result = inserter.get_date_range("futures_data", "ohlcv_1d")
-
-        # Assertions
-        self.assertIsNone(result)
-        mock_cursor.execute.assert_called_once_with("""
-        SELECT 
-            MIN(time) AS earliest_date,
-            MAX(time) AS latest_date
-        FROM futures_data.ohlcv_1d;
-        """.strip())
+        Test closing an active database connection.
+        """
+        mock_connection = mock_connect.return_value
+        self.inserter.connect()
+        self.inserter.close()
+        mock_connection.close.assert_called_once()
+        self.assertIsNone(self.inserter.connection, "Database connection should be closed after close()")
 
 
 if __name__ == "__main__":

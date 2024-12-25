@@ -4,6 +4,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from data.modules.db_models import get_engine, OHLCV
+import pandas as pd
 import logging
 
 
@@ -45,12 +46,16 @@ class DataAccess:
             if symbols:
                 query = query.filter(OHLCV.symbol.in_(symbols))
 
+            # Order by symbol and time
+            query = query.order_by(OHLCV.symbol, OHLCV.time)
+
             data: List[OHLCV] = query.all()
             result: List[Dict[str, Any]] = [record.__dict__ for record in data if record]
             
             # Remove SQLAlchemy's internal state metadata
             for record in result:
                 record.pop("_sa_instance_state", None)
+            
             return result
 
     def get_symbols(self) -> List[str]:
@@ -63,6 +68,27 @@ class DataAccess:
         with self.Session() as session:  
             symbols: List[Tuple[str]] = session.query(OHLCV.symbol).distinct().all()
             return [symbol[0] for symbol in symbols]
+        
+    def get_earliest_date(self) -> Optional[str]:
+        """
+        Retrieves the earliest date from the OHLCV table.
+
+        Returns:
+            Optional[str]: The earliest available date in 'YYYY-MM-DD' format, or None if the table is empty.
+        """
+        with self.Session() as session:
+            try:
+                earliest_date: Optional[Tuple[Optional[str]]] = (
+                    session.query(OHLCV.time)
+                    .order_by(OHLCV.time.asc())
+                    .first()
+                )
+                if earliest_date and earliest_date[0]:
+                    self.logger.info(f"Earliest available date in the database: {earliest_date[0]}")
+                    return earliest_date[0].strftime("%Y-%m-%d")
+                return None
+            except SQLAlchemyError as e:
+                self.logger.error(f"Error retrieving earliest date: {e}")
     
     def get_latest_date(self) -> Optional[str]:
         """
@@ -100,7 +126,7 @@ class DataAccess:
             latest_data: Optional[OHLCV] = (
                 session.query(OHLCV)
                 .filter_by(symbol=symbol)
-                .order_by(OHLCV.time.desc())
+                .order_by(OHLCV.time)
                 .first()
             )
             if latest_data:
@@ -166,9 +192,18 @@ class DataAccess:
 
 if __name__ == "__main__":
     data = DataAccess()
-    print(data.get_symbols())
-    print(data.get_latest_date())
-    print(data.get_latest_data("MES.c.0"))
-    print(data.get_ohlcv_data("2023-02-01", "2023-02-02", ["MES.c.0"]))
-    print(data.get_ohlcv_data("2023-02-01", "2023-02-02"))
+
+    ohlcv_df = pd.DataFrame(data.get_ohlcv_data('2010-06-07', '2024-12-19'), 
+                            columns=['time', 'open', 'high', 'low', 'close', 'volume', 'symbol'])
+    ohclv_6B_df = pd.DataFrame(data.get_ohlcv_data('2010-06-07', '2024-12-19', ['6B.c.0']), 
+                                columns=['time', 'open', 'high', 'low', 'close', 'volume', 'symbol'])
+
+    print(f"Symbols:\n {list(data.get_symbols())}\n")
+    print(f"Earliest Date: {data.get_earliest_date()}\n")
+    print(f"Latest Date: {data.get_latest_date()}\n")
+    print(f"OHLCV: \n{ohlcv_df}\n")
+    print(f"OHLCV for 6B: \n{ohclv_6B_df}\n")
+    
+
+    
 

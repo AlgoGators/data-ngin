@@ -11,6 +11,7 @@ class RequiredFields(Enum):
 
     Attributes:
         TIME (str): The timestamp of the data row.
+        SYMBOL (str): The symbol or identifier for the asset.
         OPEN (str): The opening price.
         HIGH (str): The highest price.
         LOW (str): The lowest price.
@@ -18,6 +19,7 @@ class RequiredFields(Enum):
         VOLUME (str): The trading volume.
     """
     TIME = "time"
+    SYMBOL = "symbol"
     OPEN = "open"
     HIGH = "high"
     LOW = "low"
@@ -64,15 +66,12 @@ class DatabentoCleaner(Cleaner):
             raise ValueError("DataFrame is empty. Cannot clean data.")
 
         # Validate required fields
-        self.logger.info("Validating required fields.")
         data = self.validate_fields(data)
 
         # Handle missing or corrupt data
-        self.logger.info("Handling missing or corrupt data.")
         data = self.handle_missing_data(data)
 
         # Transform the data into the desired format
-        self.logger.info("Transforming data.")
         data = self.transform_data(data)
 
         # Convert to a list of dictionaries for database insertion
@@ -130,14 +129,17 @@ class DatabentoCleaner(Cleaner):
         Returns:
             pd.DataFrame: The data after handling missing values.
         """
+        # Get numeric columns
+        numeric_columns = data.select_dtypes(include=['int64', 'float64']).columns
+
         method_switch = {
             "drop_nan": lambda d: d.dropna(),
-            "forward_fill": lambda d: d.fillna(method="ffill"),
-            "backward_fill": lambda d: d.fillna(method="bfill"),
-            "interpolate": lambda d: d.interpolate(),
+            "forward_fill": lambda d: d.ffill(),
+            "backward_fill": lambda d: d.bfill(),
+            "interpolate": lambda d: d.infer_objects().interpolate(),
             "zero_fill": lambda d: d.fillna(0),
-            "mean_fill": lambda d: d.fillna(d.mean()),
-            "median_fill": lambda d: d.fillna(d.median()),
+            "mean_fill": lambda d: d.fillna({col: d[col].mean() for col in numeric_columns}),
+            "median_fill": lambda d: d.fillna({col: d[col].median() for col in numeric_columns}),
             "custom_fill": lambda d: d.fillna(self.config["missing_data"].get("custom_value", 0)),
         }
 
@@ -176,6 +178,12 @@ class DatabentoCleaner(Cleaner):
         data["low"] = data["low"].astype(float)
         data["close"] = data["close"].astype(float)
         data["volume"] = data["volume"].astype(int)
+
+        # Drop columns not needed for the database
+        logging.info("Dropping unnecessary columns.")
+        for column in data.columns:
+            if column not in [field.value for field in RequiredFields]:
+                data = data.drop(columns=column)
 
         # Check for duplicates in the time column
         if data["time"].duplicated().any():

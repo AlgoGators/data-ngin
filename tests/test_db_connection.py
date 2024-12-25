@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from typing import Optional, Tuple, Any
 
+
 # Load environment variables from .env
 load_dotenv()
 
@@ -44,27 +45,36 @@ class TestDatabaseConnection(unittest.TestCase):
             cls.conn.close()
             print("Database connection closed.")
 
+    def test_connection_success(self) -> None:
+        """
+        Test that the database connection is successfully established.
+        """
+        self.assertIsNotNone(self.conn, "Database connection not established")
+
     def test_schema_exists(self) -> None:
         """
-        Verify that the 'futures_data' schema exists in the database.
+        Verify that the target schema exists in the database.
         """
+        schema_name: str = os.getenv("DB_SCHEMA", "futures_data")
         query: str = """
             SELECT schema_name 
             FROM information_schema.schemata
-            WHERE schema_name = 'futures_data';
+            WHERE schema_name = %s;
         """
         result: Optional[Tuple[Any,]] = None
 
         with self.conn.cursor() as cursor:
-            cursor.execute(query)
+            cursor.execute(query, (schema_name,))
             result = cursor.fetchone()
 
-        self.assertIsNotNone(result, "Schema 'futures_data' does not exist")
+        self.assertIsNotNone(result, f"Schema '{schema_name}' does not exist")
 
     def test_table_exists(self) -> None:
         """
-        Verify that the 'ohlcv_1d' table exists within the 'futures_data' schema.
+        Verify that the target table exists within the schema.
         """
+        schema_name: str = os.getenv("DB_SCHEMA", "futures_data")
+        table_name: str = os.getenv("DB_TABLE", "ohlcv_1d")
         query: str = """
             SELECT table_name 
             FROM information_schema.tables 
@@ -73,15 +83,17 @@ class TestDatabaseConnection(unittest.TestCase):
         result: Optional[Tuple[Any,]] = None
 
         with self.conn.cursor() as cursor:
-            cursor.execute(query, ('futures_data', 'ohlcv_1d'))
+            cursor.execute(query, (schema_name, table_name))
             result = cursor.fetchone()
 
-        self.assertIsNotNone(result, "Table 'futures_data.ohlcv_1d' does not exist")
+        self.assertIsNotNone(result, f"Table '{schema_name}.{table_name}' does not exist")
 
     def test_table_is_hypertable(self) -> None:
         """
-        Ensure that the 'futures_data.ohlcv_1d' table is registered as a hypertable in TimescaleDB.
+        Ensure that the target table is registered as a hypertable in TimescaleDB.
         """
+        schema_name: str = os.getenv("DB_SCHEMA", "futures_data")
+        table_name: str = os.getenv("DB_TABLE", "ohlcv_1d")
         query: str = """
             SELECT * 
             FROM timescaledb_information.hypertables 
@@ -90,10 +102,10 @@ class TestDatabaseConnection(unittest.TestCase):
         result: Optional[Tuple[Any,]] = None
 
         with self.conn.cursor() as cursor:
-            cursor.execute(query, ('futures_data', 'ohlcv_1d'))
+            cursor.execute(query, (schema_name, table_name))
             result = cursor.fetchone()
 
-        self.assertIsNotNone(result, "'futures_data.ohlcv_1d' is not configured as a hypertable")
+        self.assertIsNotNone(result, f"'{schema_name}.{table_name}' is not configured as a hypertable")
 
 
 if __name__ == "__main__":

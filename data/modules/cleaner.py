@@ -44,6 +44,7 @@ class Cleaner(ABC):
 
         Notes:
             - This method can be customized by subclasses to drop rows, fill missing values, or flag issues.
+            (see data/modules/databento_cleaner.py for an example)
         """
         pass
 

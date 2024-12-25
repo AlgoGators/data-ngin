@@ -1,67 +1,69 @@
 import unittest
 from data.modules.loader import Loader
-from typing import Dict, List, Any
+from typing import Dict, Any
+
 
 class MockLoader(Loader):
     """
-    Mock subclass of Loader for testing purposes. This class simulates
-    loading symbols and asset types from a predefined dictionary.
+    Mock implementation of the Loader abstract class for testing purposes.
     """
-    
+
     def load_symbols(self) -> Dict[str, str]:
         """
-        Mock method to load symbols and asset types for testing.
+        Simulates loading symbols from a mock data source.
         
         Returns:
-            Dict[str, str]: A dictionary of symbols and their asset types.
+            Dict[str, str]: A dictionary of symbols and their corresponding asset types.
         """
         return {
             "AAPL": "EQUITY",
             "ES": "FUTURES",
-            "BTC": "CRYPTO"
+            "BTC": "CRYPTO",
         }
+
 
 class TestLoader(unittest.TestCase):
     """
-    Unit tests for the Loader base class using the MockLoader subclass.
+    Unit tests for the Loader base class using MockLoader.
     """
-    
+
     def setUp(self) -> None:
         """
-        Set up a mock loader instance with a test configuration.
+        Set up a mock loader instance with test configuration.
         """
-        config = {
-            "providers": {
-                "databento": {
-                    "supported_assets": ["EQUITY", "FUTURES"]
-                }
-            }
+        config: Dict[str, Any] = {
+            "provider": {"supported_assets": ["EQUITY", "FUTURES"]}
         }
         self.loader: Loader = MockLoader(config=config)
 
-
-
-    def test_validate_symbols(self) -> None:
+    def test_loader_initialization(self) -> None:
         """
-        Test the validate_symbols method to ensure only supported symbols are validated.
+        Test that the loader initializes with the correct configuration.
+        """
+        expected_config: Dict[str, Any] = {
+            "provider": {"supported_assets": ["EQUITY", "FUTURES"]}
+        }
+        self.assertEqual(self.loader.config, expected_config, "Loader configuration mismatch.")
+
+    def test_abstract_method_enforcement(self) -> None:
+        """
+        Test that calling the abstract method from Loader raises a TypeError.
+        """
+        with self.assertRaises(TypeError):
+            _ = Loader(config={})  # Direct instantiation should raise an error.
+
+    def test_load_symbols_mock(self) -> None:
+        """
+        Test that the mock loader's load_symbols method returns expected results.
         """
         symbols: Dict[str, str] = self.loader.load_symbols()
-        validated_symbols: List[str] = self.loader.validate_symbols(symbols)
-        self.assertIn("AAPL", validated_symbols, "AAPL should be supported")
-        self.assertIn("ES", validated_symbols, "ES should be supported")
-        self.assertNotIn("BTC", validated_symbols, "BTC should not be supported")
+        expected_symbols: Dict[str, str] = {
+            "AAPL": "EQUITY",
+            "ES": "FUTURES",
+            "BTC": "CRYPTO",
+        }
+        self.assertEqual(symbols, expected_symbols, "Loaded symbols do not match expected results.")
 
-    def test_prepare_for_ingestion(self) -> None:
-        """
-        Test the prepare_for_ingestion method to check job preparation.
-        """
-        ingestion_jobs: List[Dict[str, Any]] = self.loader.prepare_for_ingestion()
-        expected_jobs: List[Dict[str, Any]] = [
-            {"symbol": "AAPL", "asset_type": "EQUITY", "provider": "databento", "aggregation_level": "ohlcv-1d"},
-            {"symbol": "ES", "asset_type": "FUTURES", "provider": "databento", "aggregation_level": "ohlcv-1d"}
-        ]
-        self.assertEqual(len(ingestion_jobs), 2, "Only 2 jobs should be prepared for supported symbols")
-        self.assertEqual(ingestion_jobs, expected_jobs, "Prepared ingestion jobs do not match expected jobs")
 
 if __name__ == "__main__":
     unittest.main()

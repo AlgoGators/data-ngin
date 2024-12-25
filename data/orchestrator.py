@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import pandas as pd
 from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
 from utils.dynamic_loader import get_instance, determine_date_range
@@ -53,27 +54,44 @@ class Orchestrator:
             end_date (str): End date for fetching data. 
         """
         try:
-            logging.info(f"Fetching data for symbol: {symbol['dataSymbol']}")
+            logging.info(f"Fetching raw data for symbol: {symbol['dataSymbol']}")
             
             # Fetch raw data
-            raw_data: List[Dict[str, Any]] = await self.fetcher.fetch_data(
+            raw_data: pd.DataFrame = await self.fetcher.fetch_data(
                 symbol=symbol['dataSymbol'],
                 loaded_asset_type=symbol['instrumentType'],
                 start_date=start_date,
                 end_date=end_date,
             )
 
+            # Connect to the database
+            self.inserter.connect()
+        
+            # Insert raw data
+            logging.info(f"Inserting raw data for symbol: {symbol['dataSymbol']}")
+            self.inserter.insert_data(
+                data=raw_data.to_dict(orient="records"), 
+                schema=self.config["database"]["target_schema"], 
+                table=self.config["database"]["raw_table"]
+            )
+            
             # Clean data
             logging.info(f"Cleaning data for symbol: {symbol['dataSymbol']}")
             cleaned_data: List[Dict[str, Any]] = self.cleaner.clean(raw_data)
 
-            # Insert data
+            # Insert cleaned data
             logging.info(f"Inserting data for symbol: {symbol['dataSymbol']}")
-            self.inserter.connect()
-            self.inserter.insert_data(data=cleaned_data)
+            self.inserter.insert_data(
+                data=cleaned_data, 
+                schema=self.config["database"]["target_schema"], 
+                table=self.config["database"]["table"]
+            )
 
         except Exception as e:
             logging.error(f"Failed to process symbol {symbol['dataSymbol']}: {e}")
+
+        finally:
+            self.inserter.close()
 
     async def run(self) -> None:
         """
