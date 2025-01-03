@@ -1,7 +1,7 @@
 # Data Engine for Financial Market Data
 
 ## Overview
-The **data-ngin** is a modular pipeline designed to fetch, clean, store, and analyze financial market data, leveraging tools such as TimescaleDB and Apache Airflow. This pipeline is tailored for systematic trading strategies and enables seamless integration with a variety of datasets, ensuring scalability and resilience.
+The **data-ngin** is a modular pipeline designed to fetch, clean, store, and analyze financial market data, leveraging tools such as [TimescaleDB](https://docs.timescale.com/) and [Apache Airflow](https://airflow.apache.org/docs/apache-airflow/stable/index.html). This pipeline is tailored for systematic trading strategies and enables seamless integration with a variety of datasets, ensuring scalability and resilience.
 
 ## Key Features
 - **Data Fetching:** Interface for historical market data
@@ -76,9 +76,9 @@ The **data-ngin** is a modular pipeline designed to fetch, clean, store, and ana
 
 ### Prerequisites
 - Python 3.10+
-- Docker and Docker Compose
-- PostgreSQL
-- Poetry for dependency management
+- [Docker and Docker Compose](https://www.docker.com/products/docker-desktop/)
+- [PostgreSQL 16](https://www.postgresql.org/download/)
+- [Poetry for dependency management](https://python-poetry.org/docs/)
 
 ### Setup
 
