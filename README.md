@@ -1,0 +1,191 @@
+# Data Engine for Financial Market Data
+
+## Overview
+The **data-ngin** is a modular pipeline designed to fetch, clean, store, and analyze financial market data, leveraging tools such as [TimescaleDB](https://docs.timescale.com/) and [Apache Airflow](https://airflow.apache.org/docs/apache-airflow/stable/index.html). This pipeline is tailored for systematic trading strategies and enables seamless integration with a variety of datasets, ensuring scalability and resilience.
+
+## Key Features
+- **Data Fetching:** Interface for historical market data
+- **Data Cleaning:** Standardizes raw data to meet database and analytical requirements
+- **Data Storage:** Stores data in user specified location
+- **Automation:** Utilizes Apache Airflow for scheduling and managing pipeline tasks
+- **Modularity:** Designed with interchangeable components for fetchers, loaders, cleaners, and inserters
+
+## Project Structure
+- **`data/main.py`**: Entry point for pipeline execution
+- **Primary Modules**:
+  - **Loader**: Loads metadata and configuration (e.g., `CSVLoader`)
+  - **Fetcher**: Fetches raw data (e.g., `DatabentoFetcher`)
+  - **Cleaner**: Cleans and standardizes raw data (e.g., `DatabentoCleaner`)
+  - **Inserter**: Inserts cleaned data to specified location (e.g., `TimescaleDBInserter`)
+  - **Orchestrator**: Coordinates the pipeline workflow
+- **`data/modules/data_access.py`**: Functions to pull data from PostgreSQL server
+- **`data/modules/db_models.py`**: Defines the schema for storing financial market data (e.g., `OHLCV`)
+- **`utils/dynamic_loader.py`**: Loads config and creates an instance of a module class specified by user 
+- **`data/config/config.yaml`**: Defines global settings for the data engine
+- **`dags/data_pipeline_dag.py`**: Airflow DAG for automating daily data ingestion
+
+```├── .vscode
+├── contracts
+│   ├── contract.csv
+│   ├── contract_valid.csv
+├── data
+│   ├── config
+|   │   ├── config.yaml
+│   ├── modules
+|   │   ├── __init__.py
+|   │   ├── cleaner.py
+|   │   ├── csv_loader.py
+|   │   ├── data_access.py
+|   │   ├── databento_cleaner.py
+|   │   ├── databento_fetcher.py
+|   │   ├── db_models.py
+|   │   ├── fetcher.py
+|   │   ├── inserter.py
+|   │   ├── loader.py
+|   │   ├── timescaledb_inserter.py
+│   ├── __init__.py
+│   ├── main.py
+│   ├── orchestrator.py
+├── tests
+│   ├── __init__.py
+│   ├── test_cleaner.py
+│   ├── test_config.py
+│   ├── test_csv_loader.py
+│   ├── test_data_access.py
+│   ├── test_databento_fetcher.py
+│   ├── test_db_connection.py
+│   ├── test_db_models.py
+│   ├── test_dynamic_loader.py
+│   ├── test_fetcher.py
+│   ├── test_integration_pipeline.py
+│   ├── test_loader.py
+│   ├── test_orchestrator.py
+│   ├── test_timescaledb_inserter.py
+├── utils
+│   ├── __init__.py
+│   ├── dynamic_loader.py
+├── .gitignore
+├── DockerFile
+├── README.md
+├── docker-compose.yml
+├── poetry.lock
+├── pyproject.toml
+```
+
+## Installation
+
+### Prerequisites
+- Python 3.10+
+- [Docker and Docker Compose](https://www.docker.com/products/docker-desktop/)
+- [PostgreSQL 16](https://www.postgresql.org/download/)
+- [Poetry for dependency management](https://python-poetry.org/docs/)
+
+### Setup
+
+1. **Clone the Repository:**
+   ```bash
+   git clone https://github.com/AlgoGators/data-ngin.git
+   cd data-ngin
+   ```
+
+2. **Install Poetry:**
+   ```bash
+   curl -sSL https://install.python-poetry.org | python3 -
+   ```
+
+3. **Add Poetry to your PATH if necessary:**
+   ```bash
+   export PATH="$HOME/.local/bin:$PATH"
+   ```
+
+4. **Install Dependencies:**
+   ```bash
+   poetry install
+   ```
+
+5. **Set Up Environment Variables:**
+   Create a `.env` file:
+   ```bash
+   DB_NAME=your_db_name
+   DB_USER=your_db_user
+   DB_PASSWORD=your_db_password
+   DB_HOST=localhost
+   DB_PORT=5432
+   DATABENTO_API_KEY=your_databento_api_key
+   ```
+
+6. **Build and Run Services with Docker Compose:**
+   ```bash
+   docker-compose up --build
+   ```
+
+## Usage
+
+### Run Pipeline Locally
+```bash
+poetry run python main.py
+```
+
+### Access Airflow Web Interface
+1. Navigate to http://localhost:8080
+2. Use default credentials (admin/admin) unless modified
+3. Configure Airflow DAG by modifying the `data_pipeline_dag.py` for scheduling and tasks
+
+## Modules
+With the exception of the Orchestrator, all the modules below are implemented as abstract base classes. If you'd like to create a new derivation (e.g. new data provider, new insertion mechanism, etc.), ensure that you inherit the appropriate ABC and follow its blueprint.
+
+### Loader
+- Loads symbols and metadata to fetch
+- Example: `CSVLoader`
+
+### Fetcher
+- Fetches historical market data
+- Example: `DatabentoFetcher` 
+
+### Cleaner
+- Validates, handles missing data, and transforms raw data
+- Example: `DatabentoCleaner`
+
+### Inserter
+- Manages database connectivity and data insertion
+- Example: `TimescaleDBInserter`
+
+### Orchestrator
+- Centralized controller for dynamic loading and execution of the pipeline
+- Functionality: Handles asynchronous data retrieval, cleaning, and insertion
+
+## Contributing
+
+1. Fork the Repository
+2. Create a Feature Branch:
+   ```bash
+   git checkout -b feature/your-feature
+   ```
+3. Commit Changes:
+   ```bash
+   git commit -m "Add your feature"
+   ```
+4. Push Changes:
+   ```bash
+   git push origin feature/your-feature
+   ```
+5. Submit a Pull Request
+
+## Configuration
+
+### YAML File (config.yaml)
+Defines global settings for the pipeline, including fetcher, loader, inserter, and cleaner classes. Also specifies date range, methods for handling missing data, and logging options.
+
+Example:
+```yaml
+loader:
+  class: "CSVLoader"
+  module: "csv_loader"
+  file_path: "./contracts/contract_valid.csv"
+```
+
+## Testing
+Run unit tests:
+```bash
+poetry run unittest
+```
