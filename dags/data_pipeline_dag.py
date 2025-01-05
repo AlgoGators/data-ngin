@@ -31,7 +31,7 @@ dag: DAG = DAG(
     "data_pipeline_dag",
     default_args=default_args,
     description="Daily data pipeline for market data ingestion",
-    schedule_interval="0 5 * * *", # Run daily at 5:00 AM
+    schedule_interval="0 7 * * *", # Run daily at 7:00 AM
     start_date=datetime(2024, 12, 1, tzinfo=local_tz),
     catchup=False,
     tags=["data_pipeline"],
