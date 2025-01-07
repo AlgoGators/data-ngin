@@ -22,6 +22,7 @@ fastapi = "^0.115.6"
 uvicorn = "^0.34.0"
 pyarrow = "^18.1.0"
 pydantic = "^2.10.4"
+tzdata = "^2024.2"
 
 
 [build-system]

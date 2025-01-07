@@ -41,7 +41,6 @@ async def export_data(
     Raises:
         HTTPException: If the schema or table does not exist, or an invalid format is provided.
     """
-    logging.info(f"Received filter: {filters}")
     conn: Optional[connection] = None
     try:
         # Establish a database connection
@@ -67,6 +66,10 @@ async def export_data(
 
         # Add filtering conditions if provided
         if filters:
+            try:
+                filter_dict: Dict[str, Any] = json.loads(filters)
+            except json.JSONDecodeError as e:
+                raise HTTPException(status_code=400, detail=f"Invalid filters JSON: {str(e)}")
             filter_dict: Dict[str, Any] = json.loads(filters)
             filter_clauses: List[str] = [f"{col} = %s" for col in filter_dict.keys()]
             query += f" WHERE {' AND '.join(filter_clauses)}"
@@ -87,15 +90,28 @@ async def export_data(
 
         # Export in the requested format
         if format == "json":
+            # Convert timestamps to strings for JSON serialization
+            if "time" in df.columns:
+                df["time"] = df["time"].astype(str)
+
             # Return data as JSON response
             return JSONResponse(content=df.to_dict(orient="records"))
 
         elif format == "arrow":
-            # Convert DataFrame to Apache Arrow Table and return as a stream
+            # Ensure timezone-aware timestamps are in UTC
+            if "time" in df.columns:
+                df["time"] = pd.to_datetime(df["time"]).dt.tz_convert("UTC")
+
+            # Convert DataFrame to Apache Arrow Table
             arrow_table: pa.Table = pa.Table.from_pandas(df)
+
+            # Write the Arrow Table to a binary stream
             output: io.BytesIO = io.BytesIO()
-            pacsv.write_csv(arrow_table, output)
+            with pa.ipc.new_file(output, arrow_table.schema) as writer:
+                writer.write(arrow_table)
             output.seek(0)
+
+            # Return the Arrow data as a streaming response
             return StreamingResponse(
                 output,
                 media_type="application/octet-stream",
