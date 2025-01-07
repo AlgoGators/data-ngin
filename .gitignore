@@ -2,3 +2,12 @@
 __pycache__/
 *pyc
 *.log
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+*.pyd
+*.pyo
+*.pdb
+dist/
+build/
