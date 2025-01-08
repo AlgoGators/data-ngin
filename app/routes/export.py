@@ -4,7 +4,6 @@ from app.db import get_connection
 from typing import Optional, List, Dict, Any
 from psycopg2.extensions import connection
 import pandas as pd
-import logging
 import pyarrow as pa
 import pyarrow.csv as pacsv
 import io

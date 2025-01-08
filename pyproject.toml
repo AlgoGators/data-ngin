@@ -25,6 +25,7 @@ pydantic = "^2.10.4"
 tzdata = "^2024.2"
 fastapi-limiter = "^0.1.6"
 redis = {extras = ["async"], version = "^5.2.1"}
+prometheus-fastapi-instrumentator = "^7.0.0"
 
 
 [build-system]
