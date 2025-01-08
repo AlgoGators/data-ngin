@@ -23,9 +23,8 @@ uvicorn = "^0.34.0"
 pyarrow = "^18.1.0"
 pydantic = "^2.10.4"
 tzdata = "^2024.2"
-fastapi-limiter = "^0.1.6"
-redis = {extras = ["async"], version = "^5.2.1"}
 prometheus-fastapi-instrumentator = "^7.0.0"
+slowapi = "^0.1.9"
 
 
 [build-system]

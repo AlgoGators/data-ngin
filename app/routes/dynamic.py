@@ -17,31 +17,41 @@ async def get_data(
     schema: str,
     table: str,
     filters: Optional[str] = Query(None, description="JSON string for column-value filters"),
+    range_filters: Optional[str] = Query(None, description="JSON string for range filters (e.g., {'column': {'gt': value}})"),
+    aggregations: Optional[str] = Query(None, description="JSON string for aggregations (e.g., {'column': 'SUM'})"),
+    group_by: Optional[str] = Query(None, description="Comma-separated list of columns for grouping"),
     columns: str = Query("*", description="Comma-separated list of columns to select"),
     limit: int = Query(100, description="Number of rows to retrieve"),
     offset: int = Query(0, description="Number of rows to skip for pagination"),
     format: str = Query("json", description="Response format: 'json' or 'arrow'")
-) -> List[Dict[str, Any]]:
+) -> Any:
     """
-    Dynamically queries data from a specified schema and table with optional filtering, pagination, column selection,
-    and default sorting by time and symbol (if available).
+    Dynamically queries data from a specified schema and table with advanced SQL features such as aggregations,
+    grouping, and range filtering. Supports JSON and Apache Arrow response formats.
 
     Args:
         schema (str): The name of the schema to query.
         table (str): The name of the table to query.
-        filters (Optional[str], optional): JSON string with column-value pairs for filtering (default: None).
+        filters (Optional[str], optional): JSON string for column-value filters (default: None).
+        range_filters (Optional[str], optional): JSON string for range filters (e.g., {'column': {'gt': value}}).
+        aggregations (Optional[str], optional): JSON string for aggregations (e.g., {'column': 'SUM'}).
+        group_by (Optional[str], optional): Comma-separated list of columns for grouping.
         columns (str, optional): Comma-separated list of columns to retrieve (default: "*").
         limit (int, optional): Number of rows to retrieve (default: 100).
-        offset (int, optional): Number of rows to skip for pagination (default: 0).
+        offset (int, optional): Number of rows to skip for pagination.
+        format (str): Desired response format: 'json' or 'arrow'.
 
     Returns:
-        List[Dict[str, Any]]: A list of dictionaries representing query results.
-
-    Raises:
-        HTTPException: If the schema or table does not exist, or if a query error occurs.
+        JSONResponse or StreamingResponse: Query results in the specified format.
     """
+    logging.info(f"Received request for schema: %s, table: %s", schema, table)
     conn: Optional[connection] = None
     try:
+        # Establish a database connection
+        conn = get_connection()
+        if not conn:
+            raise HTTPException(status_code=500, detail="Database connection failed")
+        
         # Fetch valid column names
         valid_columns: List[str] = get_valid_columns(schema, table)
 
@@ -56,7 +66,79 @@ async def get_data(
                     status_code=400,
                     detail=f"Invalid columns requested: {', '.join(invalid_columns)}",
                 )
-        
+
+        # Validate group_by columns
+        if group_by:
+            group_by_columns = group_by.split(",")
+            invalid_group_by_columns = [col for col in group_by_columns if col not in valid_columns]
+            if invalid_group_by_columns:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid columns in group_by: {', '.join(invalid_group_by_columns)}",
+                )
+
+        # Validate aggregations
+        if aggregations:
+            aggregation_dict = json.loads(aggregations)
+            invalid_agg_columns = [col for col in aggregation_dict.keys() if col not in valid_columns]
+            if invalid_agg_columns:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid columns in aggregations: {', '.join(invalid_agg_columns)}",
+                )
+            aggregation_clauses = [f"{func}({col}) AS {col}_{func.lower()}" for col, func in aggregation_dict.items()]
+        else:
+            aggregation_clauses = []
+
+        # Validate range filters
+        if range_filters:
+            range_filter_dict = json.loads(range_filters)
+            invalid_range_columns = [col for col in range_filter_dict.keys() if col not in valid_columns]
+            if invalid_range_columns:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid columns in range_filters: {', '.join(invalid_range_columns)}",
+                )
+            
+            # Map operators to SQL symbols
+            operator_map = {"gt": ">", "lt": "<", "gte": ">=", "lte": "<="}
+
+            # Generate range clauses using the mapped operators
+            range_clauses = [
+            f"{col} {operator_map[op]} %s"
+            for col, conditions in range_filter_dict.items()
+            for op in conditions.keys()
+            if op in operator_map
+            ]
+            range_params = [
+                value for conditions in range_filter_dict.values() for value in conditions.values()
+            ]
+        else:
+            range_clauses = []
+            range_params = []
+
+        # Build the SQL query
+        select_clause = ", ".join(aggregation_clauses) if aggregation_clauses else columns
+        query = f"SELECT {select_clause} FROM {schema}.{table}"
+        params: List[Any] = []
+
+        # Add filtering conditions
+        if filters:
+            filter_dict = json.loads(filters)
+            filter_clauses = [f"{col} = %s" for col in filter_dict.keys()]
+            query += f" WHERE {' AND '.join(filter_clauses)}"
+            params.extend(filter_dict.values())
+
+        # Add range filters
+        if range_clauses:
+            where_or_and = "WHERE" if "WHERE" not in query else "AND"
+            query += f" {where_or_and} {' AND '.join(range_clauses)}"
+            params.extend(range_params)
+
+        # Add group_by
+        if group_by:
+            query += f" GROUP BY {group_by}"
+
         # Determine primary and secondary sorting columns
         primary_sort_column: str = "symbol" if "symbol" in valid_columns else valid_columns[0]
 
@@ -66,50 +148,21 @@ async def get_data(
             secondary_sort_column: Optional[str] = "ts_event"
         else:
             secondary_sort_column: Optional[str] = None
-            
-        # Establish a database connection
-        conn = get_connection()
-
-        # Validate the existence of the schema and table in the database
-        with conn.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT 1
-                FROM information_schema.tables
-                WHERE table_schema = %s AND table_name = %s
-                """,
-                (schema, table),
-            )
-            if not cursor.fetchone():
-                # Raise an HTTP 404 error if the schema or table does not exist
-                raise HTTPException(status_code=404, detail="Schema or table not found.")
-
-        # Build the SQL query
-        query: str = f"SELECT {columns} FROM {schema}.{table}"
-        params: List[Any] = []
-
-        # Add filtering conditions if provided
-        if filters:
-            filter_dict: Dict[str, Any] = json.loads(filters)
-            filter_clauses: List[str] = [f"{col} = %s" for col in filter_dict.keys()]
-            query += f" WHERE {' AND '.join(filter_clauses)}"
-            params.extend(filter_dict.values())
 
         # Add sorting and pagination
-        order_by_clause: str = (
-            f"{primary_sort_column}, {secondary_sort_column}" if secondary_sort_column else primary_sort_column
-        )
+        order_by_clause: str = f"{primary_sort_column}, {secondary_sort_column}" if secondary_sort_column else primary_sort_column
         query += f" ORDER BY {order_by_clause} LIMIT %s OFFSET %s"
         params.extend([limit, offset])
 
-        # Execute the query and fetch results
+        # Execute the query
         with conn.cursor() as cursor:
             cursor.execute(query, params)
-            rows: List[tuple] = cursor.fetchall()
-            column_names: List[str] = [desc[0] for desc in cursor.description]
+            rows = cursor.fetchall()
+            column_names = [desc[0] for desc in cursor.description]
 
         # Convert results to a DataFrame
         df: pd.DataFrame = pd.DataFrame(rows, columns=column_names)
+        logging.info("Data fetched and converted to DataFrame")
 
         # Format response
         if format == "json":
@@ -117,14 +170,11 @@ async def get_data(
             if "time" in df.columns:
                 df["time"] = df["time"].astype(str)
 
-            # Return data as JSON response
             return JSONResponse(content=df.to_dict(orient="records"))
 
         elif format == "arrow":
             # Convert to Arrow Table
             table = pa.Table.from_pandas(df)
-
-            # Return as binary stream
             stream = pa.BufferOutputStream()
             with pa.ipc.new_file(stream, table.schema) as writer:
                 writer.write(table)
@@ -139,15 +189,13 @@ async def get_data(
         else:
             raise HTTPException(status_code=400, detail=f"Invalid format '{format}'. Use 'json' or 'arrow'.")
 
-
     except Exception as e:
-        # Raise an HTTP 500 error for any unexpected issues during query execution
         raise HTTPException(status_code=500, detail=str(e))
 
     finally:
-        # Ensure the database connection is closed after execution
         if conn:
             conn.close()
+
 
 @router.post("/data/{schema}/{table}")
 async def insert_data(

@@ -1,12 +1,12 @@
-from fastapi import FastAPI, Depends, Request
-from fastapi_limiter import FastAPILimiter
-from fastapi_limiter.depends import RateLimiter
-import redis.asyncio as redis
+from fastapi import FastAPI, Request, Depends
+from fastapi.responses import JSONResponse
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from app.routes import dynamic, export, metadata
 from app.middleware.api_key_auth import APIKeyMiddleware
 from app.middleware.request_logger import RequestLoggerMiddleware
 from logging.handlers import RotatingFileHandler
-from time import time
 from utils.logging_config import setup_logging
 from prometheus_fastapi_instrumentator import Instrumentator
 
@@ -15,6 +15,17 @@ setup_logging()
 
 # Create a FastAPI application instance
 app: FastAPI = FastAPI()
+
+# Initialize the SlowAPI rate limiter
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+
+# Add a global exception handler for rate limit errors
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        {"detail": "Rate limit exceeded. Please try again later."}, status_code=429
+    )
 
 # Add the request logger middleware
 app.add_middleware(RequestLoggerMiddleware)
@@ -34,14 +45,3 @@ instrumentator.expose(app)
 
 # Add the API key middleware to the application
 app.add_middleware(APIKeyMiddleware)
-
-@app.on_event("startup")
-async def startup():
-    # Initialize FastAPI-Limiter with redis-py (asyncio support)
-    redis_client = redis.Redis(host="localhost", port=6379, decode_responses=True)
-    await FastAPILimiter.init(redis_client)
-
-# Example usage of rate limiting in a route
-@app.get("/data/futures_data/ohlcv_1d", dependencies=[Depends(RateLimiter(times=10, seconds=60))])
-async def get_futures_data():
-    return {"message": "This endpoint is rate limited to 10 requests per minute."}
