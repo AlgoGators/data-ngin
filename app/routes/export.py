@@ -96,27 +96,6 @@ async def export_data(
             # Return data as JSON response
             return JSONResponse(content=df.to_dict(orient="records"))
 
-        elif format == "arrow":
-            # Ensure timezone-aware timestamps are in UTC
-            if "time" in df.columns:
-                df["time"] = pd.to_datetime(df["time"]).dt.tz_convert("UTC")
-
-            # Convert DataFrame to Apache Arrow Table
-            arrow_table: pa.Table = pa.Table.from_pandas(df)
-
-            # Write the Arrow Table to a binary stream
-            output: io.BytesIO = io.BytesIO()
-            with pa.ipc.new_file(output, arrow_table.schema) as writer:
-                writer.write(arrow_table)
-            output.seek(0)
-
-            # Return the Arrow data as a streaming response
-            return StreamingResponse(
-                output,
-                media_type="application/octet-stream",
-                headers={"Content-Disposition": "attachment; filename=data.arrow"},
-            )
-
         elif format == "csv":
             # Convert DataFrame to CSV and return as a stream
             csv_output: io.StringIO = io.StringIO()
