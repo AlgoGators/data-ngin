@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Body
 from typing import Optional, List, Dict, Any
 from psycopg2.extensions import connection
 import json
@@ -21,6 +21,7 @@ async def get_data(
     aggregations: Optional[str] = Query(None, description="JSON string for aggregations (e.g., {'column': 'SUM'})"),
     group_by: Optional[str] = Query(None, description="Comma-separated list of columns for grouping"),
     columns: str = Query("*", description="Comma-separated list of columns to select"),
+    distinct: Optional[bool] = Query(None, description="Return only distinct rows"),
     limit: int = Query(100, description="Number of rows to retrieve"),
     offset: int = Query(0, description="Number of rows to skip for pagination"),
     format: str = Query("json", description="Response format: 'json' or 'arrow'")
@@ -78,6 +79,7 @@ async def get_data(
                 )
 
         # Validate aggregations
+        aggregation_clauses: List[str] = []
         if aggregations:
             aggregation_dict = json.loads(aggregations)
             invalid_agg_columns = [col for col in aggregation_dict.keys() if col not in valid_columns]
@@ -86,9 +88,8 @@ async def get_data(
                     status_code=400,
                     detail=f"Invalid columns in aggregations: {', '.join(invalid_agg_columns)}",
                 )
-            aggregation_clauses = [f"{func}({col}) AS {col}_{func.lower()}" for col, func in aggregation_dict.items()]
-        else:
-            aggregation_clauses = []
+            aggregation_clauses = [f"{func}({col}) AS {col}" for col, func in aggregation_dict.items()]
+                
 
         # Validate range filters
         if range_filters:
@@ -117,9 +118,16 @@ async def get_data(
             range_clauses = []
             range_params = []
 
-        # Build the SQL query
-        select_clause = ", ".join(aggregation_clauses) if aggregation_clauses else columns
-        query = f"SELECT {select_clause} FROM {schema}.{table}"
+        # Build the SQL query dynamically
+        select_clause_agg = ", ".join(aggregation_clauses) if aggregation_clauses else columns
+        select_cause_dis = "DISTINCT " + columns if distinct else columns
+        if aggregation_clauses:
+            query = f"SELECT {select_clause_agg} FROM {schema}.{table}"
+        elif select_cause_dis:
+            query = f"SELECT {select_cause_dis} FROM {schema}.{table}"
+        else:
+            query = f"SELECT {columns} FROM {schema}.{table}"
+
         params: List[Any] = []
 
         # Add filtering conditions
@@ -151,8 +159,16 @@ async def get_data(
 
         # Add sorting and pagination
         order_by_clause: str = f"{primary_sort_column}, {secondary_sort_column}" if secondary_sort_column else primary_sort_column
-        query += f" ORDER BY {order_by_clause} LIMIT %s OFFSET %s"
+
+        # Omit order by clause if distinct or aggregated (can't use ORDER BY with DISTINCT)
+        if distinct or aggregations:
+            query += f" LIMIT %s OFFSET %s"
+        else:
+            query += f" ORDER BY {order_by_clause} LIMIT %s OFFSET %s"
         params.extend([limit, offset])
+
+        # Log the query and parameters
+        logging.info("Query: %s", query)
 
         # Execute the query
         with conn.cursor() as cursor:
@@ -164,12 +180,12 @@ async def get_data(
         df: pd.DataFrame = pd.DataFrame(rows, columns=column_names)
         logging.info("Data fetched and converted to DataFrame")
 
+        # Convert timestamps to strings for JSON serialization
+        if "time" in df.columns:
+            df["time"] = df["time"].astype(str)
+
         # Format response
         if format == "json":
-            # Convert timestamps to strings for JSON serialization
-            if "time" in df.columns:
-                df["time"] = df["time"].astype(str)
-
             return JSONResponse(content=df.to_dict(orient="records"))
 
         elif format == "arrow":
@@ -196,12 +212,12 @@ async def get_data(
         if conn:
             conn.close()
 
-
 @router.post("/data/{schema}/{table}")
 async def insert_data(
     schema: str,
     table: str,
-    rows: List[Dict[str, Any]]
+    format: str = Query("json", description="Input data format: 'json' or 'arrow'"),
+    payload: Optional[Dict[str, Any]] = Body(None),
 ) -> Dict[str, Any]:
     """
     Inserts rows of data into the specified schema and table.
@@ -223,7 +239,7 @@ async def insert_data(
         valid_columns = get_valid_columns(schema, table)
 
         # Validate input data
-        for row in rows:
+        for row in payload:
             invalid_columns = [col for col in row.keys() if col not in valid_columns]
             if invalid_columns:
                 raise HTTPException(
@@ -232,17 +248,17 @@ async def insert_data(
                 )
 
         # Build the SQL query dynamically
-        columns = rows[0].keys()
+        columns = payload[0].keys()
         placeholders = ", ".join([f"%({col})s" for col in columns])
         query = f"INSERT INTO {schema}.{table} ({', '.join(columns)}) VALUES ({placeholders})"
 
         # Connect to the database and execute the query
         conn = get_connection()
         with conn.cursor() as cursor:
-            cursor.executemany(query, rows)  # Execute the query for all rows
+            cursor.executemany(query, payload)  # Execute the query for all rows
         conn.commit()
 
-        return {"status": "success", "message": f"{len(rows)} row(s) inserted successfully."}
+        return {"status": "success", "message": f"{len(payload)} row(s) inserted successfully."}
 
     except Exception as e:
         if conn:
