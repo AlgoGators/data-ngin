@@ -220,7 +220,7 @@ async def insert_data(
     format: str = Query("json", description="Input data format: 'json' or 'arrow'"),
     request: Request = None,
     payload: Optional[List[Dict[str, Any]]] = Body(None),
-):
+) -> Dict[str, Any]:
     """
     Inserts rows of data into the specified schema and table.
 

@@ -25,7 +25,13 @@ pydantic = "^2.10.4"
 tzdata = "^2024.2"
 prometheus-fastapi-instrumentator = "^7.0.0"
 slowapi = "^0.1.9"
+mkdocstrings-python = "^1.13.0"
 
+
+[tool.poetry.group.dev.dependencies]
+mkdocs = "^1.6.1"
+mkdocstrings = "^0.27.0"
+mkdocs-material = "^9.5.49"
 
 [build-system]
 requires = ["poetry-core"]
