@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Query, Body
+from fastapi import APIRouter, HTTPException, Query, Body, Request
+from starlette.responses import Response
 from typing import Optional, List, Dict, Any
 from psycopg2.extensions import connection
 import json
@@ -217,15 +218,18 @@ async def insert_data(
     schema: str,
     table: str,
     format: str = Query("json", description="Input data format: 'json' or 'arrow'"),
-    payload: Optional[Dict[str, Any]] = Body(None),
-) -> Dict[str, Any]:
+    request: Request = None,
+    payload: Optional[List[Dict[str, Any]]] = Body(None),
+):
     """
     Inserts rows of data into the specified schema and table.
 
     Args:
         schema (str): The schema containing the target table.
         table (str): The table to insert data into.
-        rows (List[Dict[str, Any]]): A list of dictionaries where each dictionary represents a row of data.
+        format (str, optional): The format of the input data: 'json' or 'arrow' (default: 'json').
+        payload (Optional[List[Dict[str, Any]]], optional): A list of JSON objects to insert (default: None).
+        request (Request, optional): The incoming request object (default: None).
 
     Returns:
         Dict[str, Any]: A response indicating the success or failure of the operation.
@@ -233,36 +237,139 @@ async def insert_data(
     Raises:
         HTTPException: If validation fails or the insertion encounters an error.
     """
+    logging.info(f"Received request to insert data into schema: %s, table: %s", schema, table)
     conn: Optional[connection] = None
     try:
+        # Establish a database connection
+        conn = get_connection()
+        if not conn:
+            raise HTTPException(status_code=500, detail="Database connection failed")
+        
         # Validate schema and table existence
         valid_columns = get_valid_columns(schema, table)
 
-        # Validate input data
-        for row in payload:
-            invalid_columns = [col for col in row.keys() if col not in valid_columns]
-            if invalid_columns:
+        # Validate input format
+        if format not in ["json", "arrow"]:
+            raise HTTPException(status_code=400, detail=f"Invalid input format: {format}. Use 'json' or 'arrow'.")
+        
+        if format == "json":
+            if not payload:
+                raise HTTPException(status_code=400, detail="Payload is required for JSON data.")
+            if not isinstance(payload, list):
+                raise HTTPException(status_code=400, detail=f"Invalid payload format: {type(payload)}. Payload must be a list of JSON objects.")
+            
+            for row in payload:
+                if not isinstance(row, dict):
+                    raise HTTPException(status_code=400, detail=f"Invalid row format: {type(row)}. Each row must be a JSON object.")
+                for col in row.keys():
+                    if col not in valid_columns:
+                        raise HTTPException(status_code=400, detail=f"Invalid column: {col}")
+                for key, value in row.items():
+                    if not isinstance(key, str):
+                        raise HTTPException(status_code=400, detail=f"Invalid key type: {type(key)}. Keys must be strings.")
+                    if isinstance(value, (dict, list)):
+                        raise HTTPException(status_code=400, detail=f"Invalid value type for key '{key}': {type(value)}. Values must be scalars.")
+            
+            # Insert JSON data into the table
+            with conn.cursor() as cursor:
+                columns = ", ".join(payload[0].keys())
+                placeholders = ", ".join(["%s"] * len(payload[0]))
+                query = f"INSERT INTO {schema}.{table} ({columns}) VALUES ({placeholders})"
+                # Log the query and parameters for debugging
+                logging.info(f"Query: {query}")
+                logging.info(f"Parameters: {payload}")
+                cursor.executemany(query, [list(row.values()) for row in payload])
+            conn.commit()
+            return {"status": "success", "message": f"{len(payload)} row(s) inserted successfully."}
+
+        elif format == "arrow":
+            # Ensure the request object exists
+            if not request:
+                raise HTTPException(status_code=400, detail="Request object is required for Arrow data.")
+
+            try:
+                # Validate content type
+                content_type = request.headers.get("content-type", "").lower()
+                if "application/octet-stream" not in content_type:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Arrow data must be sent with 'content-type: application/octet-stream'."
+                    )
+
+                # Read the raw body as binary
+                body = await request.body()
+
+                # Attempt to parse the Arrow table
+                try:
+                    # Try to open the Arrow stream
+                    reader = pa.ipc.open_stream(pa.py_buffer(body))
+                    table_data = reader.read_all()
+                except pa.lib.ArrowInvalid as stream_error:
+                    logging.warning(f"Failed to read Arrow stream: {stream_error}")
+                    try:
+                        # Fall back to opening as an Arrow file
+                        reader = pa.ipc.open_file(pa.py_buffer(body))
+                        table_data = reader.read_all()
+                    except pa.lib.ArrowInvalid as file_error:
+                        logging.error(f"Failed to parse Arrow data: {file_error}")
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Invalid Arrow format: Unable to parse as stream or file."
+                        )
+
+                # Log table schema and size
+                logging.info(f"Arrow table schema: {table_data.schema}")
+                logging.info(f"Arrow table rows: {table_data.num_rows}, columns: {table_data.num_columns}")
+
+                # Validate that all columns exist in the database schema
+                for col in table_data.column_names:
+                    if col not in valid_columns:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Invalid column in Arrow data: {col}."
+                        )
+
+                # Convert Arrow table to rows
+                rows = [
+                    tuple(row)
+                    for row in zip(*[col.to_pylist() for col in table_data.columns])
+                ]
+
+                # Insert the rows into the database
+                with conn.cursor() as cursor:
+                    columns = ", ".join(table_data.column_names)
+                    placeholders = ", ".join(["%s"] * len(table_data.column_names))
+                    query = f"INSERT INTO {schema}.{table} ({columns}) VALUES ({placeholders})"
+                    
+                    logging.info(f"Executing query: {query}")
+                    cursor.executemany(query, rows)
+
+                conn.commit()
+
+                # Return success response
+                return {
+                    "status": "success",
+                    "message": f"Inserted {len(rows)} rows successfully.",
+                    "rows_affected": len(rows)
+                }
+
+            except pa.lib.ArrowInvalid as e:
+                logging.error(f"Arrow parsing error: {e}")
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Invalid columns in input: {', '.join(invalid_columns)}",
+                    detail=f"Invalid Arrow format: {str(e)}"
                 )
-
-        # Build the SQL query dynamically
-        columns = payload[0].keys()
-        placeholders = ", ".join([f"%({col})s" for col in columns])
-        query = f"INSERT INTO {schema}.{table} ({', '.join(columns)}) VALUES ({placeholders})"
-
-        # Connect to the database and execute the query
-        conn = get_connection()
-        with conn.cursor() as cursor:
-            cursor.executemany(query, payload)  # Execute the query for all rows
-        conn.commit()
-
-        return {"status": "success", "message": f"{len(payload)} row(s) inserted successfully."}
-
+            except Exception as e:
+                logging.error(f"Unexpected error while inserting Arrow data: {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Error processing Arrow data: {str(e)}"
+                )
+        
     except Exception as e:
         if conn:
             conn.rollback()
+        logging.error(f"Error inserting data: {e}")
         raise HTTPException(status_code=500, detail=f"Error inserting data: {e}")
 
     finally:
@@ -273,8 +380,8 @@ async def insert_data(
 async def update_data(
     schema: str,
     table: str,
-    filters: Dict[str, Any],
-    updates: Dict[str, Any]
+    filters: Dict[str, Any] = Body(..., description="Conditions to identify rows to update."),
+    updates: Dict[str, Any] = Body(..., description="Columns and their new values.")
 ) -> Dict[str, Any]:
     """
     Updates rows of data in the specified schema and table based on filtering conditions.
@@ -327,22 +434,28 @@ async def update_data(
             row_count = cursor.rowcount  # Get the number of rows affected
         conn.commit()
 
-        return {"status": "success", "message": f"{row_count} row(s) updated successfully."}
+        return {
+            "status": "success",
+            "message": f"{row_count} row(s) updated successfully.",
+            "rows_affected": row_count
+        }
 
     except Exception as e:
         if conn:
             conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Error updating data: {e}")
+        logging.error(f"Error updating data: {e}")
+        raise HTTPException(status_code=500, detail=f"Error updating data: {str(e)}")
 
     finally:
         if conn:
             conn.close()
 
+
 @router.delete("/data/{schema}/{table}")
 async def delete_data(
     schema: str,
     table: str,
-    filters: Dict[str, Any]
+    payload: Dict[str, Any] = Body(..., description="Payload containing filters for deletion.")
 ) -> Dict[str, Any]:
     """
     Deletes rows of data from the specified schema and table based on filtering conditions.
@@ -350,7 +463,7 @@ async def delete_data(
     Args:
         schema (str): The schema containing the target table.
         table (str): The table to delete data from.
-        filters (Dict[str, Any]): A dictionary specifying conditions to identify rows to delete.
+        payload (Dict[str, Any]): A dictionary containing filters to identify rows to delete.
 
     Returns:
         Dict[str, Any]: A response indicating the success or failure of the operation.
@@ -360,6 +473,11 @@ async def delete_data(
     """
     conn: Optional[connection] = None
     try:
+        # Extract filters from the payload
+        filters = payload.get("filters")
+        if not filters or not isinstance(filters, dict):
+            raise HTTPException(status_code=400, detail="Filters must be provided as a dictionary.")
+
         # Validate schema and table existence
         valid_columns = get_valid_columns(schema, table)
 
@@ -375,7 +493,7 @@ async def delete_data(
         where_clause = " AND ".join([f"{col} = %s" for col in filters.keys()])
         query = f"DELETE FROM {schema}.{table} WHERE {where_clause}"
 
-        # Combine values for WHERE clause
+        # Combine filter values
         params = list(filters.values())
 
         # Connect to the database and execute the query
@@ -385,17 +503,21 @@ async def delete_data(
             row_count = cursor.rowcount  # Get the number of rows affected
         conn.commit()
 
-        return {"status": "success", "message": f"{row_count} row(s) deleted successfully."}
+        return {
+            "status": "success",
+            "message": f"{row_count} row(s) deleted successfully.",
+            "rows_affected": row_count
+        }
 
     except Exception as e:
         if conn:
             conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Error deleting data: {e}")
+        logging.error(f"Error deleting data: {e}")
+        raise HTTPException(status_code=500, detail=f"Error deleting data: {str(e)}")
 
     finally:
         if conn:
             conn.close()
-
 
 def get_valid_columns(schema: str, table: str) -> List[str]:
     """
