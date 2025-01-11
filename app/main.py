@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request, Depends
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -14,7 +15,10 @@ from prometheus_fastapi_instrumentator import Instrumentator
 setup_logging()
 
 # Create a FastAPI application instance
-app: FastAPI = FastAPI()
+app: FastAPI = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+
+# Mount the Mkdocs site at /docs
+app.mount("/docs", StaticFiles(directory="site"), name="docs")
 
 # Initialize the SlowAPI rate limiter
 limiter = Limiter(key_func=get_remote_address)
