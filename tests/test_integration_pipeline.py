@@ -1,6 +1,7 @@
 import unittest
 import tempfile
 import os
+import pandas as pd
 from unittest.mock import patch, MagicMock, AsyncMock
 from data.orchestrator import Orchestrator
 from typing import Dict, Any
@@ -39,7 +40,7 @@ class TestIntegrationPipeline(unittest.IsolatedAsyncioTestCase):
         }
 
         # Create a temporary CSV file to simulate the contracts CSV
-        self.temp_csv: tempfile.NamedTemporaryFile = tempfile.NamedTemporaryFile(
+        self.temp_csv = tempfile.NamedTemporaryFile(
             delete=False, mode="w", suffix=".csv"
         )
         self.temp_csv.write("dataSymbol,instrumentType\nES,FUTURE\nNQ,FUTURE\n")
@@ -55,51 +56,95 @@ class TestIntegrationPipeline(unittest.IsolatedAsyncioTestCase):
         if os.path.exists(self.temp_csv.name):
             os.remove(self.temp_csv.name)
 
-    @patch("data.modules.csv_loader.CSVLoader.load_symbols", return_value={"ES": "FUTURE", "NQ": "FUTURE"})
-    @patch("data.modules.databento_fetcher.DatabentoFetcher.fetch_data", new_callable=AsyncMock)
-    @patch("data.modules.databento_cleaner.DatabentoCleaner.clean")
-    @patch("data.modules.timescaledb_inserter.TimescaleDBInserter.insert_data")
+    @patch("data.orchestrator.DataAccess")
+    @patch("data.orchestrator.get_instance")
     async def test_pipeline_run(
         self,
-        mock_insert_data: MagicMock,
-        mock_clean: MagicMock,
-        mock_fetch_data: AsyncMock,
-        mock_load_symbols: MagicMock,
+        mock_get_instance: MagicMock,
+        mock_data_access: MagicMock,
     ) -> None:
         """
         Test that the pipeline processes symbols end-to-end.
         """
-        # Correctly mock fetcher return and cleaner output
-        mock_fetch_data.return_value = [{"time": "2023-01-01", "symbol": "ES", "open": 100.5}]
-        mock_clean.side_effect = lambda data: [{"time": "2023-01-01", "cleaned": True}]
+        # Create mock data
+        mock_df = pd.DataFrame({
+            "time": ["2023-01-01"],
+            "symbol": ["ES"],
+            "open": [100.5]
+        })
+        mock_cleaned_data = [{"time": "2023-01-01", "cleaned": True}]
+
+        # Set up mock components
+        mock_loader = MagicMock()
+        mock_fetcher = MagicMock()
+        mock_cleaner = MagicMock()
+        mock_inserter = MagicMock()
+
+        # Configure mock loader
+        mock_loader.load_symbols.return_value = {"ES": "FUTURE", "NQ": "FUTURE"}
+
+        # Configure mock fetcher
+        mock_fetcher.fetch_data = AsyncMock(return_value=mock_df)
+
+        # Configure mock cleaner
+        mock_cleaner.clean.return_value = mock_cleaned_data
+
+        # Configure mock inserter
+        mock_inserter.connect = MagicMock()
+        mock_inserter.close = MagicMock()
+        mock_inserter.insert_data = MagicMock()
+
+        # Set up get_instance to return our mocks
+        mock_get_instance.side_effect = [mock_loader, mock_fetcher, mock_cleaner, mock_inserter]
 
         # Initialize the Orchestrator
-        orchestrator: Orchestrator = Orchestrator(config=self.mock_config)
+        orchestrator = Orchestrator(config=self.mock_config)
 
         # Run the pipeline
         await orchestrator.run()
 
         # Verify loader was called
-        mock_load_symbols.assert_called_once()
+        mock_loader.load_symbols.assert_called_once()
 
-        # Verify fetcher was called twice (once for each symbol)
-        self.assertEqual(mock_fetch_data.call_count, 2)
-        mock_fetch_data.assert_any_call(
+        # Verify fetcher was called for each symbol
+        self.assertEqual(mock_fetcher.fetch_data.call_count, 2)
+        mock_fetcher.fetch_data.assert_any_call(
             symbol="ES",
             loaded_asset_type="FUTURE",
             start_date="2023-01-01",
             end_date="2023-01-02",
         )
-        mock_fetch_data.assert_any_call(
+        mock_fetcher.fetch_data.assert_any_call(
             symbol="NQ",
             loaded_asset_type="FUTURE",
             start_date="2023-01-01",
             end_date="2023-01-02",
         )
 
-        # Verify cleaner and inserter were called twice
-        self.assertEqual(mock_clean.call_count, 2)
-        self.assertEqual(mock_insert_data.call_count, 4)
+        # Verify database connections
+        self.assertEqual(mock_inserter.connect.call_count, 2)  # Once for each symbol
+        self.assertEqual(mock_inserter.close.call_count, 2)    # Once for each symbol
+
+        # Verify raw data insertion
+        mock_inserter.insert_data.assert_any_call(
+            data=mock_df.to_dict(orient="records"),
+            schema="futures_data",
+            table="ohlcv_1d_raw"
+        )
+
+        # Verify cleaner was called
+        self.assertEqual(mock_cleaner.clean.call_count, 2)
+        mock_cleaner.clean.assert_any_call(mock_df)
+
+        # Verify cleaned data insertion
+        mock_inserter.insert_data.assert_any_call(
+            data=mock_cleaned_data,
+            schema="futures_data",
+            table="ohlcv_1d"
+        )
+
+        # Verify total number of insert_data calls (2 per symbol: raw + cleaned)
+        self.assertEqual(mock_inserter.insert_data.call_count, 4)
 
 
 if __name__ == "__main__":

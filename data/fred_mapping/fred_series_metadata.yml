@@ -1,0 +1,127 @@
+GDP:
+  index_name: "Real GDP"
+  metadata:
+    description: "Real Gross Domestic Product in the US."
+    units: "Billions of Chained 2012 Dollars"
+    frequency: "Quarterly"
+    source: "Federal Reserve Economic Data (FRED)"
+
+Industrial_Production:
+  index_name: "Industrial Production Index"
+  metadata:
+    description: "US Industrial Production Index."
+    units: "Index, 2017=100"
+    frequency: "Monthly"
+    source: "Federal Reserve Economic Data (FRED)"
+
+Consumer_Confidence:
+  index_name: "Consumer Confidence Index"
+  metadata:
+    description: "Consumer Confidence Index for the US."
+    units: "Index"
+    frequency: "Monthly"
+    source: "Federal Reserve Economic Data (FRED)"
+
+Inflation:
+  index_name: "CPI: All Urban Consumers"
+  metadata:
+    description: "Consumer Price Index for All Urban Consumers (CPI-U)."
+    units: "Index, 1982-84=100"
+    frequency: "Monthly"
+    source: "Federal Reserve Economic Data (FRED)"
+
+Trade_Balance:
+  index_name: "US Trade Balance"
+  metadata:
+    description: "US International Trade Balance of Goods and Services."
+    units: "Millions of USD"
+    frequency: "Monthly"
+    source: "Federal Reserve Economic Data (FRED)"
+
+Yield_Curves:
+  index_name: "US Treasury Yield Curve"
+  metadata:
+    description: "Interest rates at different maturities for US Treasury securities."
+    units: "Percent"
+    frequency: "Daily"
+    source: "Federal Reserve Economic Data (FRED)"
+
+Sovereign_Bonds:
+  index_name: "Sovereign Bond Yields"
+  metadata:
+    description: "Yields for sovereign bonds in major global economies."
+    units: "Percent"
+    frequency: "Daily"
+    source: "Federal Reserve Economic Data (FRED)"
+
+Credit_Spreads:
+  index_name: "Corporate Bond Spreads"
+  metadata:
+    description: "Spreads between corporate and government bonds of equivalent maturity."
+    units: "Percent"
+    frequency: "Daily"
+    source: "Federal Reserve Economic Data (FRED)"
+
+Monetary_Policy:
+  index_name: "Federal Funds Rate"
+  metadata:
+    description: "Effective federal funds rate."
+    units: "Percent"
+    frequency: "Daily"
+    source: "Federal Reserve Economic Data (FRED)"
+
+Energy_Prices:
+  index_name: "Crude Oil Prices"
+  metadata:
+    description: "Crude oil prices (West Texas Intermediate and Brent)."
+    units: "USD per Barrel"
+    frequency: "Daily"
+    source: "Federal Reserve Economic Data (FRED)"
+
+Precious_Metals:
+  index_name: "Gold and Silver Prices"
+  metadata:
+    description: "Market prices for gold and silver."
+    units: "USD per Troy Ounce"
+    frequency: "Daily"
+    source: "Federal Reserve Economic Data (FRED)"
+
+Agricultural_Prices:
+  index_name: "Agricultural Commodity Prices"
+  metadata:
+    description: "Prices for major agricultural commodities like corn, wheat, and soybeans."
+    units: "USD per Bushel"
+    frequency: "Daily"
+    source: "Federal Reserve Economic Data (FRED)"
+
+Exchange_Rates:
+  index_name: "US Dollar Exchange Rates"
+  metadata:
+    description: "Exchange rates of the US Dollar against major currencies."
+    units: "USD per Unit of Foreign Currency"
+    frequency: "Daily"
+    source: "Federal Reserve Economic Data (FRED)"
+
+FX_Reserves:
+  index_name: "Foreign Exchange Reserves"
+  metadata:
+    description: "Total foreign exchange reserves by country."
+    units: "Millions of USD"
+    frequency: "Monthly"
+    source: "Federal Reserve Economic Data (FRED)"
+
+Volatility_Measures:
+  index_name: "Volatility Indices"
+  metadata:
+    description: "Volatility indices for various asset classes (e.g., VIX for equities)."
+    units: "Index"
+    frequency: "Daily"
+    source: "Federal Reserve Economic Data (FRED)"
+
+Stress_Indices:
+  index_name: "Financial Stress Indices"
+  metadata:
+    description: "Indices measuring financial market stress (e.g., St. Louis Fed Financial Stress Index)."
+    units: "Index"
+    frequency: "Weekly"
+    source: "Federal Reserve Economic Data (FRED)"

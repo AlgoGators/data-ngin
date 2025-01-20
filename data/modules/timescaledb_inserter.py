@@ -63,6 +63,9 @@ class TimescaleDBInserter(Inserter):
         if not self.connection:
             raise RuntimeError("Database connection is not established.")
         
+        if not data:
+            raise ValueError("Data is empty.")
+        
         # Determine columns based on first row of data 
         columns = list(data[0].keys())
 

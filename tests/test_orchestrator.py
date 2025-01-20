@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock, AsyncMock
+import pandas as pd
 from typing import Dict, Any
 from data.orchestrator import Orchestrator
 
@@ -23,7 +24,8 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
         }
 
     @patch("data.orchestrator.get_instance")
-    def test_orchestrator_initialization(self, mock_get_instance: MagicMock) -> None:
+    @patch("data.orchestrator.DataAccess")
+    def test_orchestrator_initialization(self, mock_data_access: MagicMock, mock_get_instance: MagicMock) -> None:
         """
         Test that Orchestrator initializes all modules dynamically.
         """
@@ -42,87 +44,150 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(orchestrator.fetcher, mock_fetcher)
         self.assertEqual(orchestrator.cleaner, mock_cleaner)
         self.assertEqual(orchestrator.inserter, mock_inserter)
+        mock_data_access.assert_called_once()
 
-        # Verify correct arguments passed
-        mock_get_instance.assert_any_call(self.mock_config, "loader", "class")
-        mock_get_instance.assert_any_call(self.mock_config, "fetcher", "class")
-        mock_get_instance.assert_any_call(self.mock_config, "cleaner", "class")
-        mock_get_instance.assert_any_call(self.mock_config, "inserter", "class")
-
-    @patch("data.orchestrator.determine_date_range", return_value=("2023-01-01", "2023-01-02"))
-    @patch("data.orchestrator.Orchestrator.retrieve_and_process_data", new_callable=AsyncMock)
-    @patch("data.modules.csv_loader.CSVLoader.load_symbols", return_value={"ES": "FUTURE", "NQ": "FUTURE"})
+    @patch("data.orchestrator.DataAccess")
+    @patch("data.orchestrator.get_instance")
+    @patch("data.orchestrator.determine_date_range")
+    @patch("data.modules.csv_loader.CSVLoader.load_symbols")
     async def test_orchestrator_run(
         self,
         mock_load_symbols: MagicMock,
-        mock_process_data: AsyncMock,
         mock_determine_date_range: MagicMock,
+        mock_get_instance: MagicMock,
+        mock_data_access: MagicMock,
     ) -> None:
         """
         Test that Orchestrator run() processes all symbols asynchronously.
-        If dates are present in config, determine_date_range should NOT be called.
         """
+        # Set up mocks
+        mock_load_symbols.return_value = {"ES": "FUTURE", "NQ": "FUTURE"}
+        mock_determine_date_range.return_value = ("2023-01-01", "2023-01-02")
 
-        # Case 1: Dates Already Provided in Config
-        self.mock_config["time_range"]["start_date"] = "2023-01-01"
-        self.mock_config["time_range"]["end_date"] = "2023-01-02"
+        # Create mock instances
+        mock_loader = MagicMock()
+        mock_loader.load_symbols = mock_load_symbols
+        mock_fetcher = MagicMock()
+        mock_cleaner = MagicMock()
+        mock_inserter = MagicMock()
 
+        mock_get_instance.side_effect = [mock_loader, mock_fetcher, mock_cleaner, mock_inserter]
+
+        # Create orchestrator with mocked components
         orchestrator = Orchestrator(config=self.mock_config)
+        
+        # Mock retrieve_and_process_data
+        orchestrator.retrieve_and_process_data = AsyncMock()
+
+        # Execute test
         await orchestrator.run()
 
-        # Ensure load_symbols and retrieve_and_process_data were called
-        mock_load_symbols.assert_called_once()
-        self.assertEqual(mock_process_data.call_count, 2)
-        mock_process_data.assert_any_call(
-            {"dataSymbol": "ES", "instrumentType": "FUTURE"}, "2023-01-01", "2023-01-02"
+        # Verify calls
+        self.assertEqual(orchestrator.retrieve_and_process_data.call_count, 2)
+        orchestrator.retrieve_and_process_data.assert_any_call(
+            {"dataSymbol": "ES", "instrumentType": "FUTURE"},
+            "2023-01-01",
+            "2023-01-02"
         )
-        mock_process_data.assert_any_call(
-            {"dataSymbol": "NQ", "instrumentType": "FUTURE"}, "2023-01-01", "2023-01-02"
+        orchestrator.retrieve_and_process_data.assert_any_call(
+            {"dataSymbol": "NQ", "instrumentType": "FUTURE"},
+            "2023-01-01",
+            "2023-01-02"
         )
 
-        # Verify determine_date_range was called
-        mock_determine_date_range.assert_called()
+        # Test without dates in config
+        config_without_dates = self.mock_config.copy()
+        del config_without_dates["time_range"]
+        
+        # Reset mocks
+        orchestrator.retrieve_and_process_data.reset_mock()
+        mock_determine_date_range.reset_mock()
+        
+        # Create new orchestrator without dates
+        new_mock_get_instance = MagicMock()
+        new_mock_get_instance.side_effect = [mock_loader, mock_fetcher, mock_cleaner, mock_inserter]
+        with patch("data.orchestrator.get_instance", new_mock_get_instance):
+            orchestrator = Orchestrator(config=config_without_dates)
+            orchestrator.retrieve_and_process_data = AsyncMock()
+            await orchestrator.run()
+        
+        # Verify determine_date_range was called once
+        mock_determine_date_range.assert_called_once()
 
-        # Case 2: No Dates in Config (Use determine_date_range)
-        del self.mock_config["time_range"]["start_date"]
-        del self.mock_config["time_range"]["end_date"]
-
-        orchestrator = Orchestrator(config=self.mock_config)
-        await orchestrator.run()
-
-
-
-    @patch("data.modules.databento_fetcher.DatabentoFetcher.fetch_data", new_callable=AsyncMock)
-    @patch("data.modules.databento_cleaner.DatabentoCleaner.clean", return_value=[{"time": "2023-01-01"}])
-    @patch("data.modules.timescaledb_inserter.TimescaleDBInserter.insert_data")
+    @patch("data.orchestrator.DataAccess")
+    @patch("data.orchestrator.get_instance")
     async def test_retrieve_and_process_data(
         self,
-        mock_insert_data: MagicMock,
-        mock_clean: MagicMock,
-        mock_fetch: AsyncMock,
+        mock_get_instance: MagicMock,
+        mock_data_access: MagicMock,
     ) -> None:
         """
         Test that retrieve_and_process_data calls fetcher, cleaner, and inserter in sequence.
         """
-        mock_fetch.return_value = [{"time": "2023-01-01", "symbol": "ES", "open": 100.5}]
+        # Create mock data
+        mock_df = pd.DataFrame({
+            "time": ["2023-01-01"],
+            "symbol": ["ES"],
+            "open": [100.5]
+        })
+        mock_cleaned_data = [{"time": "2023-01-01", "cleaned": True}]
 
+        # Set up mocks
+        mock_loader = MagicMock()
+        mock_fetcher = MagicMock()
+        mock_cleaner = MagicMock()
+        mock_inserter = MagicMock()
+
+        # Configure mock fetcher
+        mock_fetcher.fetch_data = AsyncMock(return_value=mock_df)
+        
+        # Configure mock cleaner
+        mock_cleaner.clean.return_value = mock_cleaned_data
+        
+        # Configure mock inserter
+        mock_inserter.insert_data = MagicMock()
+        mock_inserter.connect = MagicMock()
+        mock_inserter.close = MagicMock()
+
+        mock_get_instance.side_effect = [mock_loader, mock_fetcher, mock_cleaner, mock_inserter]
+
+        # Create orchestrator and execute test
         orchestrator = Orchestrator(config=self.mock_config)
-        await orchestrator.retrieve_and_process_data({"dataSymbol": "ES", "instrumentType": "FUTURE"}, "2023-01-01", "2023-01-02")
+        await orchestrator.retrieve_and_process_data(
+            {"dataSymbol": "ES", "instrumentType": "FUTURE"},
+            "2023-01-01",
+            "2023-01-02"
+        )
 
-        mock_fetch.assert_called_once_with(
+        # Verify the entire pipeline
+        mock_fetcher.fetch_data.assert_called_once_with(
             symbol="ES",
             loaded_asset_type="FUTURE",
             start_date="2023-01-01",
-            end_date="2023-01-02",
+            end_date="2023-01-02"
         )
 
-        mock_clean.assert_called_once_with([{"time": "2023-01-01", "symbol": "ES", "open": 100.5}])
+        mock_inserter.connect.assert_called_once()
+        
+        # Verify raw data insertion
+        mock_inserter.insert_data.assert_any_call(
+            data=mock_df.to_dict(orient="records"),
+            schema="futures_data",
+            table="ohlcv_1d_raw"
+        )
 
-        mock_insert_data.assert_called_with(
-            data=[{"time": "2023-01-01"}],
+        # Verify cleaner was called
+        mock_cleaner.clean.assert_called_once_with(mock_df)
+        
+        # Verify cleaned data insertion
+        mock_inserter.insert_data.assert_any_call(
+            data=mock_cleaned_data,
             schema="futures_data",
             table="ohlcv_1d"
         )
+
+        # Verify connection was closed
+        mock_inserter.close.assert_called_once()
 
 
 if __name__ == "__main__":
