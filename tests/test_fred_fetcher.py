@@ -85,23 +85,23 @@ class TestFREDFetcher(unittest.TestCase):
         )
 
 
-        def test_fetch_data_no_data(self):
-            """
-            Test handling of no data returned from API.
-            """
-            # Mock empty series response
-            self.mock_fred_instance.get_series.return_value = pd.Series(dtype=float)
+    def test_fetch_data_no_data(self):
+        """
+        Test handling of no data returned from API.
+        """
+        # Mock empty series response
+        self.mock_fred_instance.get_series.return_value = pd.Series(dtype=float)
 
-            result = self.fetcher.fetch_data(
-                symbol="GDP",
-                start_date="2020-01-01",
-                end_date="2020-12-31",
-            )
+        result = self.fetcher.fetch_data(
+            symbol="GDP",
+            start_date="2020-01-01",
+            end_date="2020-12-31",
+        )
 
-            # Should return empty DataFrame with expected columns
-            expected_columns = ["time", "index_name", "value", "metadata"]
-            self.assertTrue(result.empty)
-            self.assertListEqual(list(result.columns), expected_columns)
+        # Should return empty DataFrame with expected columns
+        expected_columns = ["time", "index_name", "value", "metadata"]
+        self.assertTrue(result.empty)
+        self.assertListEqual(list(result.columns), expected_columns)
 
     def test_fetch_data_error_handling(self):
         """
