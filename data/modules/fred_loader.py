@@ -5,7 +5,7 @@ from data.modules.loader import Loader
 
 class FREDLoader(Loader):
     """
-    Loader for FRED datasets, including index names and metadata.
+    Loads dataset mappings and metadata for FRED data.
 
     Attributes:
         series_mapping (str): Path to the YAML file containing dataset mappings.
@@ -47,5 +47,14 @@ class FREDLoader(Loader):
         with open(self.series_metadata, "r") as f:
             metadata = yaml.safe_load(f)
 
-        # Combine both mappings
-        return {series: {"table": mapping[series], "metadata": metadata.get(series, {})} for series in mapping}
+        # Combine mappings
+        result = {}
+        for series_name, series_info in mapping.items():
+            result[series_name] = {
+                "fred_id": series_info["fred_id"],
+                "table": series_info["table"],
+                "metadata": metadata.get(series_name, {})
+            }
+
+        return result
+    

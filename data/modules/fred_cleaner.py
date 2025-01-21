@@ -2,6 +2,7 @@ import pandas as pd
 from typing import Dict, Any
 from data.modules.cleaner import Cleaner
 import logging
+import json
 
 
 class FREDCleaner(Cleaner):
@@ -29,7 +30,7 @@ class FREDCleaner(Cleaner):
         Returns:
             pd.DataFrame: Validated data.
         """
-        required_columns = ["time", "index_name", "value", "metadata"]
+        required_columns = ["time", "value", "metadata"]
         missing_columns = [col for col in required_columns if col not in data.columns]
         if missing_columns:
             raise ValueError(f"Data is missing required columns: {missing_columns}")
@@ -95,4 +96,20 @@ class FREDCleaner(Cleaner):
             # If not tz-aware, localize to UTC
             data["time"] = pd.to_datetime(data["time"]).dt.tz_localize("UTC")
 
-        return data[["time", "index_name", "value", "metadata"]]
+        data['region'] = 'US'
+
+        if not isinstance(data['metadata'].iloc[0], str):
+            logging.info("Converting metadata to JSON format.")
+            data['metadata'] = data['metadata'].apply(json.dumps)
+
+        return data[["time", "region", "value", "metadata"]]
+    
+    def clean(self, data: pd.DataFrame) -> pd.DataFrame:
+        """
+        Clean the data by applying all cleaning steps.
+        """
+        data = self.validate_fields(data)
+        data = self.handle_missing_data(data)
+        data = self.transform_data(data)
+
+        return data

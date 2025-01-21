@@ -1,16 +1,49 @@
-GDP: global_macro_data.gdp
-Industrial_Production: global_macro_data.industrial_production
-Consumer_Confidence: global_macro_data.consumer_confidence
-Inflation: global_macro_data.inflation
-Trade_Balance: global_macro_data.trade_balance
-Yield_Curves: fixed_income_data.yield_curves
-Sovereign_Bonds: fixed_income_data.sovereign_bonds
-Credit_Spreads: fixed_income_data.credit_spreads
-Monetary_Policy: fixed_income_data.monetary_policy
-Energy_Prices: commodities_data.energy_prices
-Precious_Metals: commodities_data.precious_metals
-Agricultural_Prices: commodities_data.agricultural_prices
-Exchange_Rates: currencies_data.exchange_rates
-FX_Reserves: currencies_data.fx_reserves
-Volatility_Measures: risk_indicators_data.volatility_measures
-Stress_Indices: risk_indicators_data.stress_indices
+# Mapping of logical names to FRED series IDs and database tables
+GDP:
+  fred_id: "GDPC1"
+  table: "global_macro_data.gdp"
+
+Industrial_Production:
+  fred_id: "INDPRO"
+  table: "global_macro_data.industrial_production"
+
+Consumer_Confidence:
+  fred_id: "UMCSENT"
+  table: "global_macro_data.consumer_confidence"
+
+Inflation:
+  fred_id: "CPIAUCSL"
+  table: "global_macro_data.inflation"
+
+Trade_Balance:
+  fred_id: "BOPGSTB"
+  table: "global_macro_data.trade_balance"
+
+Yield_Curves:
+  fred_id: "DGS10"  # 10-Year Treasury Rate
+  table: "fixed_income_data.yield_curves"
+
+Monetary_Policy:
+  fred_id: "DFEDTAR"
+  table: "fixed_income_data.monetary_policy"
+
+Energy_Prices:
+  fred_id: "DCOILWTICO"  # Crude Oil Prices: WTI
+  table: "commodities_data.energy_prices"
+
+Precious_Metals:
+  fred_id: "GOLDAMGBD228NLBM"  # Gold Fixing Price
+  table: "commodities_data.precious_metals"
+
+Exchange_Rates:
+  fred_id: "DEXUSEU"  # USD/EUR Exchange Rate
+  table: "currencies_data.exchange_rates"
+
+Stress_Indices:
+  fred_id: "STLFSI4"  # St. Louis Fed Financial Stress Index
+  table: "risk_indicators_data.stress_indices"
+
+Volatility_Measures:
+  fred_id: "VIXCLS"  # CBOE Volatility Index
+  table: "risk_indicators_data.volatility_measures"
+  

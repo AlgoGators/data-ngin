@@ -7,19 +7,14 @@ from data.orchestrator import Orchestrator
 def main() -> None:
     """
     Main entry point for the data pipeline.
-
-    TO-DO:
-    - Create file for interacting with database and pulling data (look into ORMs)
-    - Change OHLCV class to to handle more than just _1d
-    - Dockerize and implement Airflow
     """
     # Configure logging
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
     try:
         # Load configuration
-        # config_path = "data/config/config.yaml"  # Path to the YAML configuration file locally
-        config_path = "/app/data/config/config.yaml"  # Path to the YAML configuration file in the Docker container
+        config_path = "data-ngin/data/config/config.yaml"  # Path to the YAML configuration file locally
+        # config_path = "/app/data/config/config.yaml"  # Path to the YAML configuration file in the Docker container
         logging.info(f"Loading configuration from {config_path}")
         config = load_config(config_path)
 

@@ -1,39 +1,25 @@
 # Global components configuration
 loader:
-  class: "CSVLoader"
-  module: "csv_loader"
-  file_path: "/opt/airflow/data_engine/contracts/contract_valid.csv" # Change to contracts/contract_valid.csv if running locally
+  class: "FREDLoader"
+  module: "fred_loader"
+  series_mapping: "data-ngin/data/fred_mapping/fred_series_mapping.yml"
+  series_metadata: "data-ngin/data/fred_mapping/fred_series_metadata.yml"
 
 inserter:
   class: "TimescaleDBInserter"
   module: "timescaledb_inserter"
 
 fetcher:
-  class: "DatabentoFetcher"
-  module: "databento_fetcher"
+  class: "FREDFetcher"
+  module: "fred_fetcher"
 
 cleaner:
-  class: "DatabentoCleaner"
-  module: "databento_cleaner"
-
-# Data provider configuration
-provider:
-  name: "databento"
-  asset: "FUTURE"                   # FUTURE, EQUITY
-  dataset: "GLBX.MDP3"              # XNAS.ITCH for equities, GLBX.MDP3 for futures (TO:DO: Add IFEU.IMPACT)
-  schema: "OHLCV_1D"                # Only OHLCV_1D for now (TO:DO: Add OHLCV 1h, 1m and MBO)
-  roll_type: "c"                    # Calendar = c, Open Interest = n, Volume = v
-  contract_type: "0"                # AKA Rank: 0 = front, 1 = second, 2 = third, etc.
-
-# Database configuration
-database:
-  target_schema: "futures_data"
-  raw_table: "ohlcv_1d_raw"           
-  table: "ohlcv_1d"
+  class: "FREDCleaner"
+  module: "fred_cleaner"
 
 # Time range for data fetching YYYY-MM-DD (Leave empty to fetch missing data)
 time_range:
-  start_date: ""                
+  start_date: "2015-01-01"                
   end_date: ""
 
 # Options to handle missing data
@@ -50,4 +36,5 @@ missing_data:
 
 # Logging options
 logging:
-  level: "INFO"                           
+  level: "INFO"
+  
