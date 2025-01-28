@@ -86,6 +86,9 @@ Return to the project root and execute the program with your Databento API key:
 
 ## Future Updates
 Instead of using a .dbn file, implement a live data pipeline from Databento
+
 Add support for additional order types, such as stop-loss and market orders
+
 Include visualization for order book depth and trade execution
+
 Combine MBO data with market-by-price (MBP) for broader analysis
