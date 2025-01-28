@@ -1,12 +1,7 @@
 # Order Book Simulation and Backtesting Framework
 
 ---
-## This branch provides a framework for backtesting trading strategies using MBO (Market-by-Order) data. 
-The system simulates real-time order book activity by processing historical market data, enabling the analysis and validation of trading strategies in a controlled environment.
-
-
-## It integrates with the Databento API and supports operations like adding, modifying, canceling, and matching orders. 
-It also calculates aggregate trading metrics and visualizes the state of the order book.
+#### This branch provides a framework for backtesting trading strategies using MBO (Market-by-Order) data. The system simulates real-time order book activity by processing historical market data, enabling the analysis and validation of trading strategies in a controlled environment. It integrates with the Databento API and supports operations like adding, modifying, canceling, and matching orders. It also calculates aggregate trading metrics and visualizes the state of the order book.
 
 ## Features
 
@@ -65,7 +60,7 @@ It also calculates aggregate trading metrics and visualizes the state of the ord
 
 ### The framework requires **C++17** or later.
 
-### Install Dependencies:  
+#### Install Dependencies:  
 On macOS, install OpenSSL and Zstandard with:  
 `brew install openssl@3 zstd`  
 
@@ -76,7 +71,7 @@ On Ubuntu, run:
 `sudo apt update`  
 `sudo apt install libssl-dev libzstd-dev`  
 
-### Build and Run:  
+#### Build and Run:  
 Create a build directory, configure the project, and compile it:  
 `mkdir build`  
 `cd build`  
@@ -90,8 +85,7 @@ Return to the project root and execute the program with your Databento API key:
 ---
 
 ## Future Updates
-
-### Instead of using a .dbn file, implement a live data pipeline from Databento
-### Add support for additional order types, such as stop-loss and market orders
-### Include visualization for order book depth and trade execution
-### Combine MBO data with market-by-price (MBP) for broader analysis
+Instead of using a .dbn file, implement a live data pipeline from Databento
+Add support for additional order types, such as stop-loss and market orders
+Include visualization for order book depth and trade execution
+Combine MBO data with market-by-price (MBP) for broader analysis
