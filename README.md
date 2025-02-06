@@ -123,7 +123,7 @@ The **data-ngin** is a modular pipeline designed to fetch, clean, store, and ana
 
 ### Run Pipeline Locally
 ```bash
-poetry run python main.py
+poetry run python data/main.py
 ```
 
 ### Access Airflow Web Interface
