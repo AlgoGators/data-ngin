@@ -69,7 +69,7 @@ By using Poetry, we ensure reproducibility across environments and streamline th
 1. **Clone and Build**
 
    ```bash
-   git clone https://github.com/your-org/data-ngin.git
+   git clone either forked repo or repo
    cd data-ngin
    poetry install
    ```
