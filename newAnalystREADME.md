@@ -77,7 +77,7 @@ By using Poetry, we ensure reproducibility across environments and streamline th
 2. **Run Tests**
 
    ```bash
-   poetry run pytest tests/
+   poetry run pytest tests/ or poetry run unittest
    ```
 
 ---
@@ -278,6 +278,20 @@ class Fetcher(ABC):
 In the above example, any subclass of `Fetcher` must implement the `fetch_data` method.
 
 ---
+## Accessing the Database (pgAdmin)
+
+To manage the PostgreSQL database, use **pgAdmin**:
+
+1. **Install:** [Download pgAdmin](https://www.pgadmin.org/download/).
+2. **Connect:** In pgAdmin, right-click *Servers* → **Create > Server**.
+3. **Connection Details:**  
+   - Fill in **Host**, **Port**, **Username**, and **Password**.  
+   - If you don’t have these details, contact the **Data Team Lead**.
+4. **Running Queries:**
+   - In the left sidebar, expand the connected server.
+   - Navigate to `Databases > algo_data > Schemas > Tables` to explore tables.
+   - Right-click the `datangin` database and select **Query Tool**.
+   - In the query editor, enter your SQL commands. 
 
 ## Helpful SQL Queries
 
@@ -310,4 +324,92 @@ FROM futures_data.ohlcv_1d
 GROUP BY month
 ORDER BY month;
 ```
+
+# Good Git Practices
+
+Following good Git practices ensures clean, maintainable code, reduces bugs, and streamlines collaboration. Here’s a quick guide to efficient Git workflows.
+
+---
+
+## 1. Create a Feature Branch
+
+Always create a new branch for each task or feature instead of working directly on the `main` branch.
+
+**Why?**  
+- Keeps `main` clean and stable.  
+- Allows parallel development without conflicts.  
+- Easier to roll back if something goes wrong.
+
+**How?**
+```bash
+# Fetch the latest changes from main
+git checkout main
+git pull origin main
+
+# Create and switch to a new branch
+git checkout -b feature/your-feature-name
+```
+##  4. Submit a Pull Request (PR)
+
+Create a Pull Request (PR) to merge your branch into `main`.
+
+**Why?**  
+- Enables code review for catching bugs and improving quality.  
+- Ensures all tests pass before merging.  
+- Provides a clear history of changes.
+
+**How?**
+1. Go to the GitHub/GitLab repository.  
+2. Click **"New Pull Request"**.  
+3. Set the base branch as `main` and the compare branch as `feature/your-feature-name`.  
+4. Write a clear PR title and description.  
+5. Request reviewers and submit the PR.  
+
+---
+
+## 5. Code Review & Merge
+
+Wait for reviews, address feedback, and merge when approved.
+
+**Why?**  
+- Ensures high-quality code.  
+- Encourages knowledge sharing.  
+
+**How?**
+```bash
+# After PR approval
+git checkout main
+git pull origin main
+git merge feature/your-feature-name
+```
+# EC2 Instances
+
+The entire Data-Ngin infrastructure runs on an **Amazon EC2 (Elastic Compute Cloud)** instance. This provides a scalable, secure, and reliable environment for running our data pipelines and database services.
+
+---
+
+## What is an EC2 Instance?
+
+Amazon EC2 is a cloud-based virtual server provided by AWS. It allows users to run applications and services without managing physical hardware.
+
+**Key Features:**
+1. **Scalability:** Easily adjust computing resources based on workload.  
+2. **Reliability:** High uptime with backup and recovery options.  
+3. **Security:** Managed through SSH keys and AWS security groups.  
+4. **Cost-Effective:** Pay only for what you use.  
+
+---
+
+## Why EC2 Matters for Data-Ngin
+
+1. **Centralized Environment:**  
+   The EC2 instance acts as the core hub for running the Data-Ngin pipelines, PostgreSQL database, and Apache Airflow. This ensures consistent performance and reduces dependency on local machines.
+
+2. **Continuous Availability:**  
+   The EC2 instance runs 24/7, allowing pipelines to fetch, clean, and insert data automatically without manual intervention.
+
+3. **Remote Access:**  
+   You can securely connect to the instance via SSH for updates, debugging, and monitoring.
+
+---
 
