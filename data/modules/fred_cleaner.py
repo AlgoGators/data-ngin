@@ -87,6 +87,16 @@ class FREDCleaner(Cleaner):
         Returns:
             pd.DataFrame: Transformed data.
         """
+        # Debugging
+        # Log columns and first row of data here
+        logging.info(f"Columns in data at cleaner.transform_data: {data.columns.tolist()}")
+        if not data.empty:
+            logging.info(f"First row in data at cleaner.transform_data:\n{data.iloc[0].to_dict()}")
+
+        # Log unique values of index_name to check if symbols are present
+        logging.info(f"Unique values in 'index_name' column at cleaner.transform_data: {data['index_name'].unique()}")
+
+
         # Convert timestamps to UTC
         logging.info("Converting timestamps to UTC.")
         if isinstance(data["time"].dtype, pd.DatetimeTZDtype):
@@ -102,7 +112,30 @@ class FREDCleaner(Cleaner):
             logging.info("Converting metadata to JSON format.")
             data['metadata'] = data['metadata'].apply(json.dumps)
 
-        return data[["time", "region", "value", "metadata"]]
+        if (data['index_name'] == 'DGS10').any():
+            data.loc[data['index_name'] == 'DGS10', 'maturity'] = '10 Years'
+            return data[["time", "region", "value", "metadata", "maturity"]]
+        
+        elif (data['index_name'] == 'DCOILWTICO').any():
+            data.loc[data['index_name'] == 'DCOILWTICO', 'commodity'] = 'Crude Oil (WTI)'
+            return data[["time", "region", "value", "metadata", "commodity"]]
+        
+        elif (data['index_name'] == 'DEXUSEU').any():
+            data.loc[data['index_name'] == 'DEXUSEU', 'currency_pair'] = 'EUR/USD'
+            return data[["time", "currency_pair", "value", "metadata"]] 
+        
+        elif (data['index_name'] == 'VIXCLS').any():
+            data.loc[data['index_name'] == 'VIXCLS', 'measure_name'] = 'CBOE Volatility Index'
+            return data[["time", "measure_name", "value", "metadata", "region"]] 
+        
+        else:
+            logging.info("No matching index_name found. Returning default columns at the end of cleaner.transform_data.")
+            return data[["time", "region", "value", "metadata"]]
+    
+# STILL TRYING TO INSERT REGION - WHY
+# From debugging - we have index name as say GDP instead of GDPC1 or Industrial Production Index instead of INDPRO
+# ITS WORKING !!!!!
+#YIELD CURVES STILL Maturity is null and metadata skips
     
     def clean(self, data: pd.DataFrame) -> pd.DataFrame:
         """
