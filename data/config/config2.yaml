@@ -28,18 +28,18 @@ provider:
 # Database configuration
 database:
   target_schema: "futures_data"
-  raw_table: "ohlcv_1d_raw"           
+  raw_table: "ohlcv_1d_raw"
   table: "ohlcv_1d"
 
 # Time range for data fetching YYYY-MM-DD (Leave empty to fetch missing data)
 time_range:
-  start_date: ""                
+  start_date: ""
   end_date: ""
 
 # Options to handle missing data
 missing_data:
   forward_fill: "False"
-  backward_fill: "False"            
+  backward_fill: "False"
   interpolate: "False"
   drop_nan: "False"
   zero_fill: "True"
@@ -50,4 +50,4 @@ missing_data:
 
 # Logging options
 logging:
-  level: "INFO"                           
+  level: "INFO"
