@@ -2,7 +2,7 @@
 loader:
   class: "CSVLoader"
   module: "csv_loader"
-  file_path: "contracts/contract_valid.csv" # Change to contracts/contract_valid.csv if running locally
+  file_path: "contracts/contract_valid2.csv" # Change to contracts/contract_valid.csv if running locally
 
 inserter:
   class: "TimescaleDBInserter"
