@@ -19,6 +19,8 @@ WORKDIR /opt/airflow
 
 # Copy and install project dependencies
 COPY pyproject.toml poetry.lock* ./
+RUN poetry config virtualenvs.create false && \
+    poetry install --no-interaction --no-ansi --only main
 
 # Copy the entire project
 COPY . /opt/airflow/data_engine

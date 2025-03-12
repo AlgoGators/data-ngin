@@ -8,7 +8,6 @@
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DockerFile" beforeDir="false" afterPath="$PROJECT_DIR$/DockerFile" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/contracts/contract_valid.csv" beforeDir="false" afterPath="$PROJECT_DIR$/contracts/contract_valid.csv" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dags/data_pipeline_dag.py" beforeDir="false" afterPath="$PROJECT_DIR$/dags/data_pipeline_dag.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
