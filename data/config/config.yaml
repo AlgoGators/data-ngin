@@ -2,15 +2,16 @@
 loader:
   class: "CSVLoader"
   module: "csv_loader"
-  file_path: "/opt/airflow/data_engine/contracts/contract_valid.csv" # Change to contracts/contract_valid.csv if running locally
-
+  #file_path: "/opt/airflow/data_engine/contracts/contract_valid.csv" # Change to contracts/contract_valid.csv if running locally
+  file_path: "contracts/small_test.csv"
 inserter:
   class: "TimescaleDBInserter"
   module: "timescaledb_inserter"
 
+#Changed This
 fetcher:
-  class: "DatabentoFetcher"
-  module: "databento_fetcher"
+  class: "BatchDownloadDatabentoFetcher"
+  module: "batch_download_databento_fetcher"
 
 cleaner:
   class: "DatabentoCleaner"
@@ -28,13 +29,14 @@ provider:
 # Database configuration
 database:
   target_schema: "futures_data"
-  raw_table: "ohlcv_1d_raw"           
-  table: "ohlcv_1d"
+  raw_table: "trial_raw"           
+  table: "trial"
 
 # Time range for data fetching YYYY-MM-DD (Leave empty to fetch missing data)
+#Setting it really small to avoid unnecesary costs
 time_range:
-  start_date: ""                
-  end_date: ""
+  start_date: "2023-02-01"              
+  end_date: "2023-02-09"
 
 # Options to handle missing data
 missing_data:
@@ -51,3 +53,8 @@ missing_data:
 # Logging options
 logging:
   level: "INFO"                           
+
+batch_downloading:
+  batch: True
+  unit: "Daily"
+  max_units: 2
