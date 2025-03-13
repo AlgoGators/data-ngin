@@ -76,14 +76,14 @@ class Chain:
         self.client = client
         self.c = self.client.option_chains(self.ticker,self.type).json()
         if "errors" in list(self.c["callExpDateMap"].keys()):
-            print("Invalid ticker")
+            logging.warning("Invalid ticker")
         elif "errors" in list(self.c["putExpDateMap"].keys()):
-            print("Invali ticker")
+            logging.warning("Invali ticker")
         if  expiration in self.get_expirations():
             self._populate_chain()
         else:
-            print("Invalid expiration date")
-            print(f"Valid expirations are: {self.get_expirations()}")
+            logging.warning("Invalid expiration date")
+            logging.warning(f"Valid expirations for {self.ticker} are: {self.get_expirations()}")
 
 
     def get_expirations(self):
@@ -102,7 +102,7 @@ class Chain:
             j = j[0]
             o = Option(i,j['mark'],j['daysToExpiration'],j['volatility'],j['putCall'])
             self.chain.append(o)
-        print(f"Sucessefully populated chain with {self.type}s of ticker {self.ticker} for expiration {self.expiration}")
+        logging.info(f"Sucessefully populated chain with {self.type}s of ticker {self.ticker} for expiration {self.expiration}")
 
     def plot_chain(self,x="strike",y="volatility"):
         plt.plot([x.strike for x in self.chain],[x.iv for x in self.chain])
@@ -124,11 +124,19 @@ class SchwabFetcher(Fetcher):
         super().__init__(config)
         api_key= os.getenv("SCHWAB_API_KEY")
         api_secret = os.getenv("SCHWAB_SECRET")
+        logging.info(f"API Key found: {'Yes' if (api_key and api_secret) else 'No'}")
+
+        if not api_key:
+            raise ValueError("Schwab API key not found in environment variables.")
+        if not api_secret:
+            raise ValueError("Schwab API secret not found in environment variables")
         self.client = schwabdev.Client(api_key,api_secret)
         self.logger: logging.Logger = logging.getLogger("SchwabFetcher")
         self.logger.setLevel(logging.INFO)
 
     def fetch_data(self, symbol,start_date="2010-01-01",end_date=None,option_expiration=None,asset_type="EQUITY"):
+        # equity returns historical daily data for specified date (default is 2010-01-01)
+        current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         if asset_type == "EQUITY": # for equity assets
             if end_date:
                 end_date = datetime.strptime(end_date, "%Y-%m-%d")
@@ -148,7 +156,9 @@ class SchwabFetcher(Fetcher):
                 self.logger.info(f"Data fetched successfully for {symbol}.")
                 return df
             except Exception as e:
-                print(e)
+                self.logger.info(e)
+
+        # option data currently only returns live at this time, no way to get historical through Schwab to my knowledge
         elif asset_type == "CALLS":  # returns entire call options chain for expiration and ticker (can't include calls and puts in one as sometimes leads to error)
             if option_expiration is None:
                 self.logger.warning("Can't have option_expiration parameter none if asset_type == CALL")
@@ -158,8 +168,9 @@ class SchwabFetcher(Fetcher):
                 if chain.chain:
                     for i in chain.chain:
                         i.calculate_greeks(current_quote)
-                    chain_data = [vars(x) for x in chain.chain]
-                    return pd.DataFrame(chain_data)
+                    chain_data = pd.DataFrame([vars(x) for x in chain.chain])
+                    chain_data["Datetime"] = current_datetime
+                    return chain_data
         elif asset_type == "PUTS":
             if option_expiration is None:
                 self.logger.warning("Can't have option_expiration parameter none if asset_type == CALL")
@@ -169,8 +180,11 @@ class SchwabFetcher(Fetcher):
                 if chain.chain:
                     for i in chain.chain:
                         i.calculate_greeks(current_quote)
-                    chain_data = [vars(x) for x in chain.chain]
-                    return pd.DataFrame(chain_data)
+                    chain_data = pd.DataFrame([vars(x) for x in chain.chain])
+                    chain_data['Datetime'] = current_datetime
+                    return chain_data # 0 in call column means it is a put, 1 means it is a call
+        else:
+            self.logger.warning("Invalid asset_type. Current avaliable are EQUITY, CALLS, PUTS")
 
 
 
@@ -180,4 +194,4 @@ load_dotenv()
 api_key= os.getenv("SCHWAB_API_KEY")
 api_secret = os.getenv("SCHWAB_SECRET")
 client2 = SchwabFetcher({})
-print(client2.fetch_data("F",asset_type="PUTS",option_expiration="2025-02-28"))
+print(client2.fetch_data("F",asset_type="PUTS",option_expiration="2025-04-04"))
