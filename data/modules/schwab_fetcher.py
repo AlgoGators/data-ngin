@@ -152,8 +152,9 @@ class SchwabFetcher(Fetcher):
                 df = pd.DataFrame(data)
                 if df.empty:
                     self.logger.warning(f"No data found for {symbol} between {start_date} and {end_date}")
-                    return pd.DataFrame(columns=["open", "high", "low", "close", "volume","datetime"])
+                    return pd.DataFrame(columns=["symbol","open", "high", "low", "close", "volume","datetime"])
                 self.logger.info(f"Data fetched successfully for {symbol}.")
+                df.insert(0,"symbol",symbol)
                 return df
             except Exception as e:
                 self.logger.info(e)
@@ -194,4 +195,4 @@ load_dotenv()
 api_key= os.getenv("SCHWAB_API_KEY")
 api_secret = os.getenv("SCHWAB_SECRET")
 client2 = SchwabFetcher({})
-print(client2.fetch_data("F",asset_type="PUTS",option_expiration="2025-04-04"))
+print(client2.fetch_data("F",option_expiration="2025-04-04"))
