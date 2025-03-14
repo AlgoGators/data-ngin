@@ -4,7 +4,7 @@ import logging
 from typing import List, Dict, Any, Optional
 import databento as db
 import pandas as pd
-from data.modules.fetcher import Fetcher
+from data.modules.fetcher.fetcher import Fetcher
 
 
 class DatabentoFetcher(Fetcher):

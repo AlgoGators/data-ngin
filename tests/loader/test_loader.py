@@ -1,5 +1,5 @@
 import unittest
-from data.modules.loader import Loader
+from data.modules.loader.loader import Loader
 from typing import Dict, Any
 
 
