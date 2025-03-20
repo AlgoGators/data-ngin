@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock, AsyncMock
 from typing import List, Dict, Any
 import pandas as pd
 import databento as db
-from data.modules.databento_fetcher import DatabentoFetcher
+from data.modules.fetcher.databento_fetcher import DatabentoFetcher
 
 class TestDatabentoFetcher(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
