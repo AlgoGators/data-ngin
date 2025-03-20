@@ -2,8 +2,9 @@
 loader:
   class: "CSVLoader"
   module: "csv_loader"
-  #file_path: "/opt/airflow/data_engine/contracts/contract_valid.csv" # Change to contracts/contract_valid.csv if running locally
-  file_path: "contracts/small_test.csv"
+  file_path: "contracts/contract_valid.csv" # Change to contracts/contract_valid.csv if running locally, 
+  # otherwise /opt/airflow/data_engine/contracts/contract_valid.csv
+
 inserter:
   class: "TimescaleDBInserter"
   module: "timescaledb_inserter"
@@ -23,7 +24,7 @@ provider:
   asset: "FUTURE"                   # FUTURE, EQUITY
   dataset: "GLBX.MDP3"              # XNAS.ITCH for equities, GLBX.MDP3 for futures (TO:DO: Add IFEU.IMPACT)
   schema: "OHLCV_1D"                # Only OHLCV_1D for now (TO:DO: Add OHLCV 1h, 1m and MBO)
-  roll_type: "c"                    # Calendar = c, Open Interest = n, Volume = v
+  roll_type: "v"                    # Calendar = c, Open Interest = n, Volume = v
   contract_type: "0"                # AKA Rank: 0 = front, 1 = second, 2 = third, etc.
 
 # Database configuration

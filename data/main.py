@@ -19,7 +19,8 @@ def main() -> None:
     try:
         # Load configuration
         # config_path = "data/config/config.yaml"  # Path to the YAML configuration file locally
-        config_path = "/app/data/config/config.yaml"  # Path to the YAML configuration file in the Docker container
+        # config_path = "/app/data/config/config.yaml" # Path to the YAML configuration file in the Docker container
+        config_path = "data/config/config.yaml"  
         logging.info(f"Loading configuration from {config_path}")
         config = load_config(config_path)
 

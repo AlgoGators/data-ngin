@@ -3,7 +3,7 @@ import tempfile
 import os
 import pandas as pd
 from typing import Dict, Any, List, Optional
-from data.modules.csv_loader import CSVLoader
+from data.modules.loader.csv_loader import CSVLoader
 
 
 class TestCSVLoader(unittest.TestCase):
