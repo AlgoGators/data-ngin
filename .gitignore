@@ -11,4 +11,5 @@ __pycache__/
 *.pdb
 dist/
 build/
+venv/
 .idea

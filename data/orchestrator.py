@@ -54,16 +54,34 @@ class Orchestrator:
             end_date (str): End date for fetching data. 
         """
         try:
-            logging.info(f"Fetching raw data for symbol: {symbol['dataSymbol']}")
-            
-            # Fetch raw data
-            raw_data: pd.DataFrame = await self.fetcher.fetch_data(
-                symbol=symbol['dataSymbol'],
-                loaded_asset_type=symbol['instrumentType'],
-                start_date=start_date,
-                end_date=end_date,
-            )
+            batch_config = self.config.get("batch_downloading")
+            is_batch_enabled = batch_config.get("batch")
 
+            if is_batch_enabled:
+                unit = batch_config.get("unit")
+                max_units = batch_config.get("max_units")
+
+                logging.info(f"Fetching raw data via Batch Download with parameters: {symbol['dataSymbol']}, loaded_asset_type: {symbol['instrumentType']}, start: {start_date}, end: {end_date}, max_units: {max_units}")
+                raw_data: pd.DataFrame = await self.fetcher.generate_and_fetch_data(
+                    symbol=symbol['dataSymbol'],
+                    loaded_asset_type=symbol['instrumentType'],
+                    start_date=start_date,
+                    end_date=end_date,
+                    max_units_allowed = max_units,
+                    unit = unit
+                )
+            
+            elif not is_batch_enabled:
+
+                logging.info(f"Fetching raw data for symbol: {symbol['dataSymbol']}")
+                    
+                    # Fetch raw data
+                raw_data: pd.DataFrame = await self.fetcher.fetch_data(
+                    symbol=symbol['dataSymbol'],
+                    loaded_asset_type=symbol['instrumentType'],
+                    start_date=start_date,
+                    end_date=end_date,)
+               
             # Connect to the database
             self.inserter.connect()
         
