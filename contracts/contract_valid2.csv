@@ -1,0 +1,3 @@
+﻿assetDesc,underlying,dataSymbol,ibSymbol,exchange,multiplier,currency,dataSet,instrumentType
+Soybean oil,Ags,ZL,ZL,CBOT,60000,USD,GLOBEX,FUTURE
+Soybean Meal,Ags,ZM,ZM,CBOT,100,USD,GLOBEX,FUTURE

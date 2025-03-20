@@ -1,4 +1,4 @@
-﻿assetDesc,underlying,dataSymbol,ibSymbol,exchange,multiplier,currency,dataSet,instrumentType
+﻿﻿assetDesc,underlying,dataSymbol,ibSymbol,exchange,multiplier,currency,dataSet,instrumentType
 CADUSD currency,FX,6C,CAD,CME,100000,USD,GLOBEX,FUTURE
 CHFUSD currency,FX,6S,6S,CME,125000,USD,GLOBEX,FUTURE
 EURUSD currency,FX,6E,6E,CME,125000,USD,GLOBEX,FUTURE

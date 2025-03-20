@@ -38,11 +38,18 @@ dag: DAG = DAG(
     max_active_runs=1,
 )
 
-def run_pipeline() -> None:
+def run_pipeline(**kwargs) -> None:
     """
     Task to run the entire data pipeline using the orchestrator.
     """
     try:
+        run_type = kwargs.get('dag_run', {}).get('conf', {}).get('run_type', 'scheduled')
+        if run_type == 'manual':
+            logging.info("Running the pipeline in manual mode.")
+        elif run_type == "scheduled":
+            logging.info("Running the pipeline in scheduled mode.")
+        else:
+            logging.info(f"Unknown runtype {run_type}.")
         import asyncio
         asyncio.run(orchestrator.run())
         logging.info("Pipeline execution completed successfully.")
@@ -54,6 +61,7 @@ def run_pipeline() -> None:
 run_pipeline_task: PythonOperator = PythonOperator(
     task_id="run_pipeline",
     python_callable=run_pipeline,
+    provide_context = True,
     dag=dag,
 )
 
