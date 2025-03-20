@@ -34,8 +34,12 @@ class FREDFetcher(Fetcher):
         if len(self.api_key) != 32:
             raise ValueError(f"FRED API key should be 32 characters, got {len(self.api_key)}")
         
-        self.client = Fred(api_key=self.api_key)
+        self.client = Fred(api_key=self.api_key)  #This is how data is CALLED
         self.series_metadata = config.get("loader", {}).get("series_metadata", {})
+
+        ##READ ABOVE - JUST HANDLING API KEY
+
+
 
     async def fetch_data(self, symbol: str, series_info: Dict[str, Any], start_date: str, end_date: str) -> pd.DataFrame:
         """
@@ -51,7 +55,7 @@ class FREDFetcher(Fetcher):
                 observation_start=start_date,
                 observation_end=end_date
             )
-            
+            # Fred.get_series - API KEY is already included
             if data.empty:
                 logging.warning(f"No data found for series {fred_id}")
                 return pd.DataFrame(columns=["time", "region", "value", "metadata"])
@@ -61,8 +65,11 @@ class FREDFetcher(Fetcher):
             df.columns = ["time", "value"]
 
             # Add metadata
-            df["index_name"] = symbol
-            df["metadata"] = [series_info["metadata"]] * len(df)
+            df["index_name"] = fred_id  # changed this from symbol lets see what it will do
+            df["metadata"] = [series_info["metadata"]] * len(df) 
+            # Can also do this df["metadata"] = [series_info["metadata"].copy() for _ in range(len(df))] 
+            # that could be why metadata is skipping rows
+
 
             return df[["time", "index_name", "value", "metadata"]]
 
