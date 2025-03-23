@@ -78,8 +78,6 @@ class DatabentoCleaner(Cleaner):
         cleaned_data: List[Dict[str, Any]] = data.to_dict(orient="records")
         return cleaned_data
 
-    
-
     def validate_fields(self, data: pd.DataFrame) -> pd.DataFrame:
         """
         Validates required fields are present in the raw data.
@@ -192,4 +190,49 @@ class DatabentoCleaner(Cleaner):
         # Sort the data by the time column
         logging.info("Sorting data by 'time' column.")
         data = data.sort_values(by="time")
+        
+        # Apply back-adjustment for futures using volume based roll
+        data = self.apply_back_adjustment(data)
+        
+        return data
+
+    def apply_back_adjustment(self, data: pd.DataFrame) -> pd.DataFrame:
+        """
+        Applies back-adjustment to futures data using a volume-based roll.
+
+        For each roll date—detected when the symbol changes and the new contract's volume exceeds the previous contract's volume, 
+        an adjustment factor is made as the difference between the previous contract's closing price and the new contract's 
+        opening price.
+
+        Args:
+            data (pd.DataFrame): DataFrame sorted by time containing futures data.
+        
+        Returns:
+            pd.DataFrame: DataFrame with new back-adjusted price columns.
+        """
+        # Reset index to have indexing 
+        data = data.reset_index(drop=True)
+
+        # Find roll points 
+        # Detected when the symbol changes and the new contract's volume is greater
+        roll_factors = []
+        for i in range(1, len(data)):
+            if data.loc[i, 'symbol'] != data.loc[i - 1, 'symbol']:
+                if data.loc[i, 'volume'] > data.loc[i - 1, 'volume']:
+                    # Adjustment factor: previous contract's close minus new contract's open
+                    adjustment = data.loc[i - 1, 'close'] - data.loc[i, 'open']
+                    roll_factors.append((i, adjustment))
+
+        # Cumulative adjustment for each row:
+        cumulative_adjustments = []
+        for i in range(len(data)):
+            cum_adj = sum(adj for (roll_idx, adj) in roll_factors if roll_idx > i)
+            cumulative_adjustments.append(cum_adj)
+
+        # Back-adjusted prices
+        data['back_adjusted_open'] = data['open'] + cumulative_adjustments
+        data['back_adjusted_high'] = data['high'] + cumulative_adjustments
+        data['back_adjusted_low'] = data['low'] + cumulative_adjustments
+        data['back_adjusted_close'] = data['close'] + cumulative_adjustments
+
         return data
