@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "data"
 packages = [
-    { include = "data", from = "."}
+    { include = "src", from = "."}
 ]
 version = "0.1.0"
 description = ""
