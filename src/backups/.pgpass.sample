@@ -1,0 +1,2 @@
+# Format: hostname:port:database:username:password
+your-db-host:5432:your-db-name:your-db-user:your-db-password

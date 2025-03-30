@@ -1,0 +1,2 @@
+# Run pg_backup.sh every Monday and Thursday at 2:00 AM
+0 2 * * 1,4 /home/ubuntu/pg_backup.sh >> /home/ubuntu/pg_backup.log 2>&1
