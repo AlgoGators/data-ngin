@@ -2,7 +2,7 @@ import pandas as pd
 import os
 import logging
 from typing import Dict, Any, List
-from data.modules.loader.loader import Loader
+from src.modules.loader.loader import Loader
 
 
 class CSVLoader(Loader):

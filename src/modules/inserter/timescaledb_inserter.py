@@ -1,7 +1,7 @@
 import os
 import psycopg2
 from typing import List, Dict, Any, Optional
-from data.modules.inserter.inserter import Inserter
+from src.modules.inserter.inserter import Inserter
 import logging
 
 class TimescaleDBInserter(Inserter):

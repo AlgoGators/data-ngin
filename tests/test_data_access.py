@@ -2,8 +2,8 @@ import unittest
 from unittest.mock import MagicMock, patch
 from typing import List, Dict, Any, Optional
 from sqlalchemy.exc import SQLAlchemyError
-from data.modules.data_access import DataAccess
-from data.modules.db_models import OHLCV
+from src.modules.data_access import DataAccess
+from src.modules.db_models import OHLCV
 from datetime import datetime
 import logging
 

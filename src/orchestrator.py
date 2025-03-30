@@ -4,7 +4,7 @@ import pandas as pd
 from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
 from utils.dynamic_loader import get_instance, determine_date_range
-from data.modules.data_access import DataAccess
+from src.modules.data_access import DataAccess
 
 
 # Load environment variables

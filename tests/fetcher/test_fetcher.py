@@ -1,6 +1,6 @@
 import unittest
 from typing import List, Dict, Any
-from data.modules.fetcher.fetcher import Fetcher
+from src.modules.fetcher.fetcher import Fetcher
 
 
 class MockFetcher(Fetcher):

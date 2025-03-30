@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from data.orchestrator import Orchestrator
+from src.orchestrator import Orchestrator
 from utils.dynamic_loader import load_config
 import logging
 import pendulum
@@ -20,7 +20,7 @@ default_args: dict[str, any] = {
 }
 
 # Load configuration from config.yaml
-CONFIG_PATH: str = "/opt/airflow/data_engine/data/config/config.yaml"
+CONFIG_PATH: str = "/opt/airflow/data_engine/src/config/config.yaml"
 config: dict[str, any] = load_config(CONFIG_PATH)
 
 # Initialize orchestrator

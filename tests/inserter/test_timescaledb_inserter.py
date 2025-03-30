@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from data.modules.inserter.timescaledb_inserter import TimescaleDBInserter
+from src.modules.inserter.timescaledb_inserter import TimescaleDBInserter
 from typing import List, Dict, Any
 import re
 

@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch, MagicMock, AsyncMock
 from typing import Dict, Any
-from data.orchestrator import Orchestrator
+from src.orchestrator import Orchestrator
 
 
 class TestOrchestrator(unittest.IsolatedAsyncioTestCase):

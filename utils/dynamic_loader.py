@@ -3,7 +3,7 @@ import os
 import yaml
 from typing import Any, Dict, Tuple
 from datetime import datetime, timedelta
-from data.modules.data_access import DataAccess 
+from src.modules.data_access import DataAccess 
 
 
 def load_config(config_path: str = "data/config/config.yaml") -> Dict[str, Any]:

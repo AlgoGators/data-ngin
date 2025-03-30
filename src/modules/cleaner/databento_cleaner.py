@@ -1,7 +1,7 @@
 import pandas as pd
 from enum import Enum
 from typing import Dict, Any, List
-from data.modules.cleaner.cleaner import Cleaner
+from src.modules.cleaner.cleaner import Cleaner
 import logging
 
 

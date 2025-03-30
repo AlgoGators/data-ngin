@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 import numpy as np
 import pandas as pd
 import databento as db
-from data.modules.batch_download_databento_fetcher import BatchDownloadDatabentoFetcher
+from src.modules.batch_download_databento_fetcher import BatchDownloadDatabentoFetcher
 
 class TestBatchDownloadDatabentoFetcher(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:

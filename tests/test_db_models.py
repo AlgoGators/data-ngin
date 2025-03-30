@@ -6,7 +6,7 @@ from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
 from typing import Dict, List, Optional, Any
 
-from data.modules.db_models import get_engine, Base, OHLCV
+from src.modules.db_models import get_engine, Base, OHLCV
 import logging
 
 

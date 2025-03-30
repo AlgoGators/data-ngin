@@ -36,17 +36,17 @@ The **data-ngin** is a modular pipeline designed to fetch, clean, store, and ana
 - **Modularity:** Designed with interchangeable components for fetchers, loaders, cleaners, and inserters
 
 ## Project Structure
-- **`data/main.py`**: Entry point for pipeline execution
+- **`src/main.py`**: Entry point for pipeline execution
 - **Primary Modules**:
   - **Loader**: Loads metadata and configuration (e.g., `CSVLoader`)
   - **Fetcher**: Fetches raw data (e.g., `DatabentoFetcher`)
   - **Cleaner**: Cleans and standardizes raw data (e.g., `DatabentoCleaner`)
   - **Inserter**: Inserts cleaned data to specified location (e.g., `TimescaleDBInserter`)
   - **Orchestrator**: Coordinates the pipeline workflow
-- **`data/modules/data_access.py`**: Functions to pull data from PostgreSQL server
-- **`data/modules/db_models.py`**: Defines the schema for storing financial market data (e.g., `OHLCV`)
+- **`src/modules/data_access.py`**: Functions to pull data from PostgreSQL server
+- **`src/modules/db_models.py`**: Defines the schema for storing financial market data (e.g., `OHLCV`)
 - **`utils/dynamic_loader.py`**: Loads config and creates an instance of a module class specified by user 
-- **`data/config/config.yaml`**: Defines global settings for the data engine
+- **`src/config/config.yaml`**: Defines global settings for the data engine
 - **`dags/data_pipeline_dag.py`**: Airflow DAG for automating daily data ingestion
 
 ```
@@ -58,7 +58,7 @@ The **data-ngin** is a modular pipeline designed to fetch, clean, store, and ana
 │   ├── contract_valid.csv
 ├── dags
 │   └── data_pipeline_dag.py
-├── data
+├── src
 │   ├── config
 │   │   ├── config.yaml
 │   ├── main.py
@@ -160,7 +160,7 @@ The **data-ngin** is a modular pipeline designed to fetch, clean, store, and ana
 
 ### Run Pipeline Locally
 ```bash
-poetry run python data/main.py
+poetry run python src/main.py
 ```
 
 ### Access Airflow Web Interface
@@ -247,7 +247,7 @@ We chose **Python** for several key reasons:
 3. **Scalability & Modularity**
 
    - **Modular architecture** allows adding new fetchers, cleaners, and inserters without modifying core logic.
-   - **Encapsulation** ensures that changes to one module don’t break others.
+   - **Encapsulation** ensures that changes to one module don't break others.
    - **Easier debugging and testing**—each module can be tested in isolation.
 
 ---
@@ -495,7 +495,7 @@ To manage the PostgreSQL database, use **pgAdmin**:
 1. **Install:** [Download pgAdmin](https://www.pgadmin.org/download/).
 2. **Connect:** In pgAdmin, right-click *Servers* → **Create > Server**.
 3. **Connection Details:** - Fill in **Host**, **Port**, **Username**, and **Password**.  
-   - If you don’t have these details, contact the **Data Team Lead**.
+   - If you don't have these details, contact the **Data Team Lead**.
 4. **Running Queries:**
    - In the left sidebar, expand the connected server.
    - Navigate to `Databases > algo_data > Schemas > Tables` to explore tables.

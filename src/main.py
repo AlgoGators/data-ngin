@@ -1,7 +1,7 @@
 import logging
 import asyncio
 from utils.dynamic_loader import load_config
-from data.orchestrator import Orchestrator
+from src.orchestrator import Orchestrator
 import os
 
 

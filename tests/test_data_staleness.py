@@ -2,7 +2,7 @@
 
 import unittest
 from unittest.mock import patch, MagicMock
-from data.modules.data_staleness import check_data_staleness_and_gaps
+from src.modules.data_staleness import check_data_staleness_and_gaps
 from datetime import datetime, timedelta
 
 class TestDataQualityCheck(unittest.TestCase):
