@@ -19,10 +19,10 @@ def main() -> None:
 
     try:
         # Load configuration
-        file_path = "data/config"
+        file_path = "src/config"
         for filename in os.listdir(file_path):
             file_path = os.path.join(file_path, filename)
-            config_path = "data/config/config.yaml"  # Path to the YAML configuration file in the Docker container
+            config_path = "src/config/config.yaml"  # Path to the YAML configuration file in the Docker container
             logging.info(f"Loading configuration from {config_path}")
             config = load_config(config_path)
 

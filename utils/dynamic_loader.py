@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from src.modules.data_access import DataAccess 
 
 
-def load_config(config_path: str = "data/config/config.yaml") -> Dict[str, Any]:
+def load_config(config_path: str = "src/config/config.yaml") -> Dict[str, Any]:
     """
     Load configuration settings from a YAML file.
 
@@ -85,7 +85,7 @@ def get_instance(config: Dict[str, Any], module_key: str, class_key: str, **kwar
         raise ValueError(f"Class key '{class_key}' not found in '{module_key}' configuration.")
 
     # Extract module name and load class
-    module_name: str = f"data.modules.{module_config.get('module', module_key)}"
+    module_name: str = f"src.modules.{module_config.get('module', module_key)}"
     try:
         cls: Any = load_class(module_name, class_name)
         print(f"Successfully loaded class '{class_name}' from module '{module_name}'.")
