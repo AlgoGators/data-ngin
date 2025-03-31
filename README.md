@@ -3,18 +3,18 @@
 ## TL;DR
 Data-ngin is a modular Python pipeline for financial market data, automating fetching, cleaning, and storing data into a database. It uses 4 modules (Loader, Fetcher, Cleaner, Inserter) to process data from sources (like Databento), visualized as:
 ```mermaid 
-graph TD
-    A[Data Provider<br/>e.g. Databento] --> L(Loader);
-    L --> B(Fetcher);
-    B --> C(Cleaner);
-    C --> D(Inserter);
-    D --> E[PostgreSQL];
+graph LR
+    A[Data Provider<br/>e.g. Databento] --> L(Loader)
+    L --> B(Fetcher)
+    B --> C(Cleaner)
+    C --> D(Inserter)
+    D --> E[PostgreSQL]
 
     subgraph "Data Pipeline Modules"
-        L;
-        B;
-        C;
-        D;
+        L
+        B
+        C
+        D
     end
 
     classDef module fill:#1a1a1a,stroke:#333,stroke-width:1px,color:#fff;
@@ -24,6 +24,7 @@ graph TD
     class L,B,C,D module;
     class E storage;
     class A source;
+
 ```
 ## Overview
 The **data-ngin** is a modular pipeline designed to fetch, clean, store, and analyze financial market data, leveraging tools such as [TimescaleDB](https://docs.timescale.com/) and [Apache Airflow](https://airflow.apache.org/docs/apache-airflow/stable/index.html). This pipeline is tailored for systematic trading strategies and enables seamless integration with a variety of datasets, ensuring scalability and resilience.
@@ -352,7 +353,7 @@ Apache Airflow is an orchestration tool that automates the execution of data pip
 
 ## Core Components
 
-### 1. Data Loader (`data/modules/loader.py`)
+### 1. Data Loader (`src/modules/loader/loader.py`)
 
 **Purpose:**
 
@@ -375,7 +376,7 @@ class CSVLoader(Loader):
         return dict(zip(df["symbol"], df["asset_type"]))
 ```
 
-### 2. Data Fetcher (`data/modules/fetcher.py`)
+### 2. Data Fetcher (`src/modules/fetcher/fetcher.py`)
 
 **Purpose:**
 
@@ -392,7 +393,7 @@ class DatabentoFetcher(Fetcher):
         return data.to_df()
 ```
 
-### 3. Data Cleaner (`data/modules/cleaner.py`)
+### 3. Data Cleaner (`src/modules/cleaner/cleaner.py`)
 
 **Purpose:**
 
@@ -433,7 +434,7 @@ task = PythonOperator(task_id="fetch_data", python_callable=orchestrator.run, da
 1. **Run the pipeline manually**
 
 ```bash
-poetry run python data/orchestrator.py
+poetry run python src/main.py
 ```
 
 2. **Check database contents**
