@@ -1,7 +1,0 @@
-DB_NAME=database
-DB_USER=alexiamc
-DB_PASSWORD=afterglow
-DB_HOST=localhost
-DB_PORT=5432
-DATABENTO_API_KEY=db-aPG5fYspWhNC7gYCThjKxrYiFJcfL
-
