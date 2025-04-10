@@ -192,6 +192,7 @@ class DatabentoCleaner(Cleaner):
         data = data.sort_values(by="time")
         
         # Apply back-adjustment for futures using volume based roll
+        logging.info("Applying back-adjustment to OHLC values.")
         data = self.apply_back_adjustment(data)
         
         return data
@@ -208,7 +209,7 @@ class DatabentoCleaner(Cleaner):
             data (pd.DataFrame): DataFrame sorted by time containing futures data.
         
         Returns:
-            pd.DataFrame: DataFrame with new back-adjusted price columns.
+            pd.DataFrame: DataFrame with back-adjusted price columns.
         """
         # Reset index to have indexing 
         data = data.reset_index(drop=True)
@@ -229,10 +230,10 @@ class DatabentoCleaner(Cleaner):
             cum_adj = sum(adj for (roll_idx, adj) in roll_factors if roll_idx > i)
             cumulative_adjustments.append(cum_adj)
 
-        # Back-adjusted prices
-        data['back_adjusted_open'] = data['open'] + cumulative_adjustments
-        data['back_adjusted_high'] = data['high'] + cumulative_adjustments
-        data['back_adjusted_low'] = data['low'] + cumulative_adjustments
-        data['back_adjusted_close'] = data['close'] + cumulative_adjustments
+        # Apply back-adjustment directly to the original OHLC columns
+        data['open'] = data['open'] + cumulative_adjustments
+        data['high'] = data['high'] + cumulative_adjustments
+        data['low'] = data['low'] + cumulative_adjustments
+        data['close'] = data['close'] + cumulative_adjustments
 
         return data
