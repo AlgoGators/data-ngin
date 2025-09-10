@@ -42,7 +42,21 @@ class TimescaleDBInserter(Inserter):
                 port=os.getenv("DB_PORT")
             )
             self.connection.autocommit = True
-            self.logger.info("Connected to TimescaleDB successfully.")
+            with self.connection.cursor() as cur:
+                cur.execute("SELECT inet_server_addr(), inet_server_port(), current_database(), current_user")
+                host, port, dbname, dbuser = cur.fetchone()
+                self.logger.info("DB endpoint -> host=%s port=%s db=%s user=%s", host, port, dbname, dbuser)
+
+                cur.execute("SHOW search_path")
+                sp = cur.fetchone()[0]
+                self.logger.info("search_path=%s", sp)
+
+                cur.execute("""
+                    SELECT schema_name FROM information_schema.schemata ORDER BY schema_name
+                """)
+                schemas = [r[0] for r in cur.fetchall()]
+                self.logger.info("Schemas present: %s", ", ".join(schemas))
+                self.logger.info("Connected to TimescaleDB successfully.")
         except psycopg2.OperationalError as e:
             self.connection = None
             raise ConnectionError(f"Failed to connect to TimescaleDB: {e}")
@@ -62,7 +76,34 @@ class TimescaleDBInserter(Inserter):
         """
         if not self.connection:
             raise RuntimeError("Database connection is not established.")
-        
+        schema_exists_sql = """
+        SELECT 1 FROM information_schema.schemata WHERE schema_name = %s
+        """
+        table_exists_sql = """
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = %s AND table_name = %s
+        """
+
+        with self.connection.cursor() as cur:
+            cur.execute(schema_exists_sql, (schema,))
+            if cur.fetchone() is None:
+                raise RuntimeError(
+                    f"Target schema '{schema}' not found. You are likely on the wrong DB/host/port. "
+                    "Check DB_HOST/DB_PORT in docker-compose for data-engine."
+                )
+            cur.execute(table_exists_sql, (schema, table))
+            if cur.fetchone() is None:
+                cur.execute("""
+                    SELECT table_schema||'.'||table_name
+                    FROM information_schema.tables
+                    WHERE table_schema NOT IN ('pg_catalog','information_schema')
+                    ORDER BY 1
+                """)
+                existing = [r[0] for r in cur.fetchall()]
+                raise RuntimeError(
+                    f"Target table '{schema}.{table}' not found. Existing tables: {existing[:50]}"
+                )
+
         # Determine columns based on first row of data 
         columns = list(data[0].keys())
 
@@ -79,6 +120,10 @@ class TimescaleDBInserter(Inserter):
             with self.connection.cursor() as cursor:
                 cursor.executemany(query, data)
             self.logger.info(f"Inserted {len(data)} rows into {schema}.{table}")
+        except psycopg2.Error as e:
+            self.connection.rollback()
+            self.logger.error("PG error code=%s detail=%s", getattr(e, "pgcode", None), getattr(getattr(e, "diag", None), "message_detail", None))
+            raise RuntimeError(f"Failed to insert into {schema}.{table}: {e}")
         except Exception as e:
             self.connection.rollback()
             raise RuntimeError(f"Failed to insert data into {schema}.{table}: {e}")
