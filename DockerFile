@@ -1,29 +1,39 @@
 FROM apache/airflow:2.10.3-python3.11
 
-# Set Poetry home so it installs globally (not in root's home dir)
-ENV POETRY_HOME=/opt/poetry
-ENV PATH="$POETRY_HOME/bin:$PATH"
-
 USER root
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y curl git build-essential libpq-dev && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+# Install system dependencies and Poetry
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    build-essential \
+    libpq-dev && \
+    curl -sSL https://install.python-poetry.org | python3 - && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Install Poetry
-RUN curl -sSL https://install.python-poetry.org | python3 -
+# Debug: Check Poetry installation
+RUN echo "Checking Poetry installation..." && \
+    ls -la /root/.local/bin/ && \
+    /root/.local/bin/poetry --version
 
-# Now switch to the airflow user
+# Set Poetry path
+ENV PATH="/root/.local/bin:$PATH"
+
 USER airflow
 WORKDIR /opt/airflow
 
-# Copy and install project dependencies
-COPY pyproject.toml poetry.lock* ./
+# Debug: Check Poetry access as airflow user
+RUN echo "Checking Poetry as airflow user..." && \
+    which poetry && \
+    poetry --version
+
+# Copy dependency files
+COPY --chown=airflow:root pyproject.toml poetry.lock* ./
+
+# Install dependencies
 RUN poetry config virtualenvs.create false && \
-    poetry install --no-interaction --no-ansi --only main
+    poetry install --no-interaction --no-ansi --only main --no-root
 
-# Copy the entire project
-COPY . /opt/airflow/data_engine
 ENV PYTHONPATH=/opt/airflow/data_engine
-
 EXPOSE 8080

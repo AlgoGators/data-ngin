@@ -1,33 +1,17 @@
 services:
-  db:
-    image: postgres:16
-    container_name: postgres_db
-    restart: always
-    environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
-    ports:
-      - "5432:5432"
-    volumes:
-      - db_data:/var/lib/postgresql/data
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "5"
+
 
   airflow-init:
     build:
       context: .
       dockerfile: DockerFile
     container_name: airflow-init
-    depends_on:
-      - db
     environment:
-      AIRFLOW__DATABASE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
-      AIRFLOW__DATABASE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:algogators@172.31.23.190:5432/algo_data?options=-csearch_path%3Dairflow_metadata
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
       PYTHONPATH: /opt/airflow/data_engine
     volumes:
       - ./dags:/opt/airflow/dags
@@ -46,9 +30,11 @@ services:
     depends_on:
       - airflow-init
     environment:
-      AIRFLOW__DATABASE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
-      AIRFLOW__DATABASE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:algogators@172.31.23.190:5432/algo_data?options=-csearch_path%3Dairflow_metadata
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
       PYTHONPATH: /opt/airflow/data_engine
     volumes:
       - ./dags:/opt/airflow/dags
@@ -66,35 +52,18 @@ services:
     restart: always
     depends_on:
       - airflow-init
-      - airflow-webserver
     environment:
-      AIRFLOW__DATABASE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
-      AIRFLOW__DATABASE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:algogators@172.31.23.190:5432/algo_data?options=-csearch_path%3Dairflow_metadata
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
       PYTHONPATH: /opt/airflow/data_engine
     volumes:
       - ./dags:/opt/airflow/dags
       - .:/opt/airflow/data_engine
       - airflow_data:/opt/airflow
     command: ["airflow", "scheduler"]
-
-  data-engine:
-    build:
-      context: .
-      dockerfile: DockerFile
-    container_name: data_engine
-    environment:
-      DB_NAME: ${DB_NAME}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_HOST: db
-      DB_PORT: 5432
-      DATABENTO_API_KEY: ${DATABENTO_API_KEY}
-    volumes:
-      - .:/opt/airflow/data_engine
-    depends_on:
-      - db
-    command: ["poetry", "run", "python", "-m", "data.main"]
 
 volumes:
   db_data:
