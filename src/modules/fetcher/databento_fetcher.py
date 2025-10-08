@@ -83,6 +83,20 @@ class DatabentoFetcher(Fetcher):
             # Convert to DataFrame
             df = data.to_df()
 
+            # --- Remap E-mini symbols to Micro equivalents for DB storage ---
+            symbol_remap = {
+                "ES": "MES",
+                "RTY": "M2K",
+                "NQ": "MNQ",
+                "YM": "MYM"
+            }
+
+            mapped_symbol = symbol_remap.get(symbol, symbol)
+            if mapped_symbol != symbol:
+                self.logger.info(f"Fetched {symbol} data, remapping to {mapped_symbol} for storage")
+
+            df["symbol"] = mapped_symbol
+
             # Check if data is empty
             if df.empty:
                 self.logger.warning(f"No data found for {symbol} between {start_date} and {end_date}")
