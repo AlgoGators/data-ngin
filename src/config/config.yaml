@@ -39,6 +39,9 @@ time_range:
   start_date: "2010-06-06"              
   end_date: "2025-03-22"
 
+# Expected data density
+expected_rows_per_asset: 30
+
 # Options to handle missing data
 missing_data:
   forward_fill: "False"

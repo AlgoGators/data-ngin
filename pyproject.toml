@@ -26,12 +26,16 @@ tzdata = "^2024.2"
 prometheus-fastapi-instrumentator = "^7.0.0"
 slowapi = "^0.1.9"
 mkdocstrings-python = "^1.13.0"
+streamlit = "^1.49.1"
+psycopg2-binary = "^2.9.10"
+prometheus-client = "^0.22.1"
 
 
 [tool.poetry.group.dev.dependencies]
 mkdocs = "^1.6.1"
 mkdocstrings = "^0.27.0"
 mkdocs-material = "^9.5.49"
+pytest = "^8.4.2"
 
 [build-system]
 requires = ["poetry-core"]
