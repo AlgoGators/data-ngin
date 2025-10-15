@@ -1,0 +1,8 @@
+global:
+  scrape_interval: 5s   # how often to collect metrics
+
+scrape_configs:
+  - job_name: "data-ngin"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["localhost:8003"]

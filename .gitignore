@@ -13,3 +13,5 @@ dist/
 build/
 venv/
 .idea
+# Prometheus runtime data
+data/
