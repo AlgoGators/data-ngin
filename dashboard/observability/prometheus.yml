@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 10s          # How often Prometheus scrapes metrics
+  evaluation_interval: 10s      # How often it evaluates rules
+
+scrape_configs:
+  # Scrape Prometheus itself
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Scrape your Data-Ngin demo server
+  - job_name: data_ngin_demo
+    scrape_interval: 5s
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["localhost:8003"]
+
+# Link the file that contains custom calculations / rollups
+rule_files:
+  - data_ngin_rules.yml
+
+
