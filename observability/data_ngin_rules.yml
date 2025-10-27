@@ -1,0 +1,29 @@
+groups:
+- name: data_ngin_recording_rules
+  interval: 10s
+  rules:
+    # Basic mirrors
+    - record: data_ngin:total_runs
+      expr: total_pipeline_runs_total
+
+    - record: data_ngin:data_completeness_last
+      expr: data_completeness
+
+    # Processing rate
+    - record: data_ngin:records_processed_rate_per_s
+      expr: rate(records_processed_total[1m])
+
+    # Average stage execution time
+    - record: data_ngin:stage_exec_time_avg_s
+      expr: |
+        sum by (stage) (rate(execution_time_seconds_sum[1m]))
+        /
+        sum by (stage) (rate(execution_time_seconds_count[1m]))
+
+    # Error rate
+    - record: data_ngin:errors_rate_per_s_by_stage
+      expr: sum by (stage) (rate(errors_total[5m]))
+
+    # Time since last successful run
+    - record: data_ngin:time_since_last_success_s
+      expr: time() - last_successful_run_timestamp
