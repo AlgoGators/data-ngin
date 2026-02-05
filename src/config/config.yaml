@@ -2,7 +2,7 @@
 loader:
   class: "CSVLoader"
   module: "loader.csv_loader"
-  file_path: "contracts/oneasset.csv" # Change to contracts/contract_valid.csv if running locally, 
+  file_path: "/opt/airflow/data_engine/contracts/contract_valid.csv" # Change to contracts/contract_valid.csv if running locally, 
   # otherwise /opt/airflow/data_engine/contracts/contract_valid.csv
 
 inserter:
