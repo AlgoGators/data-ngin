@@ -36,13 +36,13 @@ def run_pipeline(**kwargs):
         raise
 
 with DAG(
-    "data_pipeline_dag",
+    "new_data_pipeline_dag",
     default_args=default_args,
     description="Daily data pipeline for market data ingestion",
     schedule_interval="0 7 * * *",
     start_date=datetime(2024, 12, 1, tzinfo=local_tz),
     catchup=False,
-    tags=["data_pipeline"],
+    tags=["new_data_pipeline"],
     max_active_runs=1,
 ) as dag:
 
