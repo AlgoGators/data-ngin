@@ -16,7 +16,7 @@ default_args = {
     "retry_delay": timedelta(minutes=5),
 }
 
-CONFIG_PATH = "/opt/airflow/data_engine/src/config/config.yaml"
+CONFIG_PATH = "/opt/airflow/data_engine/src/config/new_config.yaml"
 
 def run_pipeline(**kwargs):
     try:
@@ -26,7 +26,7 @@ def run_pipeline(**kwargs):
         logging.info(f"Running pipeline, type={run_type}")
 
         # Build orchestrator at task runtime (not parse time)
-        config = load_config(CONFIG_PATH) #loads base db with base config
+        config = load_config(CONFIG_PATH) #loads new_db name alongside new_config
         orchestrator = Orchestrator(config=config)
 
         asyncio.run(orchestrator.run())
