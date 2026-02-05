@@ -2,26 +2,21 @@ FROM apache/airflow:2.10.3-python3.11
 
 USER root
 
-# Install system dependencies and Poetry
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     curl \
     git \
     build-essential \
     libpq-dev && \
-    curl -sSL https://install.python-poetry.org | python3 - && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Debug: Check Poetry installation
-RUN echo "Checking Poetry installation..." && \
-    ls -la /root/.local/bin/ && \
-    /root/.local/bin/poetry --version
-
-# Set Poetry path
-ENV PATH="/root/.local/bin:$PATH"
-
+# Switch to airflow user for Poetry installation
 USER airflow
 WORKDIR /opt/airflow
+
+# Install specific version of Poetry as airflow user
+RUN pip install poetry==1.8.4
 
 # Debug: Check Poetry access as airflow user
 RUN echo "Checking Poetry as airflow user..." && \
