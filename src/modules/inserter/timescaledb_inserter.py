@@ -34,8 +34,9 @@ class TimescaleDBInserter(Inserter):
             ConnectionError: If the connection to the database fails.
         """
         try:
+            target_db = self.config.get("database", {}).get("db_name")
             self.connection = psycopg2.connect(
-                dbname=os.getenv("DB_NAME"),
+                dbname=target_db,
                 user=os.getenv("DB_USER"),
                 password=os.getenv("DB_PASSWORD"),
                 host=os.getenv("DB_HOST"),
@@ -56,7 +57,7 @@ class TimescaleDBInserter(Inserter):
                 """)
                 schemas = [r[0] for r in cur.fetchall()]
                 self.logger.info("Schemas present: %s", ", ".join(schemas))
-                self.logger.info("Connected to TimescaleDB successfully.")
+                self.logger.info(f"Connected to TimescaleDB successfully for {dbname}.")
         except psycopg2.OperationalError as e:
             self.connection = None
             raise ConnectionError(f"Failed to connect to TimescaleDB: {e}")

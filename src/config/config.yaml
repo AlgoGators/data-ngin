@@ -2,7 +2,7 @@
 loader:
   class: "CSVLoader"
   module: "loader.csv_loader"
-  file_path: "contracts/contract_valid.csv" # Change to contracts/contract_valid.csv if running locally, 
+  file_path: "contracts/oneasset.csv" # Change to contracts/contract_valid.csv if running locally, 
   # otherwise /opt/airflow/data_engine/contracts/contract_valid.csv
 
 inserter:
@@ -29,6 +29,7 @@ provider:
 
 # Database configuration
 database:
+  db_name: "algo_data"
   target_schema: "futures_data"
   raw_table: "ohlcv_1d_raw"           
   table: "ohlcv_1d"
@@ -36,8 +37,8 @@ database:
 # Time range for data fetching YYYY-MM-DD (Leave empty to fetch missing data)
 #Setting it really small to avoid unnecesary costs
 time_range:
-  start_date: "2010-06-06"              
-  end_date: "2025-03-22"
+  start_date: "2026-02-03"              
+  end_date: ""
 
 # Options to handle missing data
 missing_data:
@@ -56,6 +57,6 @@ logging:
   level: "INFO"                           
 
 batch_downloading:
-  batch: True
+  batch: False
   unit: "Daily"
-  max_units: 30
+  max_units: 100
