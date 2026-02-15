@@ -1,0 +1,15 @@
+# Description: Template for environment variables
+# Usage: Copy this file to .env in project root and fill in the values
+
+# Databento API key
+DATABENTO_API_KEY=databento-api-key
+
+# AlgoGators API key
+ALGOGATORS_API_KEY=algogators-api-key
+
+# Database credentials
+DB_HOST=db-host
+DB_PORT=db-port
+DB_USER=db-user
+DB_PASSWORD=db-password
+DB_NAME=db-name
