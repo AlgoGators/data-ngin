@@ -110,7 +110,7 @@ def determine_date_range(config: Dict[str, Any]) -> Tuple[str, str]:
     Raises:
         ValueError: If neither the config nor the database can determine the start_date.
     """
-    data_access: DataAccess = DataAccess()
+    data_access: DataAccess = DataAccess(config=config)
 
     # Check if 'start_date' exists in the config
     if config['time_range'].get('start_date'):
@@ -128,5 +128,5 @@ def determine_date_range(config: Dict[str, Any]) -> Tuple[str, str]:
         end_date = config['time_range']['end_date']
     else:
         # Use today's date minus one day
-        end_date = (datetime.now()).strftime("%Y-%m-%d")
+        end_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
     return start_date, end_date

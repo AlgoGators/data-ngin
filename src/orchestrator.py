@@ -36,7 +36,7 @@ class Orchestrator:
             config (Dict[str, Any]): Configuration settings     
         """
         self.config: Dict[str, Any] = config
-        self.data_access: DataAccess = DataAccess()
+        self.data_access: DataAccess = DataAccess(config=self.config)
 
         # Dynamically load system components based on configuration
         self.loader: Any = get_instance(self.config, "loader", "class")

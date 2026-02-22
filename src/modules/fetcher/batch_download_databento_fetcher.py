@@ -26,19 +26,6 @@ class BatchDownloadDatabentoFetcher(Fetcher):
         self.logger: logging.Logger = logging.getLogger("BatchDownloadDatabentoFetcher")
         self.logger.setLevel(logging.INFO)
 
-    # PLAN - In our case, we pass start and end dates as str eg. '2023-05-01'
-    # Before fetch_data, we take start and end_dates and generate batches
-    # generate_batches takes start and end date + max_yrs allowed from config
-    # Probably model the cleaner.clean logic - where we first run generate_batches and then run a for loop for fetch_data
-    # NEW PLAN - DO BASED ON MAX NUMBER OF ENTRIES - MUCH EASIER (Provider will never have limit of x -days, itll be n size, )
-    # IS there a way to pause/ await.time_series - or do I have to go through orchestrator -- 
-    # UNDERSTAND how async and asyncio works
-    # TO test it use a lot of logging - only run data for say one week maybe w/less symbols and make max entries like 2 -- that way you can limti cost
-    # FIND what in config data tells us time --then its easy
-    # Have different functions based on schema for days: schema: str = self.config["provider"]["schema"] if schema == "OHLCV_1D": time_frame = 'days'
-    #Reread DB docs- migjt be a pagination / limit agrument we can use
-    # WORKS !!!!
-
     async def generate_and_fetch_data(self, symbol: str, loaded_asset_type: str,start_date: str, end_date: str,unit: str, max_units_allowed: int):
         master_df = pd.DataFrame()
 
@@ -50,9 +37,6 @@ class BatchDownloadDatabentoFetcher(Fetcher):
              master_df = pd.concat([data, master_df], ignore_index = True)
 
         return master_df
-        # FIGURE OUT THE BEST WAY TO MERGE ALL THE DFS from fetch_data together
-        # MAY BE TOO COMPLICATED - WILL NEED ALL THE PARAMS
-
 
     
     def generate_batches(self, start_date: str, end_date: str, unit: str, max_units_allowed: int):
@@ -112,8 +96,6 @@ class BatchDownloadDatabentoFetcher(Fetcher):
        
         return batches
     
-   
-
     async def fetch_data(
         self,
         symbol: str,

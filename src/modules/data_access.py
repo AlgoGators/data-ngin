@@ -13,11 +13,12 @@ class DataAccess:
     A data access layer for querying the OHLCV table in PostgreSQL using SQLAlchemy ORM.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
         """
         Initializes the DataAccess class by creating a database engine and session maker.
         """
-        self.engine: Engine = get_engine()
+        #Engine knows what db to use
+        self.engine: Engine = get_engine(config=config)
         self.Session: Type[sessionmaker] = sessionmaker(bind=self.engine)
         self.logger: logging.Logger = logging.getLogger("DataAccess")
         self.logger.setLevel(logging.INFO)
