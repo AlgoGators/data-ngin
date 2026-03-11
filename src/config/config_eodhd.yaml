@@ -1,0 +1,38 @@
+# src/config/config_eodhd.yaml
+
+loader:
+  class: "CSVLoader"
+  module: "loader.csv_loader"
+  file_path: "contracts/contract_eodhd.csv"
+
+fetcher:
+  class: "EODHDFetcher"
+  module: "fetcher.eodhd_fetcher"
+
+cleaner:
+  class: "EODHDCleaner"
+  module: "cleaner.eodhd_cleaner"
+
+inserter:
+  class: "TimescaleDBInserter"
+  module: "inserter.timescaledb_inserter"
+
+provider:
+  name: "eodhd"
+  asset: "EQUITY"
+
+database:
+  target_schema: "jonah_nissan"
+  raw_table: "eodhd_raw"
+  table: "eodhd_data"
+
+time_range:
+  start_date: "2024-01-01"
+  end_date: "2024-01-31"
+
+missing_data:
+  forward_fill: "True"
+  drop_nan: "True"
+
+logging:
+  level: "INFO"
