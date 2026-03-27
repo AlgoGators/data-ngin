@@ -19,22 +19,19 @@ def main() -> None:
 
     try:
         # Load configuration
-        file_path = "src/config"
-        for filename in os.listdir(file_path):
-            file_path = os.path.join(file_path, filename)
-            config_path = "src/config/config.yaml"  # Path to the YAML configuration file in the Docker container
-            logging.info(f"Loading configuration from {config_path}")
-            config = load_config(config_path)
+        config_path = "config/config.yaml"
+        logging.info(f"Loading configuration from {config_path}")
+        config = load_config(config_path)
 
-            # Initialize the Orchestrator
-            logging.info("Initializing orchestrator...")
-            orchestrator = Orchestrator(config=config)
+        # Initialize the Orchestrator
+        logging.info("Initializing orchestrator...")
+        orchestrator = Orchestrator(config=config)
 
-            # Run the pipeline
-            logging.info("Starting the data pipeline...")
-            asyncio.run(orchestrator.run())
+        # Run the pipeline
+        logging.info("Starting the data pipeline...")
+        asyncio.run(orchestrator.run())
 
-            logging.info("Pipeline execution completed successfully.")
+        logging.info("Pipeline execution completed successfully.")
 
     except Exception as e:
         logging.error(f"Pipeline execution failed: {e}")

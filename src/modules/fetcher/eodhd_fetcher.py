@@ -78,6 +78,11 @@ class EODHDFetcher(Fetcher):
             logger.warning(f"[EODHD] No data returned for {symbol}")
             return pd.DataFrame()
 
+        # Handle API warning responses (e.g. free-tier limitations)
+        if isinstance(data, list) and len(data) == 1 and "warning" in data[0]:
+            logger.warning(f"[EODHD] API warning for {symbol}: {data[0]['warning']}")
+            return pd.DataFrame()
+
         df = pd.DataFrame(data)
 
         # Rename to match your pipeline's expected column naming convention

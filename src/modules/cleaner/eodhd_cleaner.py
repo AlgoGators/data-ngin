@@ -1,6 +1,6 @@
 import logging
 import pandas as pd
-from typing import List
+from typing import List, Dict, Any
 from src.modules.cleaner.cleaner import Cleaner
 
 logger = logging.getLogger(__name__)
@@ -11,6 +11,9 @@ NUMERIC_COLUMNS = ["open", "high", "low", "close", "adjusted_close", "volume"]
 
 
 class EODHDCleaner(Cleaner):
+
+    def __init__(self, config: Dict[str, Any] = None) -> None:
+        self.config = config or {}
     """
     Cleaner for EODHD End-of-Day OHLCV equity/ETF data.
 

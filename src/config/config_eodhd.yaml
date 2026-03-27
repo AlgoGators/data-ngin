@@ -36,3 +36,6 @@ missing_data:
 
 logging:
   level: "INFO"
+
+batch_downloading:
+  batch: False
