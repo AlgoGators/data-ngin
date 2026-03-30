@@ -1,124 +1,129 @@
 import os
 import httpx
 import pandas as pd
-from dotenv import load_dotenv
+import logging
 from typing import Dict, Any
 from src.modules.fetcher.fetcher import Fetcher
-from src.modules.loader.csv_loader import CSVLoader
 
 class EIAFetcher(Fetcher):
     def __init__(self, config: Dict[str, Any]) -> None:
         super().__init__(config)
-        load_dotenv()
-        self.api_key: str = os.getenv("EIA_API_KEY")
-        
-        if not self.api_key:
-            self.logger.error("EIA_API_KEY not found in .env file.")
-            raise ValueError("Missing EIA API Key")
+        self.api_key = os.getenv("EIA_API_KEY")
+        self.base_url = "https://api.eia.gov/v2"
+        self.logger = logging.getLogger(__name__)
 
-    async def fetch_data(self, symbol: str, asset_type: str, start_date: str, end_date: str) -> pd.DataFrame:
-        """
-        Final, bug-fixed version for Deadline 1.
-        Handles Imports (Monthly) and Futures (Daily) dynamically.
-        """
-        # 1. Setup variables based on the type of data
-        if asset_type == "IMPORTS":
-            route = "crude-oil-imports"
-            frequency = "monthly"
-            data_col = "quantity"
-        elif asset_type == "FUTURE":
-            route = "petroleum/pri/fut"
-            frequency = "daily"
-            data_col = "value"
-        else:
-            # Fallback for generic reports
-            route = "petroleum/stoc/wst"
-            frequency = "weekly"
-            data_col = "value"
-
-        url = f"https://api.eia.gov/v2/{route}/data/"
+    async def fetch_data(self, symbol_metadata: Dict[str, Any], start_date: str, end_date: str) -> pd.DataFrame:
+        symbol = symbol_metadata.get('dataSymbol')
+        # Standardize data column (quantity for imports, value for others)
+        data_col = symbol_metadata.get('dataCol', 'value')
+        facet_id = symbol_metadata.get('facetId')
+        facet_val = symbol_metadata.get('facetValue')
         
-        # 2. Build the params
+        url = f"{self.base_url}/{symbol}/data/"
+        
         params = {
             "api_key": self.api_key,
-            "frequency": frequency,
+            "frequency": "monthly",
             "data[0]": data_col,
-            "start": start_date, 
-            "end": end_date,
+            "start": start_date[:7], 
+            "end": end_date[:7],
             "sort[0][column]": "period",
             "sort[0][direction]": "desc",
             "offset": 0,
             "length": 5000
         }
 
-        # Imports use a different structure and don't require the series facet
-        if asset_type != "IMPORTS":
-            params["facets[series][]"] = symbol
+        # Add facets (like duoarea or originType)
+        if pd.notnull(facet_id) and pd.notnull(facet_val) and str(facet_id).strip() != "":
+            params[f"facets[{facet_id}][]"] = facet_val
 
         async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params, timeout=30.0)
-            
-            if response.status_code != 200:
-                print(f"❌ EIA API Error Detail: {response.text}")
-                response.raise_for_status()
+            try:
+                response = await client.get(url, params=params, timeout=120.0)
                 
-            data = response.json()
+                if response.status_code != 200:
+                    self.logger.error(f"EIA API Fail for {symbol}: Status {response.status_code} - {response.text}")
+                    return pd.DataFrame()
 
-        records = data.get("response", {}).get("data", [])
-        df = pd.DataFrame(records)
+                json_res = response.json()
+                raw_data = json_res.get("response", {}).get("data", [])
+                
+                if not raw_data:
+                    self.logger.warning(f"API returned 200 OK but 0 rows for {symbol}. Check your facets!")
+                    return pd.DataFrame()
 
-        if not df.empty:
-            # Standardize naming to 'time' and 'value'
-            df.rename(columns={"period": "time", data_col: "value"}, inplace=True)
-            df["value"] = pd.to_numeric(df["value"], errors='coerce')
+                df = pd.DataFrame(raw_data)
 
-            # --- AGGREGATION STEP ---
-            # If it's Imports, sum up all rows (countries/ports) to get one total per month
-            if asset_type == "IMPORTS":
-                df = df.groupby("time")["value"].sum().reset_index()
-                # Ensure the time is still sorted descending after grouping
+                # 1. Standardize core columns
+                df.rename(columns={"period": "time", data_col: "value"}, inplace=True)
+                
+                # 2. Fix Timestamps for Postgres
+                df["time"] = pd.to_datetime(df["time"]) 
+
+                # 3. Standardize Value column
+                df["value"] = pd.to_numeric(df["value"], errors='coerce')
+                
+                # 4. Add the Metadata/Instrument tag
+                df["series_id"] = symbol_metadata.get('instrumentType', symbol)
+
+                # 5. Clean up noise columns (desc, unit labels) to keep the table clean
+                cols_to_drop = ['period-description', 'units', f"{data_col}-units"]
+                df = df.drop(columns=[c for c in cols_to_drop if c in df.columns])
+
+                # 6. RETURN FULL DATASET
+                # We removed the .groupby() to preserve all dimensions like originName and gradeName.
                 df = df.sort_values("time", ascending=False)
-            
-        return df
+                
+                return df
 
+            except Exception as e:
+                self.logger.error(f"Request Error for {symbol}: {e}")
+                return pd.DataFrame()
+            
 if __name__ == "__main__":
     import asyncio
+    from dotenv import load_dotenv
+    
+    # Load your .env file which should contain EIA_API_KEY
+    load_dotenv()
 
-    async def test_full_flow():
-        config = {
-            "loader": {"file_path": "src/modules/fetcher/eia_contracts.csv"}
+    async def test_eia_fetcher():
+        # 1. Initialize Fetcher with a dummy config
+        config = {"database": {"target_schema": "eia"}}
+        fetcher = EIAFetcher(config)
+
+        # 2. Mock a row from your CSV for Natural Gas (Uses facets)
+        ng_metadata = {
+            "dataSymbol": "natural-gas/prod/sum",
+            "instrumentType": "NG_PROD",
+            "dataCol": "value",
+            "facetId": "duoarea",
+            "facetValue": "USA"
         }
 
-        try:
-            print("--- Step 1: Loading Symbols via CSVLoader ---")
-            loader = CSVLoader(config)
-            symbols_to_fetch = loader.load_symbols() 
-            
-            print("--- Step 2: Fetching Data from EIA ---")
-            fetcher = EIAFetcher(config)
-            
-            for symbol, asset_type in symbols_to_fetch.items():
-                # Set date formats: Monthly for Imports, Daily for others
-                s_date = "2024-01" if asset_type == "IMPORTS" else "2025-10-01"
-                e_date = "2024-12" if asset_type == "IMPORTS" else "2025-12-31"
+        # 3. Mock a row for Crude Imports (No facets, uses 'quantity')
+        crude_metadata = {
+            "dataSymbol": "crude-oil-imports",
+            "instrumentType": "IMPORTS",
+            "dataCol": "quantity",
+            "facetId": None,
+            "facetValue": None
+        }
 
-                print(f"Fetching {symbol} ({asset_type})...")
-                
-                df = await fetcher.fetch_data(
-                    symbol=symbol, 
-                    asset_type=asset_type, 
-                    start_date=s_date, 
-                    end_date=e_date
-                )
+        print("--- Testing Natural Gas Production (Filtered by USA) ---")
+# Try a safe range from 2023 to ensure the API has finalized the data
+        df_ng = await fetcher.fetch_data(ng_metadata, "2023-01", "2023-12")
+        if not df_ng.empty:
+            print(df_ng.head())
+        else:
+            print("Failed to fetch NG data. Checking API connection...")
 
-                if not df.empty:
-                    print(f"✅ Success! Loaded {len(df)} aggregated rows for {symbol}")
-                    # Show the final clean time-series
-                    print(df[['time', 'value']].head(12))
-                else:
-                    print(f"❌ No data found for {symbol}")
+        print("\n--- Testing Crude Oil Imports (Aggregated) ---")
+        df_crude = await fetcher.fetch_data(crude_metadata, "2024-01", "2024-12")
+        if not df_crude.empty:
+            print(df_crude.head())
+        else:
+            print("Failed to fetch Crude data.")
 
-        except Exception as e:
-            print(f"❌ Pipeline Error: {e}")
-
-    asyncio.run(test_full_flow())
+    # Run the test
+    asyncio.run(test_eia_fetcher())

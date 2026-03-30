@@ -1,0 +1,49 @@
+# Global components configuration
+loader:
+  class: "EIALoader"
+  module: "loader.eia_loader"
+  file_path: "contracts/eia_contracts.csv"
+
+inserter:
+  class: "EIAInserter"
+  module: "inserter.eia_inserter"
+
+fetcher:
+  class: "EIAFetcher"
+  module: "fetcher.eia_fetcher"
+
+cleaner:
+  class: "EIACleaner"
+  module: "cleaner.eia_cleaner"
+
+# Data provider configuration
+provider:
+  name: "eia"
+  api_version: "v2"
+
+# Database configuration
+database:
+  target_schema: "eia"
+  # These are used as defaults if not overridden in the Orchestrator
+  raw_table: "market_data_raw"
+  table: "market_data"
+
+# Time range for data fetching
+time_range:
+  start_date: "2020-01-01"
+  end_date: "2020-03-29"
+
+# Options to handle missing data
+# Matches the logic in your EIACleaner.py
+missing_data:
+  method: "forward_fill"  # Options: forward_fill, drop_nan, zero_fill
+  limit: 3                # Optional: don't fill more than 3 months of gaps
+
+# Logging options
+logging:
+  level: "INFO"
+
+batch_downloading:
+  batch: false            # Use lowercase for standard YAML booleans
+  unit: "Monthly"         # Changed to Monthly since EIA macro is rarely daily
+  max_units: 12

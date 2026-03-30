@@ -1,0 +1,7 @@
+﻿dataSymbol,instrumentType,description,dataCol,facetId,facetValue
+crude-oil-imports,IMPORTS,Crude Imports by Country,quantity,originType,CTY
+natural-gas/prod/sum,NG_PROD,NG Gross Withdrawals,value,duoarea,NUS
+natural-gas/prod/whv,NG_PROD,NG Marketed Production,value,duoarea,NUS
+natural-gas/sum/sndm,NG_PROD,NG Supply and Disposition,value,duoarea,NUS
+petroleum/crd/crpdn,PETRO_PROD,Field Production of Crude,value,duoarea,NUS
+petroleum/sum/b100,PETRO_PROD,Petroleum Summary B100,value,duoarea,NUS
