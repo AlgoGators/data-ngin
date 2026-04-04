@@ -117,10 +117,31 @@ class TimescaleDBInserter(Inserter):
         ON CONFLICT DO NOTHING;
         """.strip()
 
+        # Diagnostic logging: what symbols are we about to insert?
+        if data and isinstance(data, list):
+            sample_size = min(len(data), 5)
+            sample_rows = data[:sample_size]
+            unique_symbols = sorted(
+                {str(row.get("symbol")) for row in sample_rows if "symbol" in row}
+            ) or ["<no symbol field>"]
+            self.logger.info(
+                "Preparing to insert %d rows into %s.%s. columns=%s sample_symbols=%s",
+                len(data),
+                schema,
+                table,
+                columns,
+                unique_symbols,
+            )
+
         try:
             with self.connection.cursor() as cursor:
                 cursor.executemany(query, data)
-            self.logger.info(f"Inserted {len(data)} rows into {schema}.{table}")
+            self.logger.info(
+                "Inserted %d rows into %s.%s",
+                len(data),
+                schema,
+                table,
+            )
         except psycopg2.Error as e:
             self.connection.rollback()
             self.logger.error("PG error code=%s detail=%s", getattr(e, "pgcode", None), getattr(getattr(e, "diag", None), "message_detail", None))

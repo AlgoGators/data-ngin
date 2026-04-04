@@ -55,11 +55,29 @@ class DatabentoFetcher(Fetcher):
         # Check asset type
         if loaded_asset_type != asset_type_config:
             raise ValueError(f"Asset type mismatch: {loaded_asset_type} != {asset_type_config}")
-        
+
+        # --- Remap base symbols for futures BEFORE building formatted_symbol ---
+        symbol_remap = {
+            "ES": "MES",
+            "RTY": "M2K",
+            "NQ": "MNQ",
+            "YM": "MYM",
+        }
+
         if loaded_asset_type == "FUTURE":
             roll_type: str = self.config["provider"]["roll_type"]
             contract_type: str = self.config["provider"]["contract_type"]
-            formatted_symbol: str = f"{symbol}.{roll_type}.{contract_type}"
+
+            base_symbol_for_api = symbol_remap.get(symbol, symbol)
+            if base_symbol_for_api != symbol:
+                self.logger.info(
+                    "Remapping futures base symbol from %s to %s for Databento + storage",
+                    symbol,
+                    base_symbol_for_api,
+                )
+
+            # This is what Databento sees AND what we will store, e.g. MES.v.0
+            formatted_symbol: str = f"{base_symbol_for_api}.{roll_type}.{contract_type}"
             stype_in = db.SType.CONTINUOUS
             stype_out = db.SType.INSTRUMENT_ID
         elif loaded_asset_type == "EQUITY":
@@ -68,7 +86,19 @@ class DatabentoFetcher(Fetcher):
             stype_out = db.SType.INSTRUMENT_ID
         else:
             raise ValueError(f"Unsupported asset type: {loaded_asset_type}")
-        
+
+        self.logger.info(
+            "Preparing fetch for symbol=%s loaded_asset_type=%s formatted_symbol=%s "
+            "roll_type=%s contract_type=%s stype_in=%s stype_out=%s",
+            symbol,
+            loaded_asset_type,
+            formatted_symbol,
+            self.config["provider"].get("roll_type"),
+            self.config["provider"].get("contract_type"),
+            stype_in,
+            stype_out,
+        )
+
         try:
             # Fetch data
             data = await self.client.timeseries.get_range_async(
@@ -83,19 +113,18 @@ class DatabentoFetcher(Fetcher):
             # Convert to DataFrame
             df = data.to_df()
 
-                        # --- Remap E-mini symbols to Micro equivalents for DB storage ---
-            symbol_remap = {
-                "ES": "MES",
-                "RTY": "M2K",
-                "NQ": "MNQ",
-                "YM": "MYM"
-            }
-
-            mapped_symbol = symbol_remap.get(symbol, symbol)
-            if mapped_symbol != symbol:
-                self.logger.info(f"Fetched {symbol} data, remapping to {mapped_symbol} for storage")
-
-            df["symbol"] = mapped_symbol
+            # IMPORTANT: This controls what ultimately gets inserted into the DB.
+            # For futures, df["symbol"] will be something like MES.v.0; for non-remapped
+            # futures (e.g. 6A) it will be 6A.v.0; for equities it is the raw symbol.
+            df["symbol"] = formatted_symbol
+            self.logger.info(
+                "Setting DataFrame symbol column. original_symbol=%s formatted_symbol=%s stored_symbol=%s "
+                "unique_symbols_in_df_sample=%s",
+                symbol,
+                formatted_symbol,
+                formatted_symbol,
+                df["symbol"].head().unique().tolist() if "symbol" in df.columns else "N/A",
+            )
 
             # Check if data is empty
             if df.empty:
@@ -105,7 +134,12 @@ class DatabentoFetcher(Fetcher):
             if "ts_event" in df.index.names:
                 df.reset_index(inplace=True)
 
-            self.logger.info(f"Data fetched successfully for {symbol}.")
+            self.logger.info(
+                "Data fetched successfully for %s. rows=%d columns=%s",
+                symbol,
+                len(df),
+                list(df.columns),
+            )
             return df
 
         except Exception as e:
