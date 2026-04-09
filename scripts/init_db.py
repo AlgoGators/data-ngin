@@ -57,7 +57,8 @@ CREATE TABLE IF NOT EXISTS macro_data.inflation (
     cpi DOUBLE PRECISION,
     core_cpi DOUBLE PRECISION,
     core_pce DOUBLE PRECISION,
-    breakeven_5y DOUBLE PRECISION
+    breakeven_5y DOUBLE PRECISION,
+    breakeven_10y DOUBLE PRECISION
 );
 
 CREATE TABLE IF NOT EXISTS macro_data.growth (
@@ -67,15 +68,22 @@ CREATE TABLE IF NOT EXISTS macro_data.growth (
     manufacturing_capacity_util DOUBLE PRECISION,
     industrial_production DOUBLE PRECISION,
     retail_sales DOUBLE PRECISION,
-    gdp DOUBLE PRECISION
+    gdp DOUBLE PRECISION,
+    consumer_sentiment DOUBLE PRECISION,
+    manufacturing_employment DOUBLE PRECISION,
+    cfnai DOUBLE PRECISION,
+    init_claims DOUBLE PRECISION
 );
 
 CREATE TABLE IF NOT EXISTS macro_data.yield_curve (
     date DATE PRIMARY KEY,
     treasury_2y DOUBLE PRECISION,
     treasury_10y DOUBLE PRECISION,
+    treasury_30y DOUBLE PRECISION,
     yield_spread_10y_2y DOUBLE PRECISION,
-    fed_funds_rate DOUBLE PRECISION
+    fed_funds_rate DOUBLE PRECISION,
+    sofr DOUBLE PRECISION,
+    butterfly_spread DOUBLE PRECISION
 );
 
 CREATE TABLE IF NOT EXISTS macro_data.credit_spreads (
@@ -99,6 +107,25 @@ CREATE TABLE IF NOT EXISTS macro_data.market (
     wti_crude DOUBLE PRECISION,
     gdp_nowcast DOUBLE PRECISION
 );
+
+CREATE TABLE IF NOT EXISTS macro_data.bsts_etf_prices (
+    date DATE NOT NULL,
+    symbol VARCHAR(10) NOT NULL,
+    open DOUBLE PRECISION,
+    high DOUBLE PRECISION,
+    low DOUBLE PRECISION,
+    close DOUBLE PRECISION,
+    adjusted_close DOUBLE PRECISION,
+    volume BIGINT,
+    PRIMARY KEY (date, symbol)
+);
+"""
+
+# ── Migration DDL for existing databases ──────────────────────────────────
+MACRO_MIGRATION_DDL = """
+ALTER TABLE macro_data.inflation ADD COLUMN IF NOT EXISTS breakeven_10y DOUBLE PRECISION;
+ALTER TABLE macro_data.growth ADD COLUMN IF NOT EXISTS cfnai DOUBLE PRECISION;
+ALTER TABLE macro_data.growth ADD COLUMN IF NOT EXISTS init_claims DOUBLE PRECISION;
 """
 
 
@@ -120,6 +147,9 @@ def run():
 
             logger.info("Creating macro_data schema and tables...")
             cur.execute(MACRO_DDL)
+
+            logger.info("Running macro_data migrations (ADD COLUMN IF NOT EXISTS)...")
+            cur.execute(MACRO_MIGRATION_DDL)
 
         conn.commit()
         logger.info("All schemas and tables created successfully.")

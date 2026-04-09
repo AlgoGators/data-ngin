@@ -22,8 +22,28 @@ class TestSeriesConfig(unittest.TestCase):
         expected = {"inflation", "growth", "yield_curve", "credit_spreads", "liquidity", "market"}
         self.assertEqual(set(SERIES_CONFIG.keys()), expected)
 
-    def test_gdp_nowcast_is_none(self):
-        self.assertIsNone(SERIES_CONFIG["market"]["gdp_nowcast"])
+    def test_gdp_nowcast_has_fred_id(self):
+        self.assertEqual(SERIES_CONFIG["market"]["gdp_nowcast"], "GDPNOW")
+
+    def test_butterfly_spread_is_none(self):
+        self.assertIsNone(SERIES_CONFIG["yield_curve"]["butterfly_spread"])
+
+    def test_growth_has_sentiment_and_mfg_employment(self):
+        self.assertEqual(SERIES_CONFIG["growth"]["consumer_sentiment"], "UMCSENT")
+        self.assertEqual(SERIES_CONFIG["growth"]["manufacturing_employment"], "MANEMP")
+
+    def test_yield_curve_has_sofr_and_30y(self):
+        self.assertEqual(SERIES_CONFIG["yield_curve"]["sofr"], "SOFR")
+        self.assertEqual(SERIES_CONFIG["yield_curve"]["treasury_30y"], "DGS30")
+
+    def test_breakeven_10y_in_inflation(self):
+        self.assertEqual(SERIES_CONFIG["inflation"]["breakeven_10y"], "T10YIE")
+
+    def test_cfnai_in_growth(self):
+        self.assertEqual(SERIES_CONFIG["growth"]["cfnai"], "CFNAI")
+
+    def test_init_claims_in_growth(self):
+        self.assertEqual(SERIES_CONFIG["growth"]["init_claims"], "ICSA")
 
     def test_all_fred_ids_are_strings_or_none(self):
         for table, cols in SERIES_CONFIG.items():
@@ -151,6 +171,89 @@ class TestUpsertTable(unittest.TestCase):
             self.assertNotIn("gdp_nowcast = EXCLUDED.gdp_nowcast", sql_arg)
 
 
+class TestButterflySpread(unittest.TestCase):
+    """Test that the butterfly spread is computed correctly in run_pipeline."""
+
+    @patch("src.modules.macro.fred_pipeline.get_connection")
+    @patch("src.modules.macro.fred_pipeline.Fred")
+    @patch("src.modules.macro.fred_pipeline.create_schema_and_tables")
+    @patch("src.modules.macro.fred_pipeline.upsert_table")
+    @patch.dict("os.environ", {"FRED_API_KEY": "test-key"})
+    def test_butterfly_spread_formula(
+        self, mock_upsert, mock_create, mock_fred_cls, mock_conn
+    ):
+        """butterfly = 2*10Y - 2Y - 30Y"""
+        mock_conn.return_value = MagicMock()
+        mock_upsert.return_value = 1
+
+        def mock_get_series(series_id, observation_start=None):
+            data = {
+                "DGS2": pd.Series([4.0], index=pd.to_datetime(["2024-01-01"])),
+                "DGS10": pd.Series([4.5], index=pd.to_datetime(["2024-01-01"])),
+                "DGS30": pd.Series([4.8], index=pd.to_datetime(["2024-01-01"])),
+            }
+            if series_id in data:
+                return data[series_id]
+            return pd.Series([], dtype=float)
+
+        mock_fred = MagicMock()
+        mock_fred.get_series.side_effect = mock_get_series
+        mock_fred_cls.return_value = mock_fred
+
+        run_pipeline()
+
+        # Find the yield_curve upsert call
+        for call in mock_upsert.call_args_list:
+            args = call[0]
+            if args[1] == "yield_curve":
+                df = args[3]
+                if "butterfly_spread" in df.columns and not df["butterfly_spread"].isna().all():
+                    # 2*4.5 - 4.0 - 4.8 = 0.2
+                    self.assertAlmostEqual(df["butterfly_spread"].iloc[0], 0.2)
+                    return
+        self.fail("butterfly_spread was not computed in yield_curve DataFrame")
+
+    @patch("src.modules.macro.fred_pipeline.get_connection")
+    @patch("src.modules.macro.fred_pipeline.Fred")
+    @patch("src.modules.macro.fred_pipeline.create_schema_and_tables")
+    @patch("src.modules.macro.fred_pipeline.upsert_table")
+    @patch.dict("os.environ", {"FRED_API_KEY": "test-key"})
+    def test_butterfly_spread_nan_when_component_missing(
+        self, mock_upsert, mock_create, mock_fred_cls, mock_conn
+    ):
+        """If any treasury yield is NaN, butterfly_spread should be NaN."""
+        mock_conn.return_value = MagicMock()
+        mock_upsert.return_value = 1
+
+        def mock_get_series(series_id, observation_start=None):
+            data = {
+                "DGS2": pd.Series([4.0], index=pd.to_datetime(["2024-01-01"])),
+                "DGS10": pd.Series([4.5], index=pd.to_datetime(["2024-01-01"])),
+                # DGS30 missing — will produce NaN on 2024-01-01
+                "DGS30": pd.Series([], dtype=float),
+            }
+            if series_id in data:
+                return data[series_id]
+            return pd.Series([], dtype=float)
+
+        mock_fred = MagicMock()
+        mock_fred.get_series.side_effect = mock_get_series
+        mock_fred_cls.return_value = mock_fred
+
+        run_pipeline()
+
+        for call in mock_upsert.call_args_list:
+            args = call[0]
+            if args[1] == "yield_curve":
+                df = args[3]
+                if "butterfly_spread" in df.columns:
+                    jan01 = df[df["date"] == date(2024, 1, 1)]
+                    if not jan01.empty:
+                        self.assertTrue(pd.isna(jan01["butterfly_spread"].iloc[0]))
+                        return
+        self.fail("butterfly_spread column not found in yield_curve DataFrame")
+
+
 class TestRunPipeline(unittest.TestCase):
     """Test the full pipeline orchestration with mocks."""
 
@@ -171,8 +274,9 @@ class TestRunPipeline(unittest.TestCase):
         self.assertEqual(len(stats), len(SERIES_CONFIG))
         self.assertEqual(mock_upsert.call_count, len(SERIES_CONFIG))
 
+    @patch("src.modules.macro.fred_pipeline.load_dotenv")
     @patch.dict("os.environ", {}, clear=True)
-    def test_pipeline_raises_without_api_key(self):
+    def test_pipeline_raises_without_api_key(self, mock_dotenv):
         with self.assertRaises(ValueError):
             run_pipeline()
 

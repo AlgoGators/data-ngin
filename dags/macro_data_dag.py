@@ -28,10 +28,22 @@ def run_macro_pipeline(**kwargs):
         raise
 
 
+def run_bsts_etf_pipeline(**kwargs):
+    try:
+        from src.modules.macro.bsts_etf_pipeline import run_pipeline
+
+        logging.info("Starting BSTS ETF price pipeline.")
+        stats = run_pipeline()
+        logging.info("BSTS ETF pipeline complete. Stats: %s", stats)
+    except Exception as e:
+        logging.error("BSTS ETF pipeline failed: %s", e)
+        raise
+
+
 with DAG(
     "macro_data_dag",
     default_args=default_args,
-    description="Weekly FRED macro data ingestion for DFM",
+    description="Weekly FRED macro data + BSTS ETF price ingestion",
     schedule_interval="0 8 * * 0",  # Sundays at 8 AM ET
     start_date=datetime(2024, 12, 1, tzinfo=local_tz),
     catchup=False,
@@ -43,3 +55,11 @@ with DAG(
         task_id="fetch_fred_macro_data",
         python_callable=run_macro_pipeline,
     )
+
+    fetch_bsts_etf_data = PythonOperator(
+        task_id="fetch_bsts_etf_prices",
+        python_callable=run_bsts_etf_pipeline,
+    )
+
+    # FRED and EODHD fetches are independent — run in parallel
+    [fetch_macro_data, fetch_bsts_etf_data]

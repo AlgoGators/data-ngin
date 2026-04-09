@@ -20,6 +20,7 @@ SERIES_CONFIG: Dict[str, Dict[str, Optional[str]]] = {
         "core_cpi": "CPILFESL",
         "core_pce": "PCEPILFE",
         "breakeven_5y": "T5YIE",
+        "breakeven_10y": "T10YIE",
     },
     "growth": {
         "nonfarm_payrolls": "PAYEMS",
@@ -28,12 +29,19 @@ SERIES_CONFIG: Dict[str, Dict[str, Optional[str]]] = {
         "industrial_production": "INDPRO",
         "retail_sales": "RSAFS",
         "gdp": "GDP",
+        "consumer_sentiment": "UMCSENT",
+        "manufacturing_employment": "MANEMP",
+        "cfnai": "CFNAI",
+        "init_claims": "ICSA",
     },
     "yield_curve": {
         "treasury_2y": "DGS2",
         "treasury_10y": "DGS10",
+        "treasury_30y": "DGS30",
         "yield_spread_10y_2y": "T10Y2Y",
         "fed_funds_rate": "FEDFUNDS",
+        "sofr": "SOFR",
+        "butterfly_spread": None,
     },
     "credit_spreads": {
         "ig_credit_spread": "BAMLC0A4CBBB",
@@ -65,7 +73,8 @@ CREATE TABLE IF NOT EXISTS macro_data.inflation (
     cpi DOUBLE PRECISION,
     core_cpi DOUBLE PRECISION,
     core_pce DOUBLE PRECISION,
-    breakeven_5y DOUBLE PRECISION
+    breakeven_5y DOUBLE PRECISION,
+    breakeven_10y DOUBLE PRECISION
 );
 
 CREATE TABLE IF NOT EXISTS macro_data.growth (
@@ -75,15 +84,22 @@ CREATE TABLE IF NOT EXISTS macro_data.growth (
     manufacturing_capacity_util DOUBLE PRECISION,
     industrial_production DOUBLE PRECISION,
     retail_sales DOUBLE PRECISION,
-    gdp DOUBLE PRECISION
+    gdp DOUBLE PRECISION,
+    consumer_sentiment DOUBLE PRECISION,
+    manufacturing_employment DOUBLE PRECISION,
+    cfnai DOUBLE PRECISION,
+    init_claims DOUBLE PRECISION
 );
 
 CREATE TABLE IF NOT EXISTS macro_data.yield_curve (
     date DATE PRIMARY KEY,
     treasury_2y DOUBLE PRECISION,
     treasury_10y DOUBLE PRECISION,
+    treasury_30y DOUBLE PRECISION,
     yield_spread_10y_2y DOUBLE PRECISION,
-    fed_funds_rate DOUBLE PRECISION
+    fed_funds_rate DOUBLE PRECISION,
+    sofr DOUBLE PRECISION,
+    butterfly_spread DOUBLE PRECISION
 );
 
 CREATE TABLE IF NOT EXISTS macro_data.credit_spreads (
@@ -106,6 +122,18 @@ CREATE TABLE IF NOT EXISTS macro_data.market (
     tips_10y DOUBLE PRECISION,
     wti_crude DOUBLE PRECISION,
     gdp_nowcast DOUBLE PRECISION
+);
+
+CREATE TABLE IF NOT EXISTS macro_data.bsts_etf_prices (
+    date DATE NOT NULL,
+    symbol VARCHAR(10) NOT NULL,
+    open DOUBLE PRECISION,
+    high DOUBLE PRECISION,
+    low DOUBLE PRECISION,
+    close DOUBLE PRECISION,
+    adjusted_close DOUBLE PRECISION,
+    volume BIGINT,
+    PRIMARY KEY (date, symbol)
 );
 """
 
@@ -234,6 +262,17 @@ def run_pipeline(start_date: str = START_DATE) -> Dict[str, int]:
         for table_name, columns in SERIES_CONFIG.items():
             logger.info("Processing table: %s.%s", SCHEMA, table_name)
             df = build_table_dataframe(fred, columns, start_date)
+
+            # Compute butterfly spread: 2*10Y - 2Y - 30Y
+            if table_name == "yield_curve" and not df.empty:
+                required = {"treasury_2y", "treasury_10y", "treasury_30y"}
+                if required.issubset(df.columns):
+                    df["butterfly_spread"] = (
+                        2 * df["treasury_10y"]
+                        - df["treasury_2y"]
+                        - df["treasury_30y"]
+                    )
+
             count = upsert_table(conn, table_name, columns, df)
             stats[table_name] = count
 
