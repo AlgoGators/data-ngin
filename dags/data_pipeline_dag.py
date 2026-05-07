@@ -1,9 +1,11 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from utils.dynamic_loader import load_config
-from src.orchestrator import Orchestrator
-import logging, asyncio, pendulum
+import logging, pendulum
+
+# Heavy imports (pandas, sqlalchemy, dotenv via src.orchestrator/dynamic_loader)
+# are deferred into run_pipeline() so DAG parsing stays fast and avoids the
+# AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT under host memory pressure.
 
 local_tz = pendulum.timezone("America/New_York")
 
@@ -19,6 +21,9 @@ default_args = {
 CONFIG_PATH = "/opt/airflow/data_engine/src/config/config.yaml"
 
 def run_pipeline(**kwargs):
+    import asyncio
+    from utils.dynamic_loader import load_config
+    from src.orchestrator import Orchestrator
     try:
         dag_run = kwargs.get("dag_run")
         conf = dag_run.conf if dag_run else {}
