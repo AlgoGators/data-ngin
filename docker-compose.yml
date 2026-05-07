@@ -10,6 +10,7 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:algogators@172.31.23.190:5432/algo_data?options=-csearch_path%3Dairflow_metadata
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT: "120"
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
       PYTHONPATH: /opt/airflow/data_engine
@@ -33,6 +34,7 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:algogators@172.31.23.190:5432/algo_data?options=-csearch_path%3Dairflow_metadata
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT: "120"
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
       PYTHONPATH: /opt/airflow/data_engine
@@ -56,6 +58,7 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:algogators@172.31.23.190:5432/algo_data?options=-csearch_path%3Dairflow_metadata
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT: "120"
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
       PYTHONPATH: /opt/airflow/data_engine
