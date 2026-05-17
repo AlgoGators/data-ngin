@@ -35,9 +35,12 @@ database:
   table: "ohlcv_1d"
 
 # Time range for data fetching YYYY-MM-DD (Leave empty to fetch missing data)
+# end_date is INCLUSIVE — the last day of data you want. The fetcher translates
+# this to Databento's exclusive-end semantics internally. Leave blank to default
+# to today (most recent available data).
 #Setting it really small to avoid unnecesary costs
 time_range:
-  start_date: "2026-02-03"              
+  start_date: "2026-02-03"
   end_date: ""
 
 # Options to handle missing data

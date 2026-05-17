@@ -183,15 +183,19 @@ class BatchDownloadDatabentoFetcher(Fetcher):
             stype_out,
         )
 
+        # Databento's `end` parameter is exclusive; shift by +1 day so callers'
+        # inclusive end_date semantics are preserved at the API boundary.
+        end_date_exclusive = (datetime.datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+
         try:
-            
+
             # Fetch data
             data = await self.client.timeseries.get_range_async(
                 dataset=dataset,
                 symbols=formatted_symbol,
                 schema=db.Schema.from_str(schema),
                 start=start_date,
-                end=end_date,
+                end=end_date_exclusive,
                 stype_in=stype_in,
                 stype_out=stype_out,
             )
@@ -280,6 +284,9 @@ class BatchDownloadDatabentoFetcher(Fetcher):
         else:
             raise ValueError(f"Unsupported asset type: {loaded_asset_type}")
         
+        # TODO: If reviving this method, apply the same `end_date + 1 day` translation
+        # used in fetch_data() above. Databento's `end` is exclusive — without the
+        # translation, the last day in the requested range is silently dropped.
         try:
             start = pd.Timestamp(start_date)
             end = pd.Timestamp(end_date)

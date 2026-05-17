@@ -1,6 +1,7 @@
 import asyncio
 import os
 import logging
+from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 import databento as db
 import pandas as pd
@@ -99,6 +100,10 @@ class DatabentoFetcher(Fetcher):
             stype_out,
         )
 
+        # Databento's `end` parameter is exclusive; shift by +1 day so callers'
+        # inclusive end_date semantics are preserved at the API boundary.
+        end_date_exclusive = (datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+
         try:
             # Fetch data
             data = await self.client.timeseries.get_range_async(
@@ -106,7 +111,7 @@ class DatabentoFetcher(Fetcher):
                 symbols=formatted_symbol,
                 schema=db.Schema.from_str(schema),
                 start=start_date,
-                end=end_date,
+                end=end_date_exclusive,
                 stype_in=stype_in,
                 stype_out=stype_out,
             )
