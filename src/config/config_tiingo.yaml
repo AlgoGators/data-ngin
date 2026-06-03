@@ -34,14 +34,14 @@ database:
   raw_table: "equities_raw"
   table: "equities"
 
-# Time range for data fetching, YYYY-MM-DD.
-# NOTE: Tiingo's endDate is INCLUSIVE.
-# Keep explicit dates for now: the "leave blank to fetch missing data" fallback in
-# determine_date_range() reads the FUTURES table (db_models.OHLCV -> futures_data.ohlcv_1d),
-# so blank dates here would pull the wrong table's latest date. See plan "Known limitation".
+# Time range for data fetching, YYYY-MM-DD. Tiingo's endDate is INCLUSIVE.
+# Incremental mode: blank start_date -> fetch only new days since the latest row in
+# equities_data.equities; blank end_date -> up to yesterday. seed_start_date is used
+# only on the very first run, when the table is empty.
 time_range:
-  start_date: "2024-01-01"
-  end_date: "2024-01-31"
+  start_date: ""
+  end_date: ""
+  seed_start_date: "2026-01-01"
 
 # Options to handle missing data
 missing_data:

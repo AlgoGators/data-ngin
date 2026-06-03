@@ -1,7 +1,7 @@
 from typing import List, Dict, Optional, Any, Type, Tuple
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.engine import Engine
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 from src.modules.db_models import get_engine, OHLCV
 import pandas as pd
@@ -111,6 +111,33 @@ class DataAccess:
                 return None
             except SQLAlchemyError as e:
                 self.logger.error(f"Error retrieving latest date: {e}")
+                raise
+
+    def get_latest_date_for(self, schema: str, table: str, time_column: str = "time") -> Optional[str]:
+        """
+        Retrieves the most recent date from an arbitrary schema.table (per-pipeline),
+        rather than the hardcoded futures OHLCV model. Used by determine_date_range so
+        each pipeline reads the latest date from its OWN target table.
+
+        Args:
+            schema (str): Target schema (from config['database']['target_schema']).
+            table (str): Target table (from config['database']['table']).
+            time_column (str): Timestamp column to max over. Defaults to 'time'.
+
+        Returns:
+            Optional[str]: Latest date as 'YYYY-MM-DD', or None if the table is empty.
+        """
+        # schema/table/time_column come from trusted config, not user input.
+        query = text(f'SELECT MAX("{time_column}") FROM "{schema}"."{table}"')
+        with self.Session() as session:
+            try:
+                result = session.execute(query).scalar()
+                if result:
+                    self.logger.info(f"Latest date in {schema}.{table}: {result}")
+                    return result.strftime("%Y-%m-%d")
+                return None
+            except SQLAlchemyError as e:
+                self.logger.error(f"Error retrieving latest date from {schema}.{table}: {e}")
                 raise
 
     def get_latest_data(self, symbol: str) -> Optional[Dict[str, Any]]:

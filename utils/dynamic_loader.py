@@ -111,22 +111,38 @@ def determine_date_range(config: Dict[str, Any]) -> Tuple[str, str]:
         ValueError: If neither the config nor the database can determine the start_date.
     """
     data_access: DataAccess = DataAccess(config=config)
+    time_range = config['time_range']
 
     # Check if 'start_date' exists in the config
-    if config['time_range'].get('start_date'):
-        start_date = config['time_range']['start_date']
+    if time_range.get('start_date'):
+        # Explicit start_date: use it as-is (fixed-window / manual backfill mode).
+        start_date = time_range['start_date']
     else:
-        # Get the latest date from the database and add one day
-        latest_date = data_access.get_latest_date()
+        # Incremental mode: fetch only new days since the latest row in THIS pipeline's
+        # own target table (config-driven, not the hardcoded futures table).
+        schema = config['database']['target_schema']
+        table = config['database']['table']
+        latest_date = data_access.get_latest_date_for(schema, table)
         if latest_date:
             start_date = (datetime.strptime(latest_date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+        elif time_range.get('seed_start_date'):
+            # Table is empty (first run): seed from the configured start.
+            start_date = time_range['seed_start_date']
         else:
-            raise ValueError("Cannot determine start_date: No config date and no latest database date.")
+            raise ValueError(
+                "Cannot determine start_date: no config start_date, no rows in "
+                f"{schema}.{table}, and no seed_start_date."
+            )
 
     # Check if 'end_date' exists in the config
-    if config['time_range'].get('end_date'):
-        end_date = config['time_range']['end_date']
+    if time_range.get('end_date'):
+        end_date = time_range['end_date']
     else:
-        # Use today's date minus one day
+        # Use today's date minus one day (most recent settled EOD data)
         end_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+
+    # Guard: once caught up, start can exceed end — clamp so we don't send an
+    # inverted range to the provider (re-fetches the last day, idempotent).
+    if start_date > end_date:
+        start_date = end_date
     return start_date, end_date
