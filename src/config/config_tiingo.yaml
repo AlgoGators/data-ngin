@@ -1,0 +1,61 @@
+# Tiingo equities pipeline configuration.
+# Structure mirrors config.yaml (the production Databento config) for consistency.
+
+loader:
+  class: "CSVLoader"
+  module: "loader.csv_loader"
+  file_path: "contracts/contract_tiingo.csv"  # Local: contracts/contract_tiingo.csv
+  # On EC2/Airflow: /opt/airflow/data_engine/contracts/contract_tiingo.csv
+
+inserter:
+  class: "TimescaleDBInserter"
+  module: "inserter.timescaledb_inserter"
+
+fetcher:
+  class: "TiingoFetcher"
+  module: "fetcher.tiingo_fetcher"
+
+cleaner:
+  class: "TiingoCleaner"
+  module: "cleaner.tiingo_cleaner"
+
+# Data provider configuration
+provider:
+  name: "tiingo"
+  asset: "EQUITY"
+
+# Database configuration (table created out-of-band; the inserter does not create it)
+database:
+  target_schema: "equities_data"
+  raw_table: "equities_raw"
+  table: "equities"
+
+# Time range for data fetching, YYYY-MM-DD.
+# NOTE: Tiingo's endDate is INCLUSIVE.
+# Keep explicit dates for now: the "leave blank to fetch missing data" fallback in
+# determine_date_range() reads the FUTURES table (db_models.OHLCV -> futures_data.ohlcv_1d),
+# so blank dates here would pull the wrong table's latest date. See plan "Known limitation".
+time_range:
+  start_date: "2024-01-01"
+  end_date: "2024-01-31"
+
+# Options to handle missing data
+missing_data:
+  forward_fill: "False"
+  backward_fill: "False"
+  interpolate: "False"
+  drop_nan: "True"
+  zero_fill: "False"
+  mean_fill: "False"
+  median_fill: "False"
+  custom_fill: "False"
+  custom_value: "0"
+
+# Logging options
+logging:
+  level: "INFO"
+
+batch_downloading:
+  batch: False
+  unit: "Daily"
+  max_units: 30
