@@ -4,8 +4,8 @@
 loader:
   class: "CSVLoader"
   module: "loader.csv_loader"
-  file_path: "contracts/contract_tiingo.csv"  # Local: contracts/contract_tiingo.csv
-  # On EC2/Airflow: /opt/airflow/data_engine/contracts/contract_tiingo.csv
+  file_path: "/opt/airflow/data_engine/contracts/contract_tiingo.csv"  # absolute container path
+  # (matches config.yaml). Use "contracts/contract_tiingo.csv" if running locally from the repo root.
 
 inserter:
   class: "TimescaleDBInserter"
