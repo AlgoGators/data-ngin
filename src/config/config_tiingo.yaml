@@ -24,8 +24,12 @@ provider:
   name: "tiingo"
   asset: "EQUITY"
 
-# Database configuration (table created out-of-band; the inserter does not create it)
+# Database configuration (table created out-of-band; the inserter does not create it).
+# db_name selects the target database (used by get_engine + TimescaleDBInserter) — keep
+# equities in new_algo_data alongside corporate_action / the Sharadar tables. The futures
+# pipelines keep their own db_name in config.yaml (algo_data) / new_config.yaml.
 database:
+  db_name: "new_algo_data"
   target_schema: "equities_data"
   raw_table: "equities_raw"
   table: "equities"
