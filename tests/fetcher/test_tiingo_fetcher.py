@@ -178,6 +178,8 @@ class TestTiingoFetcherRotation(unittest.IsolatedAsyncioTestCase):
                 df = await fetcher.fetch_data(symbol, "EQUITY", "2024-01-02", "2024-01-03")
         self.assertEqual(len(df), 2)
         self.assertIn(primary, fetcher._disabled_keys)
+        fallback = [k for k in fetcher.api_keys if k != primary][0]
+        self.assertEqual(session.tokens_tried, [primary, fallback])
 
     async def test_failover_on_401(self):
         env = {"TIINGO_API_KEY": "a", "TIINGO_API_KEY_2": "b"}
@@ -195,6 +197,8 @@ class TestTiingoFetcherRotation(unittest.IsolatedAsyncioTestCase):
                 df = await fetcher.fetch_data(symbol, "EQUITY", "2024-01-02", "2024-01-03")
         self.assertEqual(len(df), 2)
         self.assertIn(primary, fetcher._disabled_keys)
+        fallback = [k for k in fetcher.api_keys if k != primary][0]
+        self.assertEqual(session.tokens_tried, [primary, fallback])
 
     async def test_all_keys_exhausted_raises(self):
         env = {"TIINGO_API_KEY": "a", "TIINGO_API_KEY_2": "b"}
@@ -207,6 +211,43 @@ class TestTiingoFetcherRotation(unittest.IsolatedAsyncioTestCase):
                 with self.assertRaises(RuntimeError):
                     await fetcher.fetch_data("AAPL", "EQUITY", "2024-01-02", "2024-01-03")
             self.assertEqual(len(fetcher._disabled_keys), len(fetcher.api_keys))
+
+    async def test_skips_already_disabled_key(self):
+        env = {"TIINGO_API_KEY": "a", "TIINGO_API_KEY_2": "b"}
+        with patch.dict(os.environ, env, clear=True):
+            fetcher = TiingoFetcher(config=self.config)
+            symbol = "AAPL"
+            primary = fetcher.api_keys[fetcher._primary_index(symbol)]
+            fallback = [k for k in fetcher.api_keys if k != primary][0]
+            # Pre-disable the primary (simulates a prior symbol already exhausting it).
+            fetcher._disabled_keys.add(primary)
+            by_token = {fallback: _FakeResponse(200, _sample_payload())}
+            session = _RoutingSession(by_token)
+            with patch("src.modules.fetcher.tiingo_fetcher.aiohttp.ClientSession",
+                       return_value=session):
+                df = await fetcher.fetch_data(symbol, "EQUITY", "2024-01-02", "2024-01-03")
+        self.assertEqual(len(df), 2)
+        # Primary was skipped (pre-disabled); only the fallback key was tried.
+        self.assertEqual(session.tokens_tried, [fallback])
+
+    async def test_failover_on_403(self):
+        env = {"TIINGO_API_KEY": "a", "TIINGO_API_KEY_2": "b"}
+        with patch.dict(os.environ, env, clear=True):
+            fetcher = TiingoFetcher(config=self.config)
+            symbol = "NVDA"
+            primary = fetcher.api_keys[fetcher._primary_index(symbol)]
+            by_token = {primary: _FakeResponse(403, {"detail": "over quota"})}
+            for k in fetcher.api_keys:
+                if k != primary:
+                    by_token[k] = _FakeResponse(200, _sample_payload())
+            session = _RoutingSession(by_token)
+            with patch("src.modules.fetcher.tiingo_fetcher.aiohttp.ClientSession",
+                       return_value=session):
+                df = await fetcher.fetch_data(symbol, "EQUITY", "2024-01-02", "2024-01-03")
+            self.assertEqual(len(df), 2)
+            self.assertIn(primary, fetcher._disabled_keys)
+            fallback = [k for k in fetcher.api_keys if k != primary][0]
+            self.assertEqual(session.tokens_tried, [primary, fallback])
 
 
 # Optional live smoke test: run directly with a real key in .env.

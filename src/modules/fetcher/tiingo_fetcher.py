@@ -89,7 +89,7 @@ class TiingoFetcher(Fetcher):
         """Stable per-symbol key assignment. Uses hashlib (NOT built-in hash(),
         which is salted per-process via PYTHONHASHSEED) so a symbol maps to the
         same key across runs/containers."""
-        digest = hashlib.sha1(symbol.encode("utf-8")).hexdigest()
+        digest = hashlib.sha1(symbol.encode("utf-8"), usedforsecurity=False).hexdigest()
         return int(digest, 16) % len(self.api_keys)
 
     async def fetch_data(
@@ -141,6 +141,11 @@ class TiingoFetcher(Fetcher):
                     # Non-key error (5xx, etc.): fail this symbol, don't burn the key.
                     raise RuntimeError(f"[Tiingo] HTTP {response.status} for {symbol}: {body}")
 
+        if last_error is None:
+            raise RuntimeError(
+                f"[Tiingo] all {n} keys were already disabled before fetching {symbol}; "
+                f"disabled count: {len(self._disabled_keys)}"
+            )
         raise RuntimeError(
             f"[Tiingo] all {n} keys exhausted for {symbol}; last error: {last_error}"
         )
