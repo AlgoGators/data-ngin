@@ -1,4 +1,5 @@
 import os
+import asyncio
 import unittest
 from unittest.mock import patch
 import pandas as pd
@@ -248,6 +249,85 @@ class TestTiingoFetcherRotation(unittest.IsolatedAsyncioTestCase):
             self.assertIn(primary, fetcher._disabled_keys)
             fallback = [k for k in fetcher.api_keys if k != primary][0]
             self.assertEqual(session.tokens_tried, [primary, fallback])
+
+
+# --- Concurrency throttling -------------------------------------------------
+class _ConcurrencyResponse:
+    """Fake response that tracks how many requests are in flight at once."""
+
+    def __init__(self, state, payload):
+        self.status = 200
+        self._state = state
+        self._payload = payload
+
+    async def __aenter__(self):
+        self._state["cur"] += 1
+        self._state["max"] = max(self._state["max"], self._state["cur"])
+        await asyncio.sleep(0.02)  # hold the slot so overlap is observable
+        return self
+
+    async def __aexit__(self, *exc):
+        self._state["cur"] -= 1
+        return False
+
+    async def json(self):
+        return self._payload
+
+    async def text(self):
+        return str(self._payload)
+
+
+class _ConcurrencySession:
+    def __init__(self, state, payload):
+        self._state = state
+        self._payload = payload
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+    def get(self, url, params=None):
+        return _ConcurrencyResponse(self._state, self._payload)
+
+
+class TestTiingoFetcherConcurrency(unittest.IsolatedAsyncioTestCase):
+    config = {"provider": {"name": "tiingo", "asset": "EQUITY"}}
+
+    def test_default_concurrency_is_key_count(self):
+        env = {f"TIINGO_API_KEY_{i}": f"k{i:02d}" for i in range(5)}
+        with patch.dict(os.environ, env, clear=True):
+            fetcher = TiingoFetcher(config=self.config)
+        self.assertEqual(fetcher._max_concurrency, 5)
+
+    def test_env_override_sets_concurrency(self):
+        env = {f"TIINGO_API_KEY_{i}": f"k{i:02d}" for i in range(5)}
+        env["TIINGO_MAX_CONCURRENCY"] = "2"
+        with patch.dict(os.environ, env, clear=True):
+            fetcher = TiingoFetcher(config=self.config)
+        self.assertEqual(fetcher._max_concurrency, 2)
+
+    async def test_inflight_requests_capped(self):
+        # 4 keys => cap 4; fire 20 symbols and assert no more than 4 ran at once.
+        env = {f"TIINGO_API_KEY_{i}": f"k{i:02d}" for i in range(4)}
+        with patch.dict(os.environ, env, clear=True):
+            fetcher = TiingoFetcher(config=self.config)
+        state = {"cur": 0, "max": 0}
+
+        def _factory(*args, **kwargs):
+            return _ConcurrencySession(state, _sample_payload())
+
+        with patch("src.modules.fetcher.tiingo_fetcher.aiohttp.ClientSession",
+                   side_effect=_factory):
+            await asyncio.gather(*[
+                fetcher.fetch_data(f"SYM{i}", "EQUITY", "2024-01-02", "2024-01-03")
+                for i in range(20)
+            ])
+
+        self.assertLessEqual(state["max"], 4, "concurrency exceeded the cap")
+        self.assertGreater(state["max"], 1, "expected genuine concurrency, ran serially")
+        self.assertEqual(state["cur"], 0, "all slots released")
 
 
 # Optional live smoke test: run directly with a real key in .env.

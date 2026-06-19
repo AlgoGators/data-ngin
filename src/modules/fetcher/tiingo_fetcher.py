@@ -1,9 +1,10 @@
 import logging
 import os
+import asyncio
 import hashlib
 import aiohttp
 import pandas as pd
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
 
 # Reuse the existing Fetcher base class
@@ -43,6 +44,14 @@ OUTPUT_COLUMNS = [
 # 429 = hourly/daily allocation exhausted; 401/403 = invalid/placeholder/over-quota key.
 KEY_LEVEL_FAILURES = (401, 403, 429)
 
+# The orchestrator fires every symbol concurrently via asyncio.gather (570+ at once).
+# Without a cap, that opens 570 simultaneous HTTP connections -> connection timeouts
+# and 429 bursts (each key gets hammered by ~dozens of requests at the same instant).
+# We throttle in-flight requests to ~one per key by default, which both keeps the
+# connection count sane and spreads each key's load under its hourly limit.
+# Overridable via the TIINGO_MAX_CONCURRENCY env var (no code change needed).
+REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=60, connect=15)
+
 
 class TiingoFetcher(Fetcher):
     """
@@ -72,6 +81,24 @@ class TiingoFetcher(Fetcher):
         # Keys disabled for THIS run (rate-limited / invalid). A fresh fetcher is
         # built per pipeline run, so this resets every run.
         self._disabled_keys: set = set()
+
+        # Cap concurrent in-flight requests. Default = number of keys (~one request
+        # per key at a time); override with TIINGO_MAX_CONCURRENCY. The semaphore is
+        # created lazily on first fetch so it binds to the running event loop.
+        override = os.getenv("TIINGO_MAX_CONCURRENCY", "").strip()
+        self._max_concurrency: int = (
+            int(override) if override.isdigit() and int(override) > 0
+            else max(1, len(self.api_keys))
+        )
+        self._semaphore: Optional[asyncio.Semaphore] = None
+
+    def _get_semaphore(self) -> asyncio.Semaphore:
+        """Lazily create the concurrency semaphore in the running event loop.
+        Safe without a lock: asyncio is single-threaded and there is no await
+        between the check and the assignment."""
+        if self._semaphore is None:
+            self._semaphore = asyncio.Semaphore(self._max_concurrency)
+        return self._semaphore
 
     @staticmethod
     def _collect_api_keys() -> List[str]:
@@ -118,28 +145,32 @@ class TiingoFetcher(Fetcher):
 
         logger.info(f"[Tiingo] Fetching EOD data for {symbol} from {start_date} to {end_date}")
 
-        for offset in range(n):
-            idx = (start + offset) % n
-            key = self.api_keys[idx]
-            if key in self._disabled_keys:
-                continue
-            params = {**base_params, "token": key}
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, params=params) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        return self._to_dataframe(data, symbol)
-                    body = await response.text()
-                    if response.status in KEY_LEVEL_FAILURES:
-                        logger.warning(
-                            f"[Tiingo] key #{idx} unusable for {symbol} "
-                            f"(HTTP {response.status}); rotating to next key"
-                        )
-                        self._disabled_keys.add(key)
-                        last_error = f"HTTP {response.status}: {body}"
-                        continue
-                    # Non-key error (5xx, etc.): fail this symbol, don't burn the key.
-                    raise RuntimeError(f"[Tiingo] HTTP {response.status} for {symbol}: {body}")
+        # Throttle: only self._max_concurrency requests are in flight at once across
+        # all symbols, preventing the connection-saturation timeouts and 429 bursts
+        # that a raw 570-wide gather causes.
+        async with self._get_semaphore():
+            for offset in range(n):
+                idx = (start + offset) % n
+                key = self.api_keys[idx]
+                if key in self._disabled_keys:
+                    continue
+                params = {**base_params, "token": key}
+                async with aiohttp.ClientSession(timeout=REQUEST_TIMEOUT) as session:
+                    async with session.get(url, params=params) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            return self._to_dataframe(data, symbol)
+                        body = await response.text()
+                        if response.status in KEY_LEVEL_FAILURES:
+                            logger.warning(
+                                f"[Tiingo] key #{idx} unusable for {symbol} "
+                                f"(HTTP {response.status}); rotating to next key"
+                            )
+                            self._disabled_keys.add(key)
+                            last_error = f"HTTP {response.status}: {body}"
+                            continue
+                        # Non-key error (5xx, etc.): fail this symbol, don't burn the key.
+                        raise RuntimeError(f"[Tiingo] HTTP {response.status} for {symbol}: {body}")
 
         if last_error is None:
             raise RuntimeError(
