@@ -13,7 +13,8 @@ python = "^3.11, <3.13"
 pandas = "^2.2.3"
 yfinance = "^0.2.48"
 databento = "^0.44.1"
-python-dotenv = "^1.0.1"
+# Bumped from ^1.0.1 to clear CVE (patched 1.2.2); load_dotenv API is unchanged.
+python-dotenv = ">=1.2.2"
 pyyaml = "^6.0.2"
 psycopg2 = "^2.9.10"
 # aiohttp is imported directly by src/modules/fetcher/tiingo_fetcher.py but was
@@ -44,7 +45,10 @@ apache-airflow-providers-postgres = ">=5.10"
 # version, so these are loosened to lower-bound-only to avoid fighting it.
 fastapi = ">=0.115.6"
 uvicorn = ">=0.34.0"
-pyarrow = "^18.1.0"
+# pyarrow bumped to clear CVE-2026-25087 (use-after-free reading IPC files).
+# Only databento required it (>=13.0.0, no upper cap) and nothing imports it
+# directly, so the jump from 18 is a resolver-only change.
+pyarrow = ">=23.0.1"
 pydantic = "^2.10.4"
 # Security-override floor for a transitive dependency (pulled in via httpx ->
 # httpcore, which Airflow uses). h11 < 0.16.0 accepts some malformed
@@ -64,6 +68,26 @@ tzdata = "^2024.2"
 prometheus-fastapi-instrumentator = ">=7.0.0"
 slowapi = ">=0.1.9"
 mkdocstrings-python = "^1.13.0"
+
+# --- Security-override floors for transitive dependencies ---------------------
+# These packages are not imported directly; they are pulled in via Airflow,
+# yfinance, beautifulsoup4, mkdocs, requests, etc. Each floor is set to the
+# version that patches its outstanding Dependabot CVE. Kept as explicit floors
+# (not a one-off `poetry update`) so the requirement survives future re-locks.
+# Their requirers impose no upper cap below these versions (verified via
+# `poetry show`), so the floors resolve cleanly.
+cryptography = ">=48.0.1"          # SECT subgroup attack + vendored OpenSSL
+urllib3 = ">=2.7.0"                # redirect header leakage + decompression bombs
+lxml = ">=6.1.0"                   # XXE via default iterparse/ETCompatXMLParser
+mako = ">=1.3.12"                  # path traversal in TemplateLookup (Windows)
+protobuf = ">=5.29.6"             # JSON recursion depth bypass DoS
+soupsieve = ">=2.8.4"             # ReDoS + memory exhaustion in selector parser
+pygments = ">=2.20.0"             # ReDoS
+"pymdown-extensions" = ">=10.21.3"  # arbitrary file read / SSRF in snippets
+idna = ">=3.15"                    # DoS on crafted input
+markdown = ">=3.8.1"              # ReDoS
+requests = ">=2.33.0"            # .netrc credential leak / redirect handling
+sqlparse = ">=0.5.4"             # ReDoS
 
 
 [tool.poetry.group.dev.dependencies]
