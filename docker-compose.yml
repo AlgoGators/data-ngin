@@ -1,3 +1,32 @@
+# =============================================================================
+# Airflow 3.1 deployment topology.
+#
+# ⚠️  OPERATIONAL VALIDATION REQUIRED — this file was migrated from an Airflow 2.10
+#     compose spec but has NOT been booted against a real metadata database. Before
+#     deploying, validate the following Airflow-3-specific concerns on a scratch DB:
+#
+#     1. METADATA DB MIGRATION: `airflow db migrate` upgrades the metadata schema
+#        from the 2.10 layout to 3.1 via Alembic. This is a large, effectively
+#        one-way migration. Back up the airflow_metadata schema first and run it
+#        against a copy before touching production.
+#     2. COMPONENT TOPOLOGY: Airflow 3 split DAG parsing out of the scheduler into a
+#        standalone `dag-processor`, and replaced the Flask `webserver` with a
+#        FastAPI `api-server`. Both new services are declared below.
+#     3. AUTH: the api-server uses an auth manager (SimpleAuthManager by default,
+#        which prints a generated admin password to its logs on first start). UI/API
+#        login must be configured/validated; the scheduler + dag-processor run the
+#        DAGs without it.
+#     4. INTER-COMPONENT SECRET: Airflow 3 components authenticate to each other and
+#        to the task-execution API. Depending on version, a shared JWT/api-auth
+#        secret env var may be required across all services. Confirm against the
+#        3.1 docs for this deployment shape.
+#     5. CONNECTION STRING: the hardcoded credential below is being removed
+#        separately in the "remove hardcoded creds" branch/PR. That change and this
+#        one both touch this file and will conflict on merge — resolve by taking the
+#        ${AIRFLOW_DB_CONN} env-var form from that PR plus the Airflow-3 structural
+#        changes from this one.
+# =============================================================================
+
 services:
 
 
@@ -12,7 +41,10 @@ services:
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT: "120"
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
+      # AIRFLOW__WEBSERVER__EXPOSE_CONFIG relocated in Airflow 3 (the [webserver]
+      # section was largely replaced by [api]/[fab]). Re-add under the correct new
+      # section if config exposure is wanted; omitted here rather than shipping a
+      # key that silently no-ops.
       PYTHONPATH: /opt/airflow/data_engine
     volumes:
       - ./dags:/opt/airflow/dags
@@ -22,11 +54,13 @@ services:
       bash -c "airflow db migrate &&
                airflow connections create-default-connections"
 
-  airflow-webserver:
+  # Airflow 3: the Flask `webserver` is replaced by the FastAPI `api-server`, which
+  # serves both the REST API and the UI on port 8080.
+  airflow-apiserver:
     build:
       context: .
       dockerfile: DockerFile
-    container_name: airflow-webserver
+    container_name: airflow-apiserver
     restart: always
     depends_on:
       - airflow-init
@@ -36,7 +70,6 @@ services:
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT: "120"
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
       PYTHONPATH: /opt/airflow/data_engine
     volumes:
       - ./dags:/opt/airflow/dags
@@ -44,7 +77,7 @@ services:
       - airflow_data:/opt/airflow
     ports:
       - "8080:8080"
-    command: ["airflow", "webserver"]
+    command: ["airflow", "api-server"]
 
   airflow-scheduler:
     build:
@@ -60,13 +93,35 @@ services:
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT: "120"
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
       PYTHONPATH: /opt/airflow/data_engine
     volumes:
       - ./dags:/opt/airflow/dags
       - .:/opt/airflow/data_engine
       - airflow_data:/opt/airflow
     command: ["airflow", "scheduler"]
+
+  # Airflow 3: DAG parsing was moved out of the scheduler into a standalone
+  # dag-processor, which must run as its own component for scheduling to work.
+  airflow-dag-processor:
+    build:
+      context: .
+      dockerfile: DockerFile
+    container_name: airflow-dag-processor
+    restart: always
+    depends_on:
+      - airflow-init
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:algogators@172.31.23.190:5432/algo_data?options=-csearch_path%3Dairflow_metadata
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT: "120"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      PYTHONPATH: /opt/airflow/data_engine
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - .:/opt/airflow/data_engine
+      - airflow_data:/opt/airflow
+    command: ["airflow", "dag-processor"]
 
 volumes:
   db_data:

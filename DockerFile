@@ -1,4 +1,7 @@
-FROM apache/airflow:2.10.3-python3.11
+# Base image bumped to match the apache-airflow 3.1.0 resolved in poetry.lock.
+# poetry install (below) reinstalls Airflow from the lock on top of this base, so
+# the base tag and the locked version must agree to avoid a version tug-of-war.
+FROM apache/airflow:3.1.0-python3.11
 
 USER root
 
@@ -15,8 +18,9 @@ RUN apt-get update && apt-get install -y \
 USER airflow
 WORKDIR /opt/airflow
 
-# Install specific version of Poetry as airflow user
-RUN pip install poetry==1.8.4
+# Poetry 2.x: the lock file is written in the 2.x format, which Poetry 1.8.x
+# cannot read. Must match the Poetry major version used to generate poetry.lock.
+RUN pip install poetry==2.2.1
 
 # Debug: Check Poetry access as airflow user
 RUN echo "Checking Poetry as airflow user..." && \

@@ -16,10 +16,31 @@ databento = "^0.44.1"
 python-dotenv = "^1.0.1"
 pyyaml = "^6.0.2"
 psycopg2 = "^2.9.10"
-sqlalchemy = "1.4.36"
-apache-airflow = "^2.10.4"
-fastapi = "^0.115.6"
-uvicorn = "^0.34.0"
+# aiohttp is imported directly by src/modules/fetcher/tiingo_fetcher.py but was
+# previously only a transitive dep, pinned <3.11 by apache-airflow-providers-http.
+# The Airflow 3 upgrade drops that ceiling (only databento constrains it now,
+# <4.0.0), so it's promoted to a direct dependency with a security floor that
+# clears its backlog of CVEs (>=3.14.1).
+aiohttp = ">=3.14.1,<4.0.0"
+# Airflow 3 requires SQLAlchemy 2.x (>=1.4.36,<2.1); the old hard pin to 1.4.36
+# existed specifically because Airflow 2.10's ORM did not tolerate 2.x. That
+# constraint is lifted by the Airflow 3 upgrade.
+sqlalchemy = "^2.0"
+# Airflow 2->3 major upgrade. In 3.x, PythonOperator moved to the standard
+# provider (bundled with the meta-package) and schedule_interval was replaced
+# by schedule on the DAG. See dags/*.py and src/modules/db_models.py.
+apache-airflow = "^3.0"
+# PostgresHook lives in the postgres provider, which is NOT bundled with the
+# Airflow 3 meta-package. Only src/modules/data_staleness.py imports it (and
+# that module is currently orphaned), but keeping the provider present keeps
+# the import path valid. Lower-bound only so the resolver picks whatever
+# aligns with the resolved Airflow 3 version.
+apache-airflow-providers-postgres = ">=5.10"
+# fastapi/uvicorn are declared for a future API surface but nothing imports
+# them yet. Airflow 3 uses FastAPI internally and drives its own compatible
+# version, so these are loosened to lower-bound-only to avoid fighting it.
+fastapi = ">=0.115.6"
+uvicorn = ">=0.34.0"
 pyarrow = "^18.1.0"
 pydantic = "^2.10.4"
 tzdata = "^2024.2"

@@ -1,6 +1,9 @@
 from datetime import datetime, timedelta
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+
+# Airflow 3: PythonOperator moved from airflow.operators.python (removed) to the
+# standard provider, which ships bundled with the apache-airflow 3.x meta-package.
+from airflow.providers.standard.operators.python import PythonOperator
 import logging, pendulum
 
 # Heavy imports (pandas, sqlalchemy, dotenv via src.orchestrator/dynamic_loader)
@@ -20,10 +23,12 @@ default_args = {
 
 CONFIG_PATH = "/opt/airflow/data_engine/src/config/config.yaml"
 
+
 def run_pipeline(**kwargs):
     import asyncio
     from utils.dynamic_loader import load_config
     from src.orchestrator import Orchestrator
+
     try:
         dag_run = kwargs.get("dag_run")
         conf = dag_run.conf if dag_run else {}
@@ -31,7 +36,7 @@ def run_pipeline(**kwargs):
         logging.info(f"Running pipeline, type={run_type}")
 
         # Build orchestrator at task runtime (not parse time)
-        config = load_config(CONFIG_PATH) #loads base db with base config
+        config = load_config(CONFIG_PATH)  # loads base db with base config
         orchestrator = Orchestrator(config=config)
 
         asyncio.run(orchestrator.run())
@@ -40,17 +45,17 @@ def run_pipeline(**kwargs):
         logging.error(f"Pipeline execution failed: {e}")
         raise
 
+
 with DAG(
     "data_pipeline_dag",
     default_args=default_args,
     description="Daily data pipeline for market data ingestion",
-    schedule_interval="0 7 * * *",
+    schedule="0 7 * * *",  # Airflow 3: schedule_interval was removed; use schedule
     start_date=datetime(2024, 12, 1, tzinfo=local_tz),
     catchup=False,
     tags=["data_pipeline"],
     max_active_runs=1,
 ) as dag:
-
     run_pipeline_task = PythonOperator(
         task_id="run_pipeline",
         python_callable=run_pipeline,
