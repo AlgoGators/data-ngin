@@ -1,7 +1,7 @@
-# Base image bumped to match the apache-airflow 3.1.0 resolved in poetry.lock.
+# Base image bumped to match the apache-airflow 3.2.2 resolved in poetry.lock.
 # poetry install (below) reinstalls Airflow from the lock on top of this base, so
 # the base tag and the locked version must agree to avoid a version tug-of-war.
-FROM apache/airflow:3.1.0-python3.11
+FROM apache/airflow:3.2.2-python3.11
 
 USER root
 

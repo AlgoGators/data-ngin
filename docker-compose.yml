@@ -1,5 +1,5 @@
 # =============================================================================
-# Airflow 3.1 deployment topology.
+# Airflow 3.2 deployment topology.
 #
 # ⚠️  OPERATIONAL VALIDATION REQUIRED — this file was migrated from an Airflow 2.10
 #     compose spec but has NOT been booted against a real metadata database. Before

@@ -29,7 +29,10 @@ sqlalchemy = "^2.0"
 # Airflow 2->3 major upgrade. In 3.x, PythonOperator moved to the standard
 # provider (bundled with the meta-package) and schedule_interval was replaced
 # by schedule on the DAG. See dags/*.py and src/modules/db_models.py.
-apache-airflow = "^3.0"
+# Floor set to 3.2.2 to pick up CVEs patched only in that point release
+# (CVE-2026-45360 deserialization, CVE-2026-40961 is_safe_url bypass,
+# CVE-2026-49267 SMTP STARTTLS cert validation).
+apache-airflow = "^3.2.2"
 # PostgresHook lives in the postgres provider, which is NOT bundled with the
 # Airflow 3 meta-package. Only src/modules/data_staleness.py imports it (and
 # that module is currently orphaned), but keeping the provider present keeps
@@ -43,9 +46,23 @@ fastapi = ">=0.115.6"
 uvicorn = ">=0.34.0"
 pyarrow = "^18.1.0"
 pydantic = "^2.10.4"
+# Security-override floor for a transitive dependency (pulled in via httpx ->
+# httpcore, which Airflow uses). h11 < 0.16.0 accepts some malformed
+# Chunked-Encoding bodies -> HTTP request smuggling (CVE-2025-43859, the repo's
+# only CRITICAL alert). httpcore >=1.0.9 raised its h11 ceiling to allow 0.16,
+# so this floor is satisfiable; not imported by this codebase directly.
+h11 = ">=0.16.0"
 tzdata = "^2024.2"
-prometheus-fastapi-instrumentator = "^7.0.0"
-slowapi = "^0.1.9"
+# Loosened to lower-bound-only (like fastapi/uvicorn above) so they don't cap
+# starlette below 1.0. Airflow 3.2+ requires starlette >=1.0.1, but
+# prometheus-fastapi-instrumentator 7.x pins starlette <1.0.0 -- that clash is
+# exactly what held the resolver at Airflow 3.1.0. None of the fastapi-family
+# deps (fastapi, uvicorn, prometheus-fastapi-instrumentator, slowapi) are
+# imported anywhere in the codebase yet; they're declared for a future API
+# surface, so letting the resolver pick starlette-1.x-compatible versions
+# (instrumentator 8.x) is safe.
+prometheus-fastapi-instrumentator = ">=7.0.0"
+slowapi = ">=0.1.9"
 mkdocstrings-python = "^1.13.0"
 
 
