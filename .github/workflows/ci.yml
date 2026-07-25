@@ -1,0 +1,104 @@
+name: data-ngin CI
+
+# First CI for data-ngin. The reliable gates are the Poetry lock check and the
+# DAG-parse validation (the single most valuable check for an Airflow repo -- it
+# catches a broken DAG before the scheduler ever loads it). The pytest suite is
+# run against a throwaway Postgres but kept advisory for now (see note below).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Deps, DAG parse & tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: data_ngin_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # Repo root on the path so `import src.<module>` resolves without installing
+      # the root package.
+      PYTHONPATH: ${{ github.workspace }}
+      # Point anything DB-aware at the throwaway Postgres service.
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: data_ngin_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Cache virtualenv
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-root
+
+      - name: Check Poetry lock is in sync
+        run: poetry check --lock
+
+      - name: Validate DAGs parse
+        env:
+          AIRFLOW_HOME: ${{ runner.temp }}/airflow
+          AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+        run: |
+          poetry run python - <<'PY'
+          from airflow.models.dagbag import DagBag
+          bag = DagBag(dag_folder="dags", include_examples=False)
+          if bag.import_errors:
+              for path, err in bag.import_errors.items():
+                  print(f"::error file={path}::DAG import error: {err}")
+              raise SystemExit(1)
+          print(f"OK: {len(bag.dags)} DAG(s) parsed cleanly: {sorted(bag.dags)}")
+          PY
+
+      - name: Run tests (advisory)
+        # Much of this suite touches Postgres and external market-data APIs
+        # (Databento / Tiingo). A throwaway Postgres is provided above, but the
+        # API-backed tests need secrets that CI doesn't have. Kept non-blocking
+        # until the integration tests are marked (e.g. `-m "not integration"`) or
+        # given mock credentials -- then drop `continue-on-error` to make it a gate.
+        continue-on-error: true
+        run: poetry run pytest -q
+
+  docker:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -f DockerFile -t data-ngin:ci .
