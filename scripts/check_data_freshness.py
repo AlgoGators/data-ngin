@@ -22,11 +22,20 @@ pipeline outage.
 
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
+# (table, timestamp_column) -- confirmed against the live schema via
+# information_schema.columns (see PR discussion), NOT assumed from ADR-000.
+# futures_data.ohlcv_1d matches the ADR-000 C-2 contract exactly (time,
+# timestamptz). equities_data.ohlcv_1d does NOT match that contract -- it's
+# shaped like a raw Sharadar-style feed (ticker/date/close/closeadj/closeunadj/
+# lastupdated), not the documented symbol/adj_* column set. That's a real,
+# separate cross-repo-contract discrepancy (flagged to the team, not silently
+# fixed here); this script only needs a timestamp column to measure staleness,
+# so it uses the "date" column, which exists.
 TABLES = [
-    "futures_data.ohlcv_1d",
-    "equities_data.ohlcv_1d",
+    ("futures_data.ohlcv_1d", "time"),
+    ("equities_data.ohlcv_1d", "date"),
 ]
 
 STALE_THRESHOLD_HOURS = int(os.environ.get("STALE_THRESHOLD_HOURS", "72"))
@@ -37,11 +46,22 @@ DEFAULT_REPO = "AlgoGators/data-ngin"
 def get_latest_timestamps(conn):
     latest = {}
     with conn.cursor() as cur:
-        for table in TABLES:
-            cur.execute(f"SELECT MAX(time) FROM {table}")
+        for table, column in TABLES:
+            cur.execute(f"SELECT MAX({column}) FROM {table}")
             row = cur.fetchone()
             latest[table] = row[0] if row else None
     return latest
+
+
+def _as_utc_datetime(ts):
+    """Normalize a DB timestamp value to a tz-aware UTC datetime. Handles both
+    `datetime` (naive or aware) and plain `date` columns (e.g.
+    equities_data.ohlcv_1d.date has no time-of-day component)."""
+    if isinstance(ts, datetime):
+        return ts if ts.tzinfo is not None else ts.replace(tzinfo=timezone.utc)
+    if isinstance(ts, date):
+        return datetime.combine(ts, time.min, tzinfo=timezone.utc)
+    raise TypeError(f"Unsupported timestamp type: {type(ts)!r}")
 
 
 def find_stale_tables(latest, now, threshold_hours):
@@ -52,9 +72,7 @@ def find_stale_tables(latest, now, threshold_hours):
         if ts is None:
             stale.append((table, "no rows found"))
             continue
-        if ts.tzinfo is None:
-            ts = ts.replace(tzinfo=timezone.utc)
-        age = now - ts
+        age = now - _as_utc_datetime(ts)
         if age > timedelta(hours=threshold_hours):
             stale.append(
                 (table, f"latest row is {age} old (threshold {threshold_hours}h)")

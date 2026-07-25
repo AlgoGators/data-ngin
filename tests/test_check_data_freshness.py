@@ -1,5 +1,5 @@
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from scripts.check_data_freshness import find_stale_tables
 
@@ -33,6 +33,18 @@ class TestFindStaleTables(unittest.TestCase):
     def test_naive_timestamp_is_treated_as_utc(self):
         naive = (self.now - timedelta(hours=100)).replace(tzinfo=None)
         latest = {"futures_data.ohlcv_1d": naive}
+        stale = find_stale_tables(latest, self.now, threshold_hours=72)
+        self.assertEqual(len(stale), 1)
+
+    def test_plain_date_column_is_handled(self):
+        # equities_data.ohlcv_1d.date is a plain DATE column (no time-of-day),
+        # confirmed against the live schema -- must not raise AttributeError.
+        fresh_date = (self.now - timedelta(hours=2)).date()
+        latest = {"equities_data.ohlcv_1d": fresh_date}
+        self.assertEqual(find_stale_tables(latest, self.now, threshold_hours=72), [])
+
+        stale_date = date(2026, 7, 1)
+        latest = {"equities_data.ohlcv_1d": stale_date}
         stale = find_stale_tables(latest, self.now, threshold_hours=72)
         self.assertEqual(len(stale), 1)
 
