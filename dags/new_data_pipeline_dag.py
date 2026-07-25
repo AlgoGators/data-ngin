@@ -3,6 +3,8 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 import logging, pendulum
 
+from src.modules.notifications.github_issue_notifier import notify_dag_failure
+
 # Heavy imports (pandas, sqlalchemy, dotenv via src.orchestrator/dynamic_loader)
 # are deferred into run_pipeline() so DAG parsing stays fast and avoids the
 # AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT under host memory pressure.
@@ -16,14 +18,19 @@ default_args = {
     "email_on_retry": False,
     "retries": 1,
     "retry_delay": timedelta(minutes=5),
+    # Files/updates a GitHub issue on failure -- see github_issue_notifier for why
+    # (email_on_failure above has no SMTP configured in this deployment).
+    "on_failure_callback": notify_dag_failure,
 }
 
 CONFIG_PATH = "/opt/airflow/data_engine/src/config/new_config.yaml"
+
 
 def run_pipeline(**kwargs):
     import asyncio
     from utils.dynamic_loader import load_config
     from src.orchestrator import Orchestrator
+
     try:
         dag_run = kwargs.get("dag_run")
         conf = dag_run.conf if dag_run else {}
@@ -31,7 +38,7 @@ def run_pipeline(**kwargs):
         logging.info(f"Running pipeline, type={run_type}")
 
         # Build orchestrator at task runtime (not parse time)
-        config = load_config(CONFIG_PATH) #loads new_db name alongside new_config
+        config = load_config(CONFIG_PATH)  # loads new_db name alongside new_config
         orchestrator = Orchestrator(config=config)
 
         asyncio.run(orchestrator.run())
@@ -39,6 +46,7 @@ def run_pipeline(**kwargs):
     except Exception as e:
         logging.error(f"Pipeline execution failed: {e}")
         raise
+
 
 with DAG(
     "new_data_pipeline_dag",
@@ -50,7 +58,6 @@ with DAG(
     tags=["new_data_pipeline"],
     max_active_runs=1,
 ) as dag:
-
     run_pipeline_task = PythonOperator(
         task_id="run_pipeline",
         python_callable=run_pipeline,

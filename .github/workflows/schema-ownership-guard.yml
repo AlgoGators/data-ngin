@@ -1,0 +1,48 @@
+name: Schema Ownership Guard
+
+# Fails if any pipeline config declares a target_schema outside the set ADR-000
+# C-3 (cross-repo-contracts.md) assigns to data-ngin: futures_data, equities_data,
+# options_data, synthetic. Unlike trade-ngin (a C++ repo where schema names are
+# string literals scattered through source), data-ngin's schema is a single
+# config value read at src/orchestrator.py:92/104 via
+# config["database"]["target_schema"] -- so checking the 3 config/*.yaml files
+# directly is precise, not a fuzzy source-code grep.
+#
+# This is a permanent regression guard for the schema-ownership boundary that
+# the backtest.equity_curve/research collision (ADR-000 section 6) showed can be
+# violated by accident.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check target_schema against the C-3 allow-list
+        shell: bash
+        run: |
+          ALLOWED="futures_data equities_data options_data synthetic"
+          FAIL=0
+          for f in src/config/*.yaml; do
+            schema=$(grep -oE 'target_schema:[[:space:]]*"?[a-zA-Z_]+' "$f" | sed -E 's/target_schema:[[:space:]]*"?//' || true)
+            if [ -z "$schema" ]; then
+              echo "::warning file=$f::no target_schema found; skipping"
+              continue
+            fi
+            if ! echo "$ALLOWED" | grep -qw "$schema"; then
+              echo "::error file=$f::target_schema '$schema' is not in the data-ngin allow-list ($ALLOWED) per ADR-000 C-3"
+              FAIL=1
+            else
+              echo "OK: $f -> $schema"
+            fi
+          done
+          exit $FAIL
