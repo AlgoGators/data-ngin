@@ -1,0 +1,49 @@
+name: Data Freshness Check
+
+# Scheduled check that the market-data pipelines actually ran: queries the latest
+# ingested timestamp in each canonical OHLCV table and files/updates a GitHub
+# issue if any table is stale. Right now nothing catches a silently-broken
+# ingestion pipeline until someone notices the dashboard looks wrong -- given the
+# business plan's "99% data uptime" target, that gap is worth closing.
+#
+# REQUIRES repo secrets DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME pointing
+# at the production database. IMPORTANT: per ADR-000 C-1, the documented private
+# address (172.31.23.190) is an AWS PRIVATE IP and will NOT be reachable from
+# GitHub-hosted runners -- this needs either a public/VPN path to the DB, or a
+# self-hosted runner inside the VPC (change `runs-on` below if so). Until DB_HOST
+# is set to something reachable, this workflow will fail at the connect step,
+# which is a safe, visible failure (not a silent no-op).
+
+on:
+  schedule:
+    - cron: "0 13 * * *" # ~9am ET (EDT); after the 07:00-07:15 ET ingestion window
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  check-freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install psycopg2-binary requests
+
+      - name: Check data freshness
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+        run: python scripts/check_data_freshness.py
