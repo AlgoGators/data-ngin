@@ -37,6 +37,15 @@ jobs:
       - name: Install dependencies
         run: pip install psycopg2-binary requests
 
+      - name: TEMP - introspect actual columns
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+        run: python scripts/_introspect_columns.py
+
       - name: Check data freshness
         env:
           DB_HOST: ${{ secrets.DB_HOST }}
