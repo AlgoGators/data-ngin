@@ -305,6 +305,147 @@ class TestStressScenarios(unittest.IsolatedAsyncioTestCase):
         # Limit down should have multiple consecutive negative returns
         self.assertGreater(negative_days, 2)
 
+    async def test_liquidity_gap_collapses_volume(self) -> None:
+        """Liquidity gap scenario produces a contiguous window of collapsed volume."""
+        config = {
+            "fetcher": {
+                "class": "SyntheticFetcher",
+                "module": "fetcher.synthetic_fetcher",
+            },
+            "provider": {"name": "synthetic", "asset": "EQUITY"},
+            "synthetic": {
+                "seed": 42,
+                "model": "stress",
+                "scenario": "liquidity_gap",
+                "initial_price": 100.0,
+                "gap_volume_fraction": 0.03,  # 3% of normal volume
+                "gap_duration": 5,
+            },
+        }
+        fetcher = SyntheticFetcher(config=config)
+        df = await fetcher.fetch_data("TEST", "EQUITY", "2024-01-02", "2024-12-31")
+
+        # During a liquidity gap, minimum volume should be well below median.
+        # Specifically, min/median ratio should be less than 0.10 (10%)
+        min_vol = df["volume"].min()
+        median_vol = df["volume"].median()
+        vol_min_to_median = min_vol / median_vol
+        self.assertLess(
+            vol_min_to_median,
+            0.10,
+            f"Expected vol_min/med < 0.10, got {vol_min_to_median:.3f}; "
+            f"liquidity gap not collapsing volume enough",
+        )
+
+    async def test_liquidity_gap_widens_spreads(self) -> None:
+        """Liquidity gap produces wider high/low ranges on gap days."""
+        config = {
+            "fetcher": {
+                "class": "SyntheticFetcher",
+                "module": "fetcher.synthetic_fetcher",
+            },
+            "provider": {"name": "synthetic", "asset": "EQUITY"},
+            "synthetic": {
+                "seed": 42,
+                "model": "stress",
+                "scenario": "liquidity_gap",
+                "initial_price": 100.0,
+                "gap_volume_fraction": 0.03,
+                "gap_duration": 5,
+            },
+        }
+        fetcher = SyntheticFetcher(config=config)
+        df = await fetcher.fetch_data("TEST", "EQUITY", "2024-01-02", "2024-12-31")
+
+        # Calculate high/low range as a percentage of close
+        df["hl_range_pct"] = (df["high"] - df["low"]) / df["close"]
+        # The gap should produce at least one day with notably wider range
+        # (5x wider, so range should be notably above normal ~1.5%)
+        max_range_pct = df["hl_range_pct"].max()
+        median_range_pct = df["hl_range_pct"].median()
+        # Gap days should have range >> median
+        self.assertGreater(
+            max_range_pct,
+            median_range_pct * 3,
+            f"Expected max_range > 3*median, got {max_range_pct:.4f} vs {median_range_pct:.4f}",
+        )
+
+    async def test_liquidity_gap_is_contiguous(self) -> None:
+        """Liquidity gap forms a contiguous window, not scattered days."""
+        config = {
+            "fetcher": {
+                "class": "SyntheticFetcher",
+                "module": "fetcher.synthetic_fetcher",
+            },
+            "provider": {"name": "synthetic", "asset": "EQUITY"},
+            "synthetic": {
+                "seed": 42,
+                "model": "stress",
+                "scenario": "liquidity_gap",
+                "initial_price": 100.0,
+                "gap_volume_fraction": 0.03,
+                "gap_duration": 5,
+            },
+        }
+        fetcher = SyntheticFetcher(config=config)
+        df = await fetcher.fetch_data("TEST", "EQUITY", "2024-01-02", "2024-12-31")
+
+        # Identify gap days: those below 10% of median volume
+        median_vol = df["volume"].median()
+        gap_threshold = median_vol * 0.10
+        is_gap_day = df["volume"] < gap_threshold
+
+        # Extract indices of gap days
+        gap_indices = df.index[is_gap_day].tolist()
+        self.assertGreater(len(gap_indices), 0, "No gap days detected")
+
+        # Verify contiguity: consecutive gap days should have indices differing by 1
+        # Allow up to 1 non-gap day in the window (rounding edge case)
+        for i in range(len(gap_indices) - 1):
+            idx_diff = gap_indices[i + 1] - gap_indices[i]
+            self.assertLessEqual(
+                idx_diff,
+                2,
+                f"Gap is not contiguous: gap_indices[{i}]={gap_indices[i]}, "
+                f"gap_indices[{i + 1}]={gap_indices[i + 1]}, diff={idx_diff}",
+            )
+
+    async def test_liquidity_gap_ohlc_invariants(self) -> None:
+        """Liquidity gap maintains OHLC coherence even with collapsed volume."""
+        config = {
+            "fetcher": {
+                "class": "SyntheticFetcher",
+                "module": "fetcher.synthetic_fetcher",
+            },
+            "provider": {"name": "synthetic", "asset": "EQUITY"},
+            "synthetic": {
+                "seed": 42,
+                "model": "stress",
+                "scenario": "liquidity_gap",
+                "initial_price": 100.0,
+                "gap_volume_fraction": 0.03,
+                "gap_duration": 5,
+            },
+        }
+        fetcher = SyntheticFetcher(config=config)
+        df = await fetcher.fetch_data("TEST", "EQUITY", "2024-01-02", "2024-12-31")
+
+        # Re-check OHLC invariants
+        self.assertTrue(
+            (df["high"] >= df[["open", "close"]].max(axis=1)).all(),
+            "high must be >= max(open, close)",
+        )
+        self.assertTrue(
+            (df["low"] <= df[["open", "close"]].min(axis=1)).all(),
+            "low must be <= min(open, close)",
+        )
+        self.assertTrue((df["high"] >= df["low"]).all(), "high must be >= low")
+        self.assertTrue((df["open"] > 0).all(), "open must be > 0")
+        self.assertTrue((df["high"] > 0).all(), "high must be > 0")
+        self.assertTrue((df["low"] > 0).all(), "low must be > 0")
+        self.assertTrue((df["close"] > 0).all(), "close must be > 0")
+        self.assertTrue((df["volume"] >= 0).all(), "volume must be >= 0")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -270,7 +270,12 @@ class SyntheticFetcher(Fetcher):
         initial_price: float,
     ) -> np.ndarray:
         """Limit down: multiple consecutive days at maximum decline limit (~10-20%).
-        Generate prices that show this pattern."""
+        Generate prices that show this pattern.
+
+        Note: limit_down does not alter volume. Real limit-down events may have
+        volume changes, but this implementation focuses on price movement alone.
+        Volume behavior is left as normal to isolate the price stress effect.
+        """
         prices = np.zeros(n_days)
         prices[0] = initial_price
 
@@ -304,28 +309,41 @@ class SyntheticFetcher(Fetcher):
         opens: np.ndarray,
         highs: np.ndarray,
         lows: np.ndarray,
+        volumes: np.ndarray,
     ) -> tuple:
-        """Liquidity gap: volume collapses ~99%, spreads widen (high/low range widens).
-        Model as: unusually wide high/low range + reduced volume.
+        """Liquidity gap: volume collapses to 1-5% of normal level, spreads widen.
+        Model as: a contiguous window of low-volume days with wide bid-ask spreads.
+
+        The gap window is deterministically positioned based on the RNG seed,
+        so the same (seed, symbol) always produces the identical DataFrame.
         """
         n = len(closes)
 
-        # Pick a window for the liquidity gap (not at edges)
-        gap_start = rng.integers(5, max(6, n - 10))
-        gap_duration = rng.integers(3, 8)
+        # Get config parameters with sensible defaults
+        gap_volume_fraction = self.synthetic_config.get("gap_volume_fraction", 0.03)
+        gap_duration = self.synthetic_config.get("gap_duration", 5)
+
+        # Pick a window for the liquidity gap (not at edges, deterministic from RNG)
+        gap_start = rng.integers(5, max(6, n - gap_duration - 5))
 
         new_highs = highs.copy()
         new_lows = lows.copy()
+        new_volumes = volumes.copy()
 
         for i in range(gap_start, min(gap_start + gap_duration, n)):
-            # Widen the high/low range to model wider bid-ask
+            # Volume collapses to gap_volume_fraction of normal level during the gap.
+            # Preserve the >= 0 invariant and use max() to ensure no negatives.
+            new_volumes[i] = volumes[i] * gap_volume_fraction
+            new_volumes[i] = np.maximum(new_volumes[i], 0)
+
+            # Widen the high/low range to model wider bid-ask spread during illiquidity
             mid = (new_highs[i] + new_lows[i]) / 2
             range_size = new_highs[i] - new_lows[i]
-            # Widen by 5x during the gap
+            # Widen by 5x during the gap (wider spread = harder to execute)
             new_highs[i] = mid + range_size * 2.5
             new_lows[i] = mid - range_size * 2.5
 
-        return new_highs, new_lows
+        return new_highs, new_lows, new_volumes
 
     async def fetch_data(
         self,
@@ -444,15 +462,23 @@ class SyntheticFetcher(Fetcher):
             scenario = self.scenario or "flash_crash"
             if scenario == "flash_crash":
                 ohlcv = self._apply_flash_crash(rng, ohlcv)
+                # Note: flash_crash does not alter volume. Real flash crashes do spike
+                # volume, but this implementation focuses on intraday price movement.
+                # If volume spike is needed, it should be added as a separate parameter.
             elif scenario == "liquidity_gap":
-                ohlcv["high"], ohlcv["low"] = self._apply_liquidity_gap(
-                    rng,
-                    dates,
-                    ohlcv["close"],
-                    ohlcv["open"],
-                    ohlcv["high"],
-                    ohlcv["low"],
+                ohlcv["high"], ohlcv["low"], ohlcv["volume"] = (
+                    self._apply_liquidity_gap(
+                        rng,
+                        dates,
+                        ohlcv["close"],
+                        ohlcv["open"],
+                        ohlcv["high"],
+                        ohlcv["low"],
+                        ohlcv["volume"],
+                    )
                 )
+                # adj_volume tracks the same volume as raw (no splits/divs in synthetic data)
+                ohlcv["adj_volume"] = ohlcv["volume"].copy()
 
         # Build DataFrame
         df = pd.DataFrame(
