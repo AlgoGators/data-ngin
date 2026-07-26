@@ -1,0 +1,95 @@
+# Synthetic market-data generator configuration.
+# Generates OHLCV data for stress-testing strategies against market conditions
+# that real historical data never contained: flash crashes, limit-up/down days,
+# liquidity gaps. Same structure as config_tiingo.yaml for consistency.
+
+loader:
+  class: "CSVLoader"
+  module: "loader.csv_loader"
+  file_path: "/opt/airflow/data_engine/contracts/contract_synthetic.csv"
+
+inserter:
+  class: "TimescaleDBInserter"
+  module: "inserter.timescaledb_inserter"
+
+fetcher:
+  class: "SyntheticFetcher"
+  module: "fetcher.synthetic_fetcher"
+
+cleaner:
+  class: "NoOpCleaner"
+  module: "cleaner.noop_cleaner"
+
+# Data provider configuration
+provider:
+  name: "synthetic"
+  asset: "EQUITY"
+
+# Database configuration. Synthetic data ONLY writes to the synthetic schema.
+# This isolation is structural and enforced by the schema-ownership-guard workflow.
+# Production code must never read from synthetic; all pipelines only read from
+# futures_data / equities_data / options_data.
+database:
+  db_name: "new_algo_data"
+  target_schema: "synthetic"
+  raw_table: "ohlcv_1d"
+  table: "ohlcv_1d"
+
+# Time range for data generation, YYYY-MM-DD.
+time_range:
+  start_date: "2024-01-02"
+  end_date: "2024-12-31"
+  seed_start_date: "2024-01-02"
+
+# Options to handle missing data (not applicable to synthetic)
+missing_data:
+  forward_fill: "False"
+  backward_fill: "False"
+  interpolate: "False"
+  drop_nan: "True"
+  zero_fill: "False"
+  mean_fill: "False"
+  median_fill: "False"
+  custom_fill: "False"
+  custom_value: "0"
+
+# Logging options
+logging:
+  level: "INFO"
+
+batch_downloading:
+  batch: False
+  unit: "Daily"
+  max_units: 30
+
+# Synthetic data generator configuration.
+# Models:
+#   gbm: geometric Brownian motion
+#   jump_diffusion: GBM + Poisson jumps
+#   regime_switching: two regimes (calm/stressed) with daily switching probability
+#   stress: scripted scenarios (flash_crash, limit_down, liquidity_gap)
+#
+# DETERMINISM: seed + symbol always produces identical output.
+# Use hashlib-based RNG derivation so different symbols are independent
+# but reproducible. The orchestrator should NOT call the same symbol twice
+# in a single run, but if it does, the output is still deterministic.
+synthetic:
+  seed: 42
+  model: "gbm"
+  initial_price: 100.0
+  annual_drift: 0.05
+  annual_volatility: 0.20
+
+  # Jump diffusion parameters (only used if model == "jump_diffusion")
+  jump_intensity: 4.0          # expected jumps per year
+  jump_mean: 0.0               # mean jump size in log space
+  jump_std: 0.15               # std of jump size in log space
+
+  # Regime switching parameters (only used if model == "regime_switching")
+  calm_volatility: 0.15
+  stress_volatility: 0.40
+  stress_volatility_multiplier: 2.67  # stress_vol / calm_vol
+  switch_probability: 0.05     # per-day regime switch probability
+
+  # Stress scenario (only used if model == "stress")
+  scenario: "flash_crash"      # flash_crash, limit_down, liquidity_gap

@@ -1,0 +1,7 @@
+symbol,asset_type,venue,description
+SYNTH_GBM,EQUITY,synthetic,Synthetic GBM price series for testing
+SYNTH_JUMP,EQUITY,synthetic,Synthetic jump-diffusion price series for testing
+SYNTH_REGIME,EQUITY,synthetic,Synthetic regime-switching price series for testing
+SYNTH_FLASH,EQUITY,synthetic,Synthetic flash crash scenario
+SYNTH_LIMIT,EQUITY,synthetic,Synthetic limit-down scenario
+SYNTH_LIQUID,EQUITY,synthetic,Synthetic liquidity gap scenario
