@@ -369,3 +369,62 @@ Branch: `feat/synthetic-data-generator` (ready for PR to `main`)
 ---
 
 Generated via test-driven development. All tests passing. Ready for code review.
+
+---
+
+## Liquidity Gap Fix (Post-Commit)
+
+### Defect
+Initial `liquidity_gap` implementation widened spreads but did not collapse volume. Measured over 252 business days (seed 42):
+- vol_min/med = 0.727 (73% of median volume) — not a liquidity gap, just a quiet day
+- All three scenarios landed at ~0.71-0.73, showing volume was generated identically regardless of scenario
+
+### Fix Applied
+
+**Commit:** `bc0356f` — "Make liquidity_gap actually collapse liquidity, not just carry the name"
+
+**Changes:**
+1. Modified `_apply_liquidity_gap()` to accept `volumes` array and return tuple of (highs, lows, volumes)
+2. Added configurable parameters:
+   - `gap_volume_fraction` (default 0.03 = 3% of normal volume)
+   - `gap_duration` (default 5 days)
+3. During gap window, volume collapses to `gap_volume_fraction` of normal level
+4. Contiguous window positioned deterministically from RNG seed
+5. Added explicit comments documenting volume behavior in `flash_crash` and `limit_down` (both leave volume unchanged by design)
+
+**Tests Added:**
+- `test_liquidity_gap_collapses_volume` — vol_min/med < 0.10 during gap
+- `test_liquidity_gap_widens_spreads` — max_range > 3x median range
+- `test_liquidity_gap_is_contiguous` — gap forms consecutive window, not scattered days
+- `test_liquidity_gap_ohlc_invariants` — OHLCV coherence maintained with collapsed volume
+
+### Measurements (Seed 42, 252 Business Days)
+
+| Scenario | worst_intraday | worst_c2c | longest_streak | max_hl_range | vol_min/med |
+|----------|----------------|-----------|----------------|--------------|------------|
+| flash_crash | -21.2% | -9.1% | 8 days | 23.83% | 0.721 |
+| limit_down | -13.2% | -12.0% | 11 days | 15.84% | 0.713 |
+| **liquidity_gap** | **-7.6%** | **-2.9%** | 8 days | **12.91%** | **0.024** |
+
+**Key result:** liquidity_gap now produces vol_min/med = 0.024 (2.4% of median), down from 0.727. This is a true liquidity collapse. Gap days have 12.91% high/low range (vs. typical ~1.5%), modeling wide bid-ask spreads.
+
+### Test Results (All 20 Tests Passing)
+
+```
+tests/fetcher/test_synthetic_fetcher.py::TestSyntheticFetcherBasics::test_adjusted_equals_raw PASSED
+[... 18 more tests ...]
+tests/fetcher/test_synthetic_fetcher.py::TestStressScenarios::test_liquidity_gap_collapses_volume PASSED
+tests/fetcher/test_synthetic_fetcher.py::TestStressScenarios::test_liquidity_gap_widens_spreads PASSED
+tests/fetcher/test_synthetic_fetcher.py::TestStressScenarios::test_liquidity_gap_is_contiguous PASSED
+tests/fetcher/test_synthetic_fetcher.py::TestStressScenarios::test_liquidity_gap_ohlc_invariants PASSED
+
+======================= 20 passed in 0.88s =======================
+```
+
+### Volume Behavior Decision
+
+- **flash_crash:** Volume left unchanged. Real flash crashes spike volume, but implementation focuses on intraday price movement. Volume spike can be added as future parameter if needed.
+- **limit_down:** Volume left unchanged. Focuses on price movement; volume behavior left neutral to isolate stress effect.
+- **liquidity_gap:** Volume COLLAPSED to 3% of normal (configurable). This is the core stress — illiquidity means fewer trades, lower volume.
+
+All OHLC invariants (`high >= max(open,close)`, `low >= min(open,close)`, `high >= low`, all prices > 0, volume >= 0) verified for liquidity_gap specifically.
