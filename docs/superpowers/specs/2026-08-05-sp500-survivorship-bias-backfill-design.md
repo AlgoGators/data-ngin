@@ -165,7 +165,7 @@ Outputs:
 - `contracts/sp500_membership.csv` — `(ticker, start_date, end_date)` intervals
 - `contracts/ticker_aliases.csv` — hand-maintained rename map, seeded with the 13 traced
 
-Note: `supported_tickers.zip` predicted 337 usable; the live API plus validation gives 239.
+Note: `supported_tickers.zip` predicted 337 usable; the live API plus validation gives 237.
 The manifest indexes ticker *strings* while the API follows the *security*. **Probe the
 API; do not trust the manifest.**
 
@@ -289,7 +289,7 @@ Mock the HTTP and DB layers; no live calls.
   `adj_open/high/low`, `adj_volume`, `div_cash`, `split_factor` NULL. The `origin/eodhd`
   branch also **deletes the entire Tiingo pipeline** (-3,438 lines) and must not be merged.
 - Databento and futures pipelines; the Tiingo fetcher's rotation logic; the cleaner.
-- Recovering the 104 no-coverage names from another source.
+- Recovering the 106 no-coverage names from another source.
 
 ## Risks and honest caveats
 
@@ -314,7 +314,7 @@ Mock the HTTP and DB layers; no live calls.
 - **Orchestrator shared-inserter concurrency**: `retrieve_and_process_data` calls
   `connect()`/`close()` per symbol on a **shared** inserter and `finally: self.inserter.close()`
   (`orchestrator.py:112`) closes the connection out from under other in-flight coroutines.
-  Pre-existing, survivable at 683, **flagged not fixed** — the backfill sidesteps it by not
+  Pre-existing, survivable at 681, **flagged not fixed** — the backfill sidesteps it by not
   using the orchestrator.
 - **`equities_raw` grows too.** The orchestrator writes raw rows before cleaning; check disk
   before the run.
