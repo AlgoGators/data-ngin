@@ -35,7 +35,7 @@ strategies never select from and would force a permanent Tiingo Power subscripti
 can serve at any speed. If research ever selects outside the S&P, that is a separate
 project reusing this machinery.
 
-## Measured coverage — 239 of 506 are usable
+## Measured coverage — 237 of 506 are usable
 
 Universe source: [hanshof/sp500_constituents](https://github.com/hanshof/sp500_constituents),
 3,482 daily point-in-time snapshots, 1996-01-02 → 2025-08-23.
@@ -55,18 +55,18 @@ window**. Both steps are necessary; the second one is where most candidates fail
 
 | Bucket | Count | Pipeline action |
 |---|---|---|
-| **Usable, still trading** | **113** | backfill to 2000, then daily forever |
+| **Usable, still trading** | **111** | backfill to 2000, then daily forever |
 | **Usable, delisted** | **126** | backfill once, never fetch again |
 | Marginal — <30 days overlap, needs review | 6 | manual eyeball, then reclassify |
-| Tiingo's data does not cover the membership period | 104 | `coverage_gaps` |
+| Tiingo's data does not cover the membership period | 106 | `coverage_gaps` |
 | Known to Tiingo, no price data at all | 134 | `coverage_gaps` |
 | Unknown to Tiingo | 23 | `coverage_gaps` |
 | **Total** | **506** | |
 
-**Usable: 239 (47%).** Estimated volume **~1.19M rows** (vs 3.2M existing).
-Daily run grows **570 → 683**.
+**Usable: 237 (47%).** Estimated volume **~1.19M rows** (vs 3.2M existing).
+Daily run grows **570 → 681**.
 
-### Why 104 candidates fail entity validation
+### Why 106 candidates fail entity validation
 
 Tiingo serves exactly **one security per ticker string — the current one**. For any ticker
 that has been reused, the API returns the modern company, not the historical index member:
@@ -84,11 +84,27 @@ Tiingo's coverage starts after the company left the index (e.g. `IKN` / IKON Off
 Solutions — membership ends 2000-06-27, Tiingo data starts 2006-12-28). Operationally
 identical: **Tiingo cannot serve the period the company was in the index.**
 
-The detection rule is `tiingo_start > membership_end` — data that begins after the company
-left the index cannot be that company's index-era history. Both causes are recorded in
+Detection requires **two** rules, not one:
+
+1. `tiingo_start > membership_end` — data beginning after the company left the index cannot
+   be that company's index-era history. Catches 104.
+2. **Manifest-duplication check** — if `supported_tickers.zip` lists the ticker more than
+   once, the string has been reused, and rule 1 can silently pass the wrong security when
+   the reuser's data happens to start *before* the original left the index. Catches 2 more:
+
+   ```
+   CSR -> "Centerspace"                  Tiingo 1997-2026, membership ended 2000-06-15
+   EP  -> "Empire Petroleum Corporation" Tiingo 2011-2026, membership ended 2012-05-23
+   ```
+
+   Both overlap the membership window numerically, so rule 1 passed them — but both are
+   different companies from the S&P members that held those tickers.
+
+Rule 2 was found by auditing rule 1's output, and it is the reason the usable count is 237
+rather than 239. Any future validation pass must run both. Both causes are recorded in
 `coverage_gaps` with Tiingo's returned security name, so a human can tell them apart later.
 
-**Backfilling these 104 without validation would insert an unrelated modern ETF's prices
+**Backfilling these 106 without validation would insert an unrelated modern ETF's prices
 under a symbol the membership table says was an S&P 500 member in 2005 — fabricated
 history, which is strictly worse than the survivorship bias being fixed.** Entity
 validation is therefore a required, non-optional step, not a nice-to-have.
@@ -210,13 +226,13 @@ Standalone and resumable. It **must not** run through the DAG:
 newly-added ticker would fetch a single day (clamped at line 146) and return nothing.
 
 Behaviour:
-- Input is `backfill_targets.csv` — the validated 239 only. Never the raw candidate list.
+- Input is `backfill_targets.csv` — the validated 237 only. Never the raw candidate list.
 - **Per-symbol date range**, from Tiingo metadata, not from index membership:
   - delisted → `2000-01-01` … the security's real last trading day
   - still trading → `2000-01-01` … **today**
 
   Using the index-removal date as the end date would manufacture a multi-year hole in every
-  one of the 113 still-trading names. This is the easiest thing to get wrong.
+  one of the 111 still-trading names. This is the easiest thing to get wrong.
 - Reuses `TiingoFetcher` (key rotation, semaphore) and `TiingoCleaner` unchanged.
 - Sets `delisting_date` for dead names; leaves it NULL for live ones.
 - **Checkpointed** to a local progress file so a rate-limit stall or restart resumes.
@@ -224,17 +240,23 @@ Behaviour:
 
 ### 5. Daily and monthly DAG changes
 
-**Daily** (`dags/tiingo_data_dag.py`): universe grows 570 → **683**. The 126 dead names are
-excluded via the new `active` column — including them would burn 126 requests every day,
+**Daily** (`dags/tiingo_data_dag.py`): universe grows 570 → **681**. The 126 dead names are
+excluded via the new `active` column. **This requires a code change to
+`CSVLoader.load_symbols()` (`src/modules/loader/csv_loader.py`)**, which currently builds
+`dict(zip(dataSymbol, instrumentType))` and would read an `active` column but ignore it —
+adding the column to the CSV alone does nothing. Without the filter the daily run would
+burn 126 requests every day,
 forever, re-fetching immutable data.
 
-Capacity: 683 needed vs 12 keys × 50/hr = **600/hr**. Two options:
+Capacity: 681 needed vs the current 13 keys × 50/hr = **650/hr**. Two options:
 
-- **Preferred — add 2-4 free keys.** 14 keys = 700/hr covers 683; 16 keys = 800/hr leaves
-  headroom for future index changes. Purely a `.env` edit; the fetcher already auto-detects
-  `TIINGO_API_KEY*`.
+- **Preferred — add 1-3 free keys.** 14 keys = 700/hr covers 681; 15 keys = 750/hr gives ~10%
+  headroom. Purely a `.env` edit; the fetcher already auto-detects `TIINGO_API_KEY*`.
+  At 15 keys each key issues ~45 requests in one burst — under the 50/hr cap **regardless of
+  whether Tiingo's limit is a rolling window or a clock hour**, which retires that open
+  question entirely.
 - **Fallback — a second DAG run 90 minutes later** with its own contract file of only the
-  113 active former members. Required if more keys are unavailable, because the fetcher
+  111 active former members. Required if more keys are unavailable, because the fetcher
   disables a key permanently for the run once it 429s (`_disabled_keys`, never re-enabled),
   so one long run cannot coast across the hour boundary — it would progressively kill all
   12 keys and fail every remaining symbol. 90 minutes, not 60, in case Tiingo's limit is a
@@ -250,6 +272,7 @@ Never daily — a delisted security's history is immutable.
 Mock the HTTP and DB layers; no live calls.
 - **Entity validation rejects a reused ticker** whose Tiingo `startDate` postdates its
   membership window. The highest-value test in the set.
+- Backfill excludes a reused ticker flagged by the manifest-duplication check.
 - Backfill picks the **correct end date** per bucket (today for live, last-trading-day for
   dead).
 - Backfill refuses to run on an unvalidated candidate list.
@@ -270,16 +293,24 @@ Mock the HTTP and DB layers; no live calls.
 
 ## Risks and honest caveats
 
-- **47% coverage is the headline honest number.** Only 239 of 506 former members are
+- **47% coverage is the headline honest number.** Only 237 of 506 former members are
   recoverable from Tiingo. The fix is a large improvement over zero, but it is *partial*,
   and anyone using the data must read `coverage_gaps`. Do not describe the result as
-  "survivorship-bias-free" — describe it as "survivorship bias corrected for 239 of 506
+  "survivorship-bias-free" — describe it as "survivorship bias corrected for 237 of 506
   identifiable former members, with the remainder documented."
 - **The membership snapshot ends 2025-08-23** — roughly 11 months stale. Index changes
   since then are missing, so the 506 likely understates by ~20 names. The monthly reconcile
   fixes this going forward; the interim gap needs a fresher source. **Flagged, not solved.**
 - **The 134 untraced tickers** may include renames whose history is already in the DB, so
   the effective gap is somewhat smaller than the raw count suggests.
+- **Entity validation may still have residual false negatives.** Rule 2 depends on
+  `supported_tickers.zip` listing both incarnations of a reused ticker. Where the manifest
+  records only the current security, a reuse would go undetected. The 237 should be treated
+  as "validated by two independent rules", not "provably correct". A name-based sanity pass
+  over the final set before the backfill is cheap insurance.
+- **The 6 recoverable-via-successor names** (`CBS→PARA`, `HFC→DINO`, `KORS→CPRI`, `ESV→VAL`,
+  `FII→FHI`, `ATGE`) are not in the 681 daily count. Loading them adds ~6 to the daily run
+  and needs their own alias rows.
 - **Orchestrator shared-inserter concurrency**: `retrieve_and_process_data` calls
   `connect()`/`close()` per symbol on a **shared** inserter and `finally: self.inserter.close()`
   (`orchestrator.py:112`) closes the connection out from under other in-flight coroutines.
@@ -295,9 +326,9 @@ Mock the HTTP and DB layers; no live calls.
 1. Merge; run the schema SQL against `new_algo_data` (all additive — no PK migration).
 2. Run `scripts/build_sp500_history.py`; commit the regenerated contracts.
 3. Run `scripts/validate_sp500_entities.py`; resolve the 6 `MARGINAL` cases by hand.
-4. Run `scripts/backfill_sp500_former.py` — 239 tickers, ~1.19M rows, roughly an hour on
+4. Run `scripts/backfill_sp500_former.py` — 237 tickers, ~1.19M rows, roughly an hour on
    the existing keys. Verify `coverage_gaps` is populated and row counts landed.
-5. Add 2-4 more `TIINGO_API_KEY*` values to local and EC2 `.env` (or deploy the fallback
+5. Add 1-3 more `TIINGO_API_KEY*` values to local and EC2 `.env` (or deploy the fallback
    second DAG run).
 6. `git pull && docker compose down && docker compose up -d` on the box.
-7. Trigger `tiingo_data_dag`; confirm 683 distinct symbols and no key exhaustion.
+7. Trigger `tiingo_data_dag`; confirm 681 distinct symbols and no key exhaustion.
