@@ -16,11 +16,18 @@
 
 CREATE SCHEMA IF NOT EXISTS synthetic;
 
--- OHLCV table: daily OHLCV bars for synthetic series
--- Schema matches futures_data.ohlcv_1d and equities_data.ohlcv_1d for
--- interoperability. Synthetic data can be inserted via the standard pipeline.
+-- OHLCV table: daily OHLCV bars for synthetic series.
+--
+-- Column types are matched against the LIVE production tables, not assumed:
+-- futures_data.ohlcv_1d and equities_data both store `time` as TIMESTAMPTZ, which is
+-- also what ADR-000 C-2 specifies. A naive TIMESTAMP here would be a real hazard
+-- rather than a cosmetic mismatch -- comparing naive against tz-aware values makes
+-- Postgres apply the session TimeZone, so the same range query would return
+-- different bars depending on who ran it, and any UNION with real data would need a
+-- cast. adj_volume is DOUBLE PRECISION to match equities_data (volume stays BIGINT,
+-- which equities_data also uses; futures_data narrows it to INTEGER).
 CREATE TABLE IF NOT EXISTS synthetic.ohlcv_1d (
-    time TIMESTAMP NOT NULL,
+    time TIMESTAMPTZ NOT NULL,
     symbol TEXT NOT NULL,
     open DOUBLE PRECISION NOT NULL,
     high DOUBLE PRECISION NOT NULL,
@@ -31,7 +38,7 @@ CREATE TABLE IF NOT EXISTS synthetic.ohlcv_1d (
     adj_high DOUBLE PRECISION NOT NULL,
     adj_low DOUBLE PRECISION NOT NULL,
     adjusted_close DOUBLE PRECISION NOT NULL,
-    adj_volume BIGINT NOT NULL,
+    adj_volume DOUBLE PRECISION NOT NULL,
     div_cash DOUBLE PRECISION NOT NULL,
     split_factor DOUBLE PRECISION NOT NULL,
     PRIMARY KEY (symbol, time)

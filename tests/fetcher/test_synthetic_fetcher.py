@@ -447,5 +447,59 @@ class TestStressScenarios(unittest.IsolatedAsyncioTestCase):
         self.assertTrue((df["volume"] >= 0).all(), "volume must be >= 0")
 
 
+class TestSyntheticFetcherInsertability(unittest.IsolatedAsyncioTestCase):
+    """Guards the contract between the generator's output and its own DDL.
+
+    migrations/002_create_synthetic_schema.sql declares volume BIGINT (matching
+    equities_data). The generator computes volume as a float and stress scenarios
+    scale it, so without an explicit rounding step the fetcher emits values like
+    1026065.6484716202 and every insert fails with 'invalid input syntax for type
+    bigint'. That failure only surfaces at insert time, which no other test in this
+    file reaches -- so it is asserted directly here, for every model and scenario.
+    """
+
+    def _config(self, model: str, scenario: str | None = None) -> dict:
+        config = {
+            "synthetic": {
+                "model": model,
+                "seed": 42,
+                "initial_price": 100.0,
+                "annual_drift": 0.08,
+                "annual_volatility": 0.15,
+                "base_volume": 1_000_000,
+            }
+        }
+        if scenario:
+            config["synthetic"]["scenario"] = scenario
+        return config
+
+    async def test_volume_is_integral_for_every_model(self) -> None:
+        cases = [
+            ("gbm", None),
+            ("jump_diffusion", None),
+            ("regime_switching", None),
+            ("stress", "flash_crash"),
+            ("stress", "limit_down"),
+            ("stress", "liquidity_gap"),
+        ]
+        for model, scenario in cases:
+            with self.subTest(model=model, scenario=scenario):
+                fetcher = SyntheticFetcher(config=self._config(model, scenario))
+                df = await fetcher.fetch_data(
+                    "TEST", "EQUITY", "2024-01-02", "2024-12-31"
+                )
+                self.assertEqual(
+                    df["volume"].dtype.kind,
+                    "i",
+                    f"{model}/{scenario}: volume must be an integer dtype to satisfy "
+                    f"the BIGINT column, got {df['volume'].dtype}",
+                )
+                self.assertEqual(
+                    df["adj_volume"].dtype.kind,
+                    "i",
+                    f"{model}/{scenario}: adj_volume must match volume exactly",
+                )
+
+
 if __name__ == "__main__":
     unittest.main()

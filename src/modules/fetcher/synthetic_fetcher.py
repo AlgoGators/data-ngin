@@ -480,6 +480,16 @@ class SyntheticFetcher(Fetcher):
                 # adj_volume tracks the same volume as raw (no splits/divs in synthetic data)
                 ohlcv["adj_volume"] = ohlcv["volume"].copy()
 
+        # Volume is generated and stress-adjusted as float so the scenario maths stays
+        # continuous, but it is a share/contract count: synthetic.ohlcv_1d declares it
+        # BIGINT (matching equities_data), and a float here fails the insert outright
+        # with "invalid input syntax for type bigint". Round once, after every scenario
+        # has had its say, so the DataFrame that leaves this fetcher is directly
+        # insertable. adj_volume takes the same rounded value -- with no corporate
+        # actions in synthetic data the adjusted series IS the raw series, which is the
+        # invariant test_adjusted_equals_raw pins down.
+        volume_int = np.rint(ohlcv["volume"]).astype(np.int64)
+
         # Build DataFrame
         df = pd.DataFrame(
             {
@@ -488,12 +498,12 @@ class SyntheticFetcher(Fetcher):
                 "high": ohlcv["high"],
                 "low": ohlcv["low"],
                 "close": ohlcv["close"],
-                "volume": ohlcv["volume"],
+                "volume": volume_int,
                 "adj_open": ohlcv["open"],
                 "adj_high": ohlcv["high"],
                 "adj_low": ohlcv["low"],
                 "adjusted_close": ohlcv["close"],
-                "adj_volume": ohlcv["volume"],
+                "adj_volume": volume_int,
                 "div_cash": 0.0,
                 "split_factor": 1.0,
                 "symbol": symbol,
