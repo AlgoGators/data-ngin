@@ -23,29 +23,30 @@ from src.modules.db_models import get_engine
 #
 # The span join is what stops a newly-added symbol from reporting a hole for every
 # day before it existed. Schema/table come from trusted config, matching the
-# f-string pattern already used in data_access.get_latest_date_for.
+# f-string pattern already used in data_access.get_latest_date_for (quoted
+# "{schema}"."{table}").
 MISSING_BARS_SQL = """
 WITH days AS (
     SELECT time::date AS d
-    FROM {schema}.{table}
+    FROM "{schema}"."{table}"
     GROUP BY 1
     HAVING count(DISTINCT symbol) > :min_symbols
 ),
 span AS (
     SELECT symbol, min(time)::date AS lo, max(time)::date AS hi
-    FROM {schema}.{table}
+    FROM "{schema}"."{table}"
     GROUP BY 1
 ),
 have AS (
     SELECT symbol, time::date AS d
-    FROM {schema}.{table}
+    FROM "{schema}"."{table}"
 )
 SELECT sp.symbol, d.d
 FROM span sp
 CROSS JOIN days d
 LEFT JOIN have h
        ON h.symbol = sp.symbol AND h.d = d.d
-LEFT JOIN {schema}.verified_absent_bars v
+LEFT JOIN "{schema}".verified_absent_bars v
        ON v.symbol = sp.symbol AND v.bar_date = d.d
 WHERE d.d BETWEEN sp.lo AND sp.hi
   AND d.d >= :since

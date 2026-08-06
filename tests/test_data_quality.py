@@ -61,6 +61,51 @@ class TestDataQuality(unittest.TestCase):
 
         self.assertEqual(dq.find_missing_bars("equities_data", "equities"), [])
 
+    @patch("src.modules.data_quality.get_engine")
+    def test_missing_bars_sql_has_required_structure(self, mock_engine: MagicMock) -> None:
+        """Guard the query's structural invariants, not just plumbing.
+
+        A regression that flipped an anti-join to an inner join, dropped the
+        span (BETWEEN sp.lo AND sp.hi) clause, or mis-substituted
+        {schema}/{table} would return hundreds of thousands of false holes
+        against the live table, yet would pass the mocked-execute tests above
+        unchanged. This test inspects the actual query text passed to
+        session.execute so such a regression fails here instead.
+        """
+        from src.modules.data_quality import DataQuality
+
+        dq = DataQuality(config=self.config)
+        mock_session = MagicMock()
+        mock_session.__enter__.return_value = mock_session
+        mock_session.__exit__.return_value = False
+        mock_session.execute.return_value = []
+        dq.Session = MagicMock(return_value=mock_session)
+
+        dq.find_missing_bars("equities_data", "equities")
+
+        sql = str(mock_session.execute.call_args[0][0])
+
+        # Anti-join against the data table itself (bar exists -> excluded).
+        self.assertIn("LEFT JOIN have h", sql)
+        self.assertIn("h.symbol IS NULL", sql)
+
+        # Anti-join against the confirmed-absent cache (already verified -> excluded).
+        self.assertIn("LEFT JOIN", sql)
+        self.assertIn("verified_absent_bars", sql)
+        self.assertIn("v.symbol IS NULL", sql)
+
+        # Span clause: restricts candidates to each symbol's own lifetime.
+        self.assertIn("BETWEEN sp.lo AND sp.hi", sql)
+
+        # Trading-day threshold.
+        self.assertIn("count(DISTINCT symbol) > :min_symbols", sql)
+
+        # Schema/table were actually substituted (quoted, per the
+        # data_access.get_latest_date_for precedent), not left as placeholders.
+        self.assertIn('"equities_data"."equities"', sql)
+        self.assertNotIn("{schema}", sql)
+        self.assertNotIn("{table}", sql)
+
 
 if __name__ == "__main__":
     unittest.main()
