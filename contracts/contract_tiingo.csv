@@ -694,7 +694,6 @@ M,EQUITY,false
 MAC,EQUITY,false
 MAT,EQUITY,false
 MBI,EQUITY,false
-MDP,EQUITY,false
 MDR,EQUITY,false
 MER,EQUITY,false
 MHK,EQUITY,false
@@ -721,7 +720,6 @@ NLSN,EQUITY,false
 NOV,EQUITY,false
 NWL,EQUITY,false
 NYT,EQUITY,false
-NYX,EQUITY,false
 ODP,EQUITY,false
 OGN,EQUITY,false
 OI,EQUITY,false

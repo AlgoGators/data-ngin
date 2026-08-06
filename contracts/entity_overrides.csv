@@ -6,3 +6,5 @@ DISCA,NO_COVERAGE,"Discovery became Warner Bros. Discovery in April 2022; Tiingo
 PEAK,REUSED_TICKER,"Tiingo returns PEAK INTERNATIONAL LTD (4 days in 2023). The index member was Healthpeak Properties, whose history is under DOC and already in the contract. Different company entirely."
 VIAC,NO_COVERAGE,"Tiingo's VIAC ends 2019-12-04 -- the day BEFORE ViacomCBS's membership began. It is pre-merger CBS Corp, not ViacomCBS. That era is under PARA (verified: Paramount Global Class B, 2006-01-03..2025-08-07)."
 WRK,REUSED_TICKER,"Tiingo returns WRKR LTD, an unrelated Australian company, with a single day of data. WestRock merged into Smurfit Westrock in July 2024."
+MDP,NO_PRICE_DATA,"Tiingo's metadata claims Meredith Corp 1985-07-01..2021-12-01, but the prices endpoint returns 0 rows for that exact range. Vendor inconsistency between its own two endpoints -- caught by the backfill, which refuses to treat a validated target returning nothing as success."
+NYX,NO_PRICE_DATA,"Tiingo's metadata claims NYSE Euronext 2007-06-04..2013-11-12, but the prices endpoint returns 0 rows. Same metadata/prices inconsistency as MDP."
