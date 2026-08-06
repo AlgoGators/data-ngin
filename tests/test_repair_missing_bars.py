@@ -22,6 +22,20 @@ class TestGroupHoles(unittest.TestCase):
 
         self.assertEqual(group_holes_by_symbol([]), {})
 
+    def test_groups_unsorted_dates_by_true_min_and_max(self) -> None:
+        from scripts.repair_missing_bars import group_holes_by_symbol
+
+        # Deliberately unsorted input: true min (7/9) is not first, true max (7/28) is not last
+        holes = [("SATS", date(2026, 7, 28)), ("SATS", date(2026, 7, 9)),
+                 ("SATS", date(2026, 7, 15)), ("OTHER", date(2026, 8, 1)),
+                 ("OTHER", date(2026, 7, 20))]
+
+        grouped = group_holes_by_symbol(holes)
+
+        # Must compute true min/max regardless of input order
+        self.assertEqual(grouped["SATS"], (date(2026, 7, 9), date(2026, 7, 28)))
+        self.assertEqual(grouped["OTHER"], (date(2026, 7, 20), date(2026, 8, 1)))
+
 
 class TestRecordAbsent(unittest.TestCase):
     """Vendor-confirmed absences must be cached so they are never re-probed."""
