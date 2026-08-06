@@ -1,0 +1,4 @@
+warning
+2026-03-23: 'SATS' added but was not an open member at that point -- interval not recorded
+2023-06-08: 'FI' added but was not an open member at that point -- interval not recorded
+2023-06-08: 'FISV' removed while an interval was already open (ending None) -- keeping the later one

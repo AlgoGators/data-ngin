@@ -13,3 +13,4 @@ dist/
 build/
 venv/
 .idea
+MISSING_CMD.txt
