@@ -1,8 +1,10 @@
 """Repair permanently-missing bars in equities_data.equities.
 
-Run from the repo root:
-    python3 scripts/repair_missing_bars.py --dry-run
-    python3 scripts/repair_missing_bars.py
+Run from the repo root (PYTHONPATH=. is required: running the script directly puts
+scripts/ on sys.path[0] instead of the repo root, so `utils` and `src` are not
+importable without it):
+    PYTHONPATH=. python3 scripts/repair_missing_bars.py --dry-run
+    PYTHONPATH=. python3 scripts/repair_missing_bars.py
 
 Half of all detected candidates are days the vendor genuinely has no bar for, so
 every candidate is verified against Tiingo before being treated as a defect, and
@@ -12,6 +14,7 @@ never again.
 import argparse
 import asyncio
 import logging
+import sys
 from datetime import date
 from typing import Any, Dict, List, Tuple
 
@@ -49,12 +52,16 @@ def record_absent(inserter: Any, schema: str, symbol: str, days: List[date], not
     logger.info("Recorded %d vendor-absent bars for %s", len(days), symbol)
 
 
-async def repair(config: Dict[str, Any], dry_run: bool = False) -> Dict[str, int]:
+async def repair(config: Dict[str, Any], dry_run: bool = False) -> Dict[str, Any]:
     """
     Detect candidate holes, verify each against Tiingo, refill the real ones, and
     cache the confirmed absences.
 
-    Returns a summary dict: {"candidates", "refilled", "absent", "symbols"}.
+    Returns a summary dict: {"candidates", "refilled", "absent", "symbols", "failed"}.
+    "symbols" is the count of symbols with candidate holes, computed up front and
+    NOT reduced when a fetch fails, so it stays a measure of scope. "failed" is the
+    list of symbols whose fetch raised (vendor outage, network error, etc.) -- those
+    symbols contribute 0 to refilled/absent for this run and remain unrepaired.
     """
     from utils.dynamic_loader import get_instance
     from src.modules.data_quality import DataQuality
@@ -68,7 +75,8 @@ async def repair(config: Dict[str, Any], dry_run: bool = False) -> Dict[str, int
     if dry_run or not spans:
         for sym, (lo, hi) in sorted(spans.items()):
             logger.info("  DRY RUN %s %s..%s", sym, lo, hi)
-        return {"candidates": len(holes), "refilled": 0, "absent": 0, "symbols": len(spans)}
+        return {"candidates": len(holes), "refilled": 0, "absent": 0,
+                "symbols": len(spans), "failed": []}
 
     fetcher = get_instance(config, "fetcher", "class")
     cleaner = get_instance(config, "cleaner", "class")
@@ -79,6 +87,7 @@ async def repair(config: Dict[str, Any], dry_run: bool = False) -> Dict[str, int
         wanted.setdefault(symbol, set()).add(day)
 
     refilled = absent = 0
+    failed: List[str] = []
     inserter.connect()
     try:
         for symbol, (lo, hi) in sorted(spans.items()):
@@ -91,6 +100,7 @@ async def repair(config: Dict[str, Any], dry_run: bool = False) -> Dict[str, int
                 )
             except Exception as exc:                      # noqa: BLE001 - report and continue
                 logger.error("Fetch failed for %s (%s..%s): %s", symbol, lo, hi, exc)
+                failed.append(symbol)
                 continue
 
             rows = cleaner.clean(raw)
@@ -109,8 +119,12 @@ async def repair(config: Dict[str, Any], dry_run: bool = False) -> Dict[str, int
     finally:
         inserter.close()
 
+    if failed:
+        logger.warning("%d symbol(s) failed to fetch and remain unrepaired: %s",
+                        len(failed), ", ".join(failed))
+
     return {"candidates": len(holes), "refilled": refilled,
-            "absent": absent, "symbols": len(spans)}
+            "absent": absent, "symbols": len(spans), "failed": failed}
 
 
 def main() -> None:
@@ -124,6 +138,9 @@ def main() -> None:
 
     summary = asyncio.run(repair(load_config(args.config), dry_run=args.dry_run))
     logger.info("SUMMARY %s", summary)
+
+    if summary.get("failed"):
+        sys.exit(1)
 
 
 if __name__ == "__main__":
