@@ -3,6 +3,8 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 import logging, pendulum
 
+from src.modules.notifications.github_issue_notifier import notify_dag_failure
+
 local_tz = pendulum.timezone("America/New_York")
 
 default_args = {
@@ -12,6 +14,11 @@ default_args = {
     "email_on_retry": False,
     "retries": 1,
     "retry_delay": timedelta(minutes=10),
+    # Files/updates a GitHub issue on failure -- see github_issue_notifier for why
+    # (email_on_failure above has no SMTP configured in this deployment).
+    # This matters more here than for an ingestion DAG: raising is this task's ONLY
+    # output, so without a delivered notification the check is silent by design.
+    "on_failure_callback": notify_dag_failure,
 }
 
 CONFIG_PATH = "/opt/airflow/data_engine/src/config/config_tiingo.yaml"
@@ -32,9 +39,12 @@ def check_for_gaps(**kwargs):
     counts as a trading day if enough symbols have a bar on it, so if a pipeline
     run fails for EVERY symbol, that day has zero bars, is not recognised as a
     trading day, and produces no candidate holes for anyone. This check finds
-    per-symbol gaps, not missing days. Detecting a whole missing session needs an
-    authoritative market calendar to compare against, which is deliberately out of
-    scope here.
+    per-symbol gaps, not missing days.
+
+    That case is covered from the other side by scripts/check_data_freshness.py,
+    which flags a table whose newest row has gone stale. The two are complementary:
+    freshness catches "the whole table stopped advancing", this catches "the table
+    advanced but individual symbols were left behind". Neither alone is sufficient.
     """
     from datetime import date, timedelta as td
     from utils.dynamic_loader import load_config
