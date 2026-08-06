@@ -90,8 +90,10 @@ class TestDataQuality(unittest.TestCase):
         self.assertIn("h.symbol IS NULL", sql)
 
         # Anti-join against the confirmed-absent cache (already verified -> excluded).
-        self.assertIn("LEFT JOIN", sql)
-        self.assertIn("verified_absent_bars", sql)
+        # Named specifically (not just "LEFT JOIN", which "LEFT JOIN have h"
+        # above would already satisfy) so an inner JOIN here -- which would
+        # silently zero out every result in production -- fails this test.
+        self.assertIn('LEFT JOIN "equities_data".verified_absent_bars v', sql)
         self.assertIn("v.symbol IS NULL", sql)
 
         # Span clause: restricts candidates to each symbol's own lifetime.
