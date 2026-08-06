@@ -47,8 +47,9 @@ class TestTimescaleDBInserter(unittest.TestCase):
         mock_connect.assert_called_once()
         self.assertIsNotNone(self.inserter.connection, "Database connection should not be None")
 
+    @patch("src.modules.inserter.timescaledb_inserter.execute_values")
     @patch("src.modules.inserter.timescaledb_inserter.psycopg2.connect")
-    def test_insert_data(self, mock_connect: MagicMock) -> None:
+    def test_insert_data(self, mock_connect: MagicMock, mock_execute_values: MagicMock) -> None:
         """
         Test that data is inserted into the database using executemany.
         """
@@ -79,19 +80,27 @@ class TestTimescaleDBInserter(unittest.TestCase):
         self.inserter.connect()
         self.inserter.insert_data(data, schema="futures_data", table="ohlcv_1d")
 
-        # Compare queries without extra whitespace
+        # execute_values batches every row into ONE multi-row INSERT. The literal
+        # "VALUES %s" is the marker of that -- psycopg2 expands it. Seeing a
+        # per-column VALUES tuple here would mean we had regressed to executemany,
+        # which costs a round-trip per row and made a bulk backfill take ~21 hours.
         expected_query = re.sub(r"\s+", " ", """
             INSERT INTO futures_data.ohlcv_1d (time, symbol, open, high, low, close, volume)
-            VALUES (%(time)s, %(symbol)s, %(open)s, %(high)s, %(low)s, %(close)s, %(volume)s)
-            ON CONFLICT DO NOTHING;
+            VALUES %s ON CONFLICT DO NOTHING
         """).strip()
 
-        # Extract the actual query from the call arguments
-        actual_query, actual_data = mock_cursor.executemany.call_args[0]
+        mock_execute_values.assert_called_once()
+        _cursor, actual_query, actual_data = mock_execute_values.call_args[0]
+        kwargs = mock_execute_values.call_args.kwargs
 
-        # Assert that the queries are equivalent
         self.assertEqual(re.sub(r"\s+", " ", actual_query.strip()), expected_query)
         self.assertEqual(actual_data, data)
+        self.assertEqual(
+            kwargs["template"],
+            "(%(time)s, %(symbol)s, %(open)s, %(high)s, %(low)s, %(close)s, %(volume)s)")
+        self.assertGreater(kwargs["page_size"], 1, "batching must actually be on")
+
+        mock_cursor.executemany.assert_not_called()
 
     @patch("src.modules.inserter.timescaledb_inserter.psycopg2.connect")
     def test_insert_data_empty_is_a_noop(self, mock_connect: MagicMock) -> None:

@@ -1,5 +1,6 @@
 import os
 import psycopg2
+from psycopg2.extras import execute_values
 from typing import List, Dict, Any, Optional
 from src.modules.inserter.inserter import Inserter
 import logging
@@ -121,13 +122,18 @@ class TimescaleDBInserter(Inserter):
         columns = list(data[0].keys())
 
         # Dynamically construct query based on provided columns
+        # execute_values batches rows into a single multi-row INSERT. psycopg2's
+        # executemany issues ONE ROUND-TRIP PER ROW -- invisible on the daily run
+        # (one bar per symbol) and crippling on a bulk load. Measured: backfilling
+        # AAL's 5,245 bars across the price and raw tables took five minutes against
+        # the remote database, which extrapolates to ~21 hours for a 260-symbol
+        # backfill. Same SQL and same ON CONFLICT semantics, ~1000x fewer round-trips.
         column_names = ", ".join(columns)
-        placeholders = ", ".join([f"%({col})s" for col in columns])
-        query = f"""
-        INSERT INTO {schema}.{table} ({column_names})
-        VALUES ({placeholders})
-        ON CONFLICT DO NOTHING;
-        """.strip()
+        template = "(" + ", ".join(f"%({col})s" for col in columns) + ")"
+        query = (
+            f"INSERT INTO {schema}.{table} ({column_names}) "
+            f"VALUES %s ON CONFLICT DO NOTHING"
+        )
 
         # Diagnostic logging: what symbols are we about to insert?
         if data and isinstance(data, list):
@@ -147,7 +153,7 @@ class TimescaleDBInserter(Inserter):
 
         try:
             with self.connection.cursor() as cursor:
-                cursor.executemany(query, data)
+                execute_values(cursor, query, data, template=template, page_size=1000)
             self.logger.info(
                 "Inserted %d rows into %s.%s",
                 len(data),
