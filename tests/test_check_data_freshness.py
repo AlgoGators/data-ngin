@@ -37,8 +37,11 @@ class TestFindStaleTables(unittest.TestCase):
         self.assertEqual(len(stale), 1)
 
     def test_plain_date_column_is_handled(self):
-        # equities_data.ohlcv_1d.date is a plain DATE column (no time-of-day),
-        # confirmed against the live schema -- must not raise AttributeError.
+        # Every table in TABLES now uses a timestamptz "time" column, so this path
+        # is not exercised in production today. Kept deliberately: _as_utc_datetime
+        # is the generic normaliser, and the next source added here may well expose
+        # a plain DATE column (the retired Sharadar feed did) -- it must not raise
+        # AttributeError when that happens.
         fresh_date = (self.now - timedelta(hours=2)).date()
         latest = {"equities_data.ohlcv_1d": fresh_date}
         self.assertEqual(find_stale_tables(latest, self.now, threshold_hours=72), [])
