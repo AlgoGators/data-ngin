@@ -166,11 +166,24 @@ async def backfill(config: Dict[str, Any], dry_run: bool = False,
     cleaner = get_instance(config, "cleaner", "class")
     inserter = get_instance(config, "inserter", "class")
 
+    # Symbols already present in the raw landing table. It has NO primary key, so
+    # ON CONFLICT DO NOTHING is inert there and a second insert would silently
+    # duplicate every bar. Skipping symbols that already have raw rows is the only
+    # thing preventing that.
+    raw_table = config["database"].get("raw_table")
+    raw_already: Set[str] = set()
+
     inserted = 0
     failed: List[str] = []
     inserter.connect()
     try:
         _require_schema(inserter, schema, table)
+        if raw_table:
+            with inserter.connection.cursor() as cur:
+                cur.execute(f"SELECT DISTINCT symbol FROM {schema}.{raw_table}")
+                raw_already = {r[0] for r in cur.fetchall()}
+            logger.info("%s already holds %d symbols; those are skipped for raw",
+                        raw_table, len(raw_already))
         for t in todo:
             sym = t["dataSymbol"]
             start, end = fetch_window(_d(t["tiingo_start"]), _d(t["tiingo_end"]), today)
@@ -189,6 +202,15 @@ async def backfill(config: Dict[str, Any], dry_run: bool = False,
                     continue
                 for r in rows:
                     r["delisting_date"] = delisting
+
+                # Raw first, and only when this symbol has none. The daily
+                # orchestrator writes both tables, so a backfill that populates only
+                # the clean one leaves the two disagreeing for every backfilled date.
+                if raw_table and sym not in raw_already:
+                    inserter.insert_data(data=raw.to_dict(orient="records"),
+                                         schema=schema, table=raw_table)
+                    raw_already.add(sym)
+
                 inserter.insert_data(data=rows, schema=schema, table=table)
                 inserted += len(rows)
                 _append_checkpoint(sym, "DONE", len(rows))

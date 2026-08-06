@@ -21,7 +21,11 @@
 -- trusting this comment, since rows keep arriving daily.
 --
 -- Prerequisite: 001 (tables must already be ohlcv_1d / ohlcv_1d_raw).
--- Run it BEFORE deploying the new contract, or the split described above begins.
+--
+-- ORDER-INDEPENDENT. Run it before or after deploying the new contract, and re-run
+-- it if the two got out of step -- day-level overlaps are merged, not refused. The
+-- earlier version refused on any overlap, which meant getting the order wrong left
+-- the series split with no clean way forward.
 --
 -- Usage:
 --   psql "$DATABASE_URL" -f migrations/004_rename_sats_to_echo.sql
@@ -32,27 +36,35 @@ BEGIN;
 
 DO $$
 DECLARE
-    collisions bigint;
-    sats_rows  bigint;
+    sats_rows bigint;
 BEGIN
     SELECT count(*) INTO sats_rows FROM equities_data.ohlcv_1d WHERE symbol = 'SATS';
     IF sats_rows = 0 THEN
         RAISE EXCEPTION 'no SATS rows in equities_data.ohlcv_1d -- migration already applied, or wrong database';
     END IF;
-
-    -- A collision means both symbols hold a bar for the same day, so the UPDATE
-    -- would violate the (symbol, time) primary key. Refuse rather than let Postgres
-    -- fail mid-statement with a less obvious message.
-    SELECT count(*) INTO collisions
-    FROM equities_data.ohlcv_1d a
-    JOIN equities_data.ohlcv_1d b ON a."time" = b."time"
-    WHERE a.symbol = 'SATS' AND b.symbol = 'ECHO';
-    IF collisions > 0 THEN
-        RAISE EXCEPTION
-            'SATS and ECHO both hold bars for % day(s) -- resolve the overlap before renaming',
-            collisions;
-    END IF;
 END $$;
+
+-- Drop any SATS bar for a day ECHO already holds, THEN rename the rest.
+--
+-- This is what makes the migration order-independent. Either half of the change
+-- landing alone splits EchoStar across two symbols:
+--   * migration first, deploy later -> new bars keep arriving as SATS
+--   * deploy first, migration later -> new bars arrive as ECHO, history stays SATS
+-- Both are repaired by (re-)running this file, because the day-level overlap is
+-- resolved instead of refused. Re-running once both sides are aligned is a no-op
+-- beyond the guard above.
+--
+-- Deleting the SATS side of an overlap is safe: both rows describe the same
+-- security on the same day, and the ECHO row is the one the live pipeline wrote.
+DELETE FROM equities_data.ohlcv_1d s
+ WHERE s.symbol = 'SATS'
+   AND EXISTS (SELECT 1 FROM equities_data.ohlcv_1d e
+                WHERE e.symbol = 'ECHO' AND e."time" = s."time");
+
+DELETE FROM equities_data.ohlcv_1d_raw s
+ WHERE s.symbol = 'SATS'
+   AND EXISTS (SELECT 1 FROM equities_data.ohlcv_1d_raw e
+                WHERE e.symbol = 'ECHO' AND e."time" = s."time");
 
 UPDATE equities_data.ohlcv_1d     SET symbol = 'ECHO' WHERE symbol = 'SATS';
 UPDATE equities_data.ohlcv_1d_raw SET symbol = 'ECHO' WHERE symbol = 'SATS';
