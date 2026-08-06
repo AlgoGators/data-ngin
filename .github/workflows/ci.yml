@@ -15,6 +15,13 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege: nothing here writes to the repo. Declared explicitly rather than
+# inherited, so the job keeps read-only access even if the repository default is
+# changed to read-write later. (Also what OSSF Scorecard's Token-Permissions check
+# looks for -- see the security-automation workflow.)
+permissions:
+  contents: read
+
 jobs:
   validate:
     name: Deps, DAG parse & tests
