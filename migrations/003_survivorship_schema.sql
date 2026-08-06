@@ -1,11 +1,20 @@
--- Schema for the S&P 500 survivorship-bias backfill.
+-- Migration 003: schema for the S&P 500 survivorship-bias backfill.
 --
--- Apply once against new_algo_data:
---   psql "postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/new_algo_data" \
---        -f scripts/sql/2026-08-06_survivorship_schema.sql
+-- Follows the convention established by migrations/001_rename_equities_tables.sql:
+-- numbered, hand-applied, with a matching .rollback.sql.
 --
--- Every statement is idempotent, so re-running is safe. There is no migration
--- runner in this repo; this file is applied by hand and that is deliberate.
+-- Prerequisite: 001 must already have run. This file targets equities_data.ohlcv_1d,
+-- the name 001 moved the live Tiingo table onto. Applying it against a database still
+-- holding equities_data.equities will fail on the ALTER below -- which is the correct
+-- outcome, since the rest of the pipeline would be reading the wrong table anyway.
+--
+-- Usage:
+--   psql "$DATABASE_URL" -f migrations/003_survivorship_schema.sql
+--
+-- Rollback: see 003_survivorship_schema.rollback.sql in this directory.
+-- Every statement is idempotent, so re-running is safe.
+
+BEGIN;
 
 -- ---------------------------------------------------------------------------
 -- 1. delisting_date on the price table.
@@ -23,10 +32,10 @@
 -- names out of the daily run, records WHY a symbol stopped updating, and
 -- future-proofs a second data source that might not share Tiingo's behaviour.
 -- ---------------------------------------------------------------------------
-ALTER TABLE equities_data.equities
+ALTER TABLE equities_data.ohlcv_1d
     ADD COLUMN IF NOT EXISTS delisting_date DATE;
 
-COMMENT ON COLUMN equities_data.equities.delisting_date IS
+COMMENT ON COLUMN equities_data.ohlcv_1d.delisting_date IS
     'Last trading day of this security, NULL if still listed. Metadata only -- not part of the primary key.';
 
 -- ---------------------------------------------------------------------------
@@ -100,3 +109,9 @@ CREATE TABLE IF NOT EXISTS equities_data.coverage_gaps (
 
 COMMENT ON TABLE equities_data.coverage_gaps IS
     'Former index members that could NOT be backfilled, with evidence. Read this before describing the dataset as survivorship-bias-free.';
+
+COMMIT;
+
+-- Verification (run manually after commit):
+--   \d equities_data.ohlcv_1d   -- delisting_date column present
+--   \dt equities_data.*         -- expect sp500_membership, ticker_aliases, coverage_gaps added

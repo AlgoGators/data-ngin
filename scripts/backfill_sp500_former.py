@@ -8,8 +8,8 @@ Run from the repo root:
 PREREQUISITES
     1. scripts/build_sp500_history.py    -> membership + former members
     2. scripts/validate_sp500_entities.py -> contracts/backfill_targets.csv
-    3. The survivorship schema DDL applied (this script checks and refuses to run
-       without the delisting_date column rather than failing halfway through).
+    3. migrations/003_survivorship_schema.sql applied (this script checks and refuses
+       to run without the delisting_date column rather than failing halfway through).
 
 Input is contracts/backfill_targets.csv ONLY -- the validated set. Never the raw
 former-members list: Tiingo serves one security per ticker string, so backfilling
@@ -122,8 +122,8 @@ def _require_schema(inserter: Any, schema: str, table: str) -> None:
                     (schema, table))
         if cur.fetchone() is None:
             raise RuntimeError(
-                f"{schema}.{table} has no delisting_date column. Apply the survivorship "
-                f"schema DDL first (scripts/sql/ or migrations/), then re-run.")
+                f"{schema}.{table} has no delisting_date column. Run "
+                f"migrations/003_survivorship_schema.sql first, then re-run.")
 
 
 async def backfill(config: Dict[str, Any], dry_run: bool = False,
