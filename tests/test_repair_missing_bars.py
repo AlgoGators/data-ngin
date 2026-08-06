@@ -193,14 +193,26 @@ class TestReturnedDaysComeFromRawNotCleaned(unittest.TestCase):
         from scripts.repair_missing_bars import returned_days_from_raw
 
         raw = pd.DataFrame({"time": ["2024-01-02T00:00:00.000Z", "2024-01-03T00:00:00.000Z"]})
-        self.assertEqual(returned_days_from_raw(raw), {date(2024, 1, 2), date(2024, 1, 3)})
+        days, unparseable = returned_days_from_raw(raw)
+        self.assertEqual(days, {date(2024, 1, 2), date(2024, 1, 3)})
+        self.assertEqual(unparseable, 0)
 
     def test_empty_dataframe_yields_no_days_without_raising(self) -> None:
         from scripts.repair_missing_bars import returned_days_from_raw
 
-        self.assertEqual(returned_days_from_raw(pd.DataFrame()), set())
-        self.assertEqual(returned_days_from_raw(pd.DataFrame({"time": []})), set())
-        self.assertEqual(returned_days_from_raw(None), set())
+        for empty in (pd.DataFrame(), pd.DataFrame({"time": []}), None):
+            self.assertEqual(returned_days_from_raw(empty), (set(), 0))
+
+    def test_unparseable_timestamp_is_counted_not_silently_dropped(self) -> None:
+        """A garbage date is a bar the vendor RETURNED but we cannot place in time.
+        Dropping it silently would let that day fall into `missing` and be cached as
+        'vendor returned no bar' -- permanently hiding a real gap."""
+        from scripts.repair_missing_bars import returned_days_from_raw
+
+        raw = pd.DataFrame({"time": ["not-a-date", "2024-01-03T00:00:00.000Z"]})
+        days, unparseable = returned_days_from_raw(raw)
+        self.assertEqual(days, {date(2024, 1, 3)})
+        self.assertEqual(unparseable, 1)
 
 
 class TestEmptyResponseHandling(unittest.TestCase):
@@ -329,3 +341,95 @@ class TestDryRunSummary(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestUnparseableTimestampFailsRatherThanCaching(unittest.TestCase):
+    def test_symbol_with_a_bad_timestamp_fails_and_caches_nothing(self) -> None:
+        holes = [("WELL", date(2024, 1, 2)), ("WELL", date(2024, 1, 3))]
+
+        async def fetch(symbol, loaded_asset_type, start_date, end_date):
+            return pd.DataFrame({"time": ["garbage", "2024-01-03T00:00:00.000Z"]})
+
+        def clean(raw):
+            raise AssertionError("clean must not be reached when timestamps are unparseable")
+
+        summary, inserter = run_repair(holes, fetch, clean)
+
+        self.assertEqual(summary["failed"], ["WELL"])
+        self.assertEqual(summary["absent"], 0)
+        self.assertEqual(absent_writes(inserter), [],
+                         "a returned-but-unplaceable day must never be cached as absent")
+
+
+class TestMultiDayAbsenceOverride(unittest.TestCase):
+    """The default refuses to cache a wholly-empty multi-day span, because it cannot
+    be undone. The override exists for a confirmed genuine halt."""
+
+    @staticmethod
+    async def _empty(symbol, loaded_asset_type, start_date, end_date):
+        return pd.DataFrame()
+
+    def _run(self, allow):
+        from scripts.repair_missing_bars import repair
+        holes = [("HALT", date(2024, 1, 2)), ("HALT", date(2024, 1, 3))]
+        mock_dq = MagicMock(); mock_dq.find_missing_bars.return_value = holes
+        fetcher = MagicMock(); fetcher.fetch_data = AsyncMock(side_effect=self._empty)
+        cleaner = MagicMock(); cleaner.clean.return_value = []
+        inserter = MagicMock()
+        inst = {"fetcher": fetcher, "cleaner": cleaner, "inserter": inserter}
+        with patch("src.modules.data_quality.DataQuality", return_value=mock_dq), \
+             patch("utils.dynamic_loader.get_instance",
+                   side_effect=lambda c, k, ck: inst[k]):
+            return asyncio.run(repair(CONFIG, allow_multi_day_absence=allow)), inserter
+
+    def test_default_refuses(self) -> None:
+        summary, inserter = self._run(allow=False)
+        self.assertEqual(summary["failed"], ["HALT"])
+        self.assertEqual(absent_writes(inserter), [])
+
+    def test_override_caches_the_absence(self) -> None:
+        summary, inserter = self._run(allow=True)
+        self.assertEqual(summary["failed"], [])
+        self.assertEqual(summary["absent"], 2)
+        self.assertEqual(len(absent_writes(inserter)), 2)
+
+
+class TestRawTableIsKeptConsistent(unittest.TestCase):
+    """The daily orchestrator writes both equities_raw and equities. Repairing only
+    the clean table leaves the repaired bars with no raw provenance and the two
+    tables disagreeing for those dates."""
+
+    @staticmethod
+    async def _fetch(symbol, loaded_asset_type, start_date, end_date):
+        return pd.DataFrame({"time": ["2024-01-02T00:00:00.000Z"]})
+
+    def _run(self, config):
+        from scripts.repair_missing_bars import repair
+        mock_dq = MagicMock()
+        mock_dq.find_missing_bars.return_value = [("GOOD", date(2024, 1, 2))]
+        fetcher = MagicMock(); fetcher.fetch_data = AsyncMock(side_effect=self._fetch)
+        cleaner = MagicMock()
+        cleaner.clean.return_value = [{"symbol": "GOOD", "time": pd.Timestamp(date(2024, 1, 2))}]
+        inserter = MagicMock()
+        inst = {"fetcher": fetcher, "cleaner": cleaner, "inserter": inserter}
+        with patch("src.modules.data_quality.DataQuality", return_value=mock_dq), \
+             patch("utils.dynamic_loader.get_instance",
+                   side_effect=lambda c, k, ck: inst[k]):
+            asyncio.run(repair(config))
+        return inserter
+
+    def test_raw_table_written_when_configured(self) -> None:
+        inserter = self._run({"database": {"target_schema": "equities_data",
+                                           "table": "ohlcv_1d",
+                                           "raw_table": "ohlcv_1d_raw"}})
+        tables = [c.kwargs.get("table") for c in inserter.insert_data.call_args_list]
+        self.assertIn("ohlcv_1d_raw", tables)
+        self.assertIn("ohlcv_1d", tables)
+
+    def test_no_raw_table_configured_is_not_an_error(self) -> None:
+        """The futures configs have no raw_table; absence must not break the run."""
+        inserter = self._run({"database": {"target_schema": "equities_data",
+                                           "table": "ohlcv_1d"}})
+        tables = [c.kwargs.get("table") for c in inserter.insert_data.call_args_list]
+        self.assertIn("ohlcv_1d", tables)
+        self.assertNotIn(None, [t for t in tables if t == "ohlcv_1d_raw"])

@@ -89,7 +89,7 @@ cannot run because of the stale mock path.
 | `tests/inserter/test_timescaledb_inserter.py` *(modify)* | Fix 5 stale mock paths; assert no-op instead of `ValueError` |
 | `src/modules/data_quality.py` *(create)* | `DataQuality.find_missing_bars()` — candidate hole detection |
 | `tests/test_data_quality.py` *(create)* | Unit tests for detection, mocked session |
-| `scripts/sql/2026-08-05_verified_absent_bars.sql` *(create)* | DDL for the absence cache |
+| `migrations/005_verified_absent_bars.sql` *(create)* | DDL for the absence cache |
 | `scripts/repair_missing_bars.py` *(create)* | Verify candidates against Tiingo, refetch, record absences |
 | `tests/test_repair_missing_bars.py` *(create)* | Unit tests for grouping + absence recording |
 | `dags/tiingo_gap_check_dag.py` *(create)* | Weekly detection, fails loudly on new holes |

@@ -42,7 +42,7 @@ def group_holes_by_symbol(holes: List[Tuple[str, date]]) -> Dict[str, Tuple[date
     return spans
 
 
-def returned_days_from_raw(raw: Any) -> Set[date]:
+def returned_days_from_raw(raw: Any) -> Tuple[Set[date], int]:
     """
     Days the vendor actually returned, taken from the RAW fetcher output.
 
@@ -56,13 +56,20 @@ def returned_days_from_raw(raw: Any) -> Set[date]:
 
     raw["time"] holds Tiingo's ISO-8601 strings (e.g. "2024-01-02T00:00:00.000Z"),
     not parsed timestamps, so it is parsed here rather than assumed.
+
+    Returns (days, unparseable_count). The count matters: a row whose timestamp will
+    not parse is a day the vendor DID return but that we cannot place in time. It
+    must not fall through into `missing` and get cached as "vendor returned no bar",
+    because that permanently hides a real gap. The caller treats a non-zero count as
+    a failure rather than an absence.
     """
     if raw is None or getattr(raw, "empty", True):
-        return set()
+        return set(), 0
     if "time" not in getattr(raw, "columns", []):
-        return set()
+        return set(), 0
     parsed = pd.to_datetime(raw["time"], utc=True, errors="coerce")
-    return set(parsed.dropna().dt.date)
+    unparseable = int(parsed.isna().sum())
+    return set(parsed.dropna().dt.date), unparseable
 
 
 def record_absent(inserter: Any, schema: str, symbol: str, days: List[date], note: str) -> None:
@@ -77,7 +84,8 @@ def record_absent(inserter: Any, schema: str, symbol: str, days: List[date], not
     logger.info("Recorded %d vendor-absent bars for %s", len(days), symbol)
 
 
-async def repair(config: Dict[str, Any], dry_run: bool = False) -> Dict[str, Any]:
+async def repair(config: Dict[str, Any], dry_run: bool = False,
+                 allow_multi_day_absence: bool = False) -> Dict[str, Any]:
     """
     Detect candidate holes, verify each against Tiingo, refill the real ones, and
     cache the confirmed absences.
@@ -133,7 +141,19 @@ async def repair(config: Dict[str, Any], dry_run: bool = False) -> Dict[str, Any
                     end_date=hi.strftime("%Y-%m-%d"),
                 )
 
-                returned_days = returned_days_from_raw(raw)
+                returned_days, unparseable = returned_days_from_raw(raw)
+
+                # A timestamp we cannot parse is a returned bar we cannot place.
+                # Treating it as an absence would cache a real gap forever, so the
+                # symbol fails instead and stays visible to the next run.
+                if unparseable:
+                    logger.error(
+                        "%s: %d row(s) have unparseable timestamps; treating as a "
+                        "FAILURE rather than risk caching a returned day as absent.",
+                        symbol, unparseable,
+                    )
+                    failed.append(symbol)
+                    continue
 
                 # An entirely empty response covering more than one day is a FAILURE,
                 # not an absence: a multi-day blackout is indistinguishable from a
@@ -141,10 +161,12 @@ async def repair(config: Dict[str, Any], dry_run: bool = False) -> Dict[str, Any
                 # caching it would permanently hide every real bar in the span. A
                 # single-day span returning nothing IS a legitimate absence -- that is
                 # the normal case for half of all candidates -- so it falls through.
-                if not returned_days and lo != hi:
+                if not returned_days and lo != hi and not allow_multi_day_absence:
                     logger.error(
                         "Vendor returned no rows at all for %s across %s..%s (%d day span); "
-                        "treating as a FAILURE, not an absence, and caching nothing.",
+                        "treating as a FAILURE, not an absence, and caching nothing. "
+                        "If this really is a genuine multi-day halt, re-run with "
+                        "--allow-multi-day-absence to cache it and stop it recurring.",
                         symbol, lo, hi, (hi - lo).days + 1,
                     )
                     failed.append(symbol)
@@ -160,6 +182,14 @@ async def repair(config: Dict[str, Any], dry_run: bool = False) -> Dict[str, Any
                 missing = sorted(wanted[symbol] - returned_days)
 
                 if rows:
+                    # Write the raw landing table too. The daily orchestrator populates
+                    # both, so repairing only the clean table leaves the repaired bars
+                    # with no raw provenance and the two tables disagreeing for those
+                    # dates. Harmless to the pipeline, confusing to anyone auditing.
+                    raw_table = config["database"].get("raw_table")
+                    if raw_table:
+                        inserter.insert_data(data=raw.to_dict(orient="records"),
+                                             schema=schema, table=raw_table)
                     inserter.insert_data(data=rows, schema=schema, table=table)
                 refilled += len(filled)
                 logger.info("%s: refilled %d, vendor has no bar for %d",
@@ -204,7 +234,8 @@ def main() -> None:
                         help="Report what would be fetched without calling the vendor.")
     args = parser.parse_args()
 
-    summary = asyncio.run(repair(load_config(args.config), dry_run=args.dry_run))
+    summary = asyncio.run(repair(load_config(args.config), dry_run=args.dry_run,
+                                 allow_multi_day_absence=args.allow_multi_day_absence))
     logger.info("SUMMARY %s", summary)
 
     if summary.get("failed"):
