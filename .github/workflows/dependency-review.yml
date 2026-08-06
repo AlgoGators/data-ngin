@@ -9,8 +9,15 @@ on:
   pull_request:
     branches: [main]
 
+# contents: read is all the scan itself needs. pull-requests: write is required by
+# comment-summary-in-pr below -- without it the action cannot post the summary and
+# the check reports a bare failure with no indication of which dependency tripped
+# it. Safe here because the trigger is pull_request, not pull_request_target: PRs
+# from forks receive a read-only token regardless, so this grants no write access
+# to untrusted code.
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   dependency-review:
