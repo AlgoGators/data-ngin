@@ -896,6 +896,29 @@ Then trigger `tiingo_gap_check_dag` once from the Airflow UI. Expected: task suc
 - The S&P 500 survivorship backfill itself
   (`docs/superpowers/specs/2026-08-05-sp500-survivorship-bias-backfill-design.md`).
 
+## Follow-ups deferred from review (not blocking merge)
+
+Recorded here because `.superpowers/` scratch is not committed. None of these were load-bearing;
+all were adjudicated as park-with-ruling.
+
+1. **Unparseable raw timestamp can still cache a returned day as absent.** `returned_days_from_raw`
+   coerces bad dates to `NaT` and drops them, so a day the vendor *did* return lands in `missing`
+   and is cached. Requires Tiingo to emit a garbage date — narrow, but it is the one remaining
+   door into the bug class Fix 1 closed. A row-count check (`len(raw)` vs parsed non-NaT) closes it.
+2. **No convergence path for a genuine multi-day vendor absence.** By design, a wholly-empty
+   response over a multi-day span is treated as a failure rather than an absence, so such a symbol
+   is marked `failed` every run and `main()` can never exit 0 for it. This is the correct trade
+   (never cache a real gap), but there is no `--allow-multi-day-absence` escape hatch.
+3. **Total pipeline outage is invisible to detection.** A day with zero bars for every symbol is
+   not counted as a trading day, so it yields no candidates. Documented in the DAG docstring;
+   solving it properly needs an NYSE market calendar.
+4. **`scripts/sql/2026-08-05_verified_absent_bars.sql` is hand-run.** No migration runner exists in
+   this repo. Production is already migrated; a fresh environment must apply it manually or
+   `find_missing_bars` raises `UndefinedTable`.
+5. **Day-convention coupling.** `returned_days` is a UTC date while `wanted` comes from Postgres
+   `time::date` on a `timestamptz`, which honours the session `TimeZone`. Aligned today because
+   both are UTC; a non-UTC session would diverge. Pre-existing, not introduced here.
+
 ## Verification Summary
 
 | Check | Command | Expected |
