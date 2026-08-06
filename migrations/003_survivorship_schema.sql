@@ -49,18 +49,28 @@ COMMENT ON COLUMN equities_data.ohlcv_1d.delisting_date IS
 -- A ticker may appear more than once: companies get removed and later re-added.
 -- end_date NULL means "still a member".
 -- ---------------------------------------------------------------------------
+-- NOTE ON THE KEY: this deliberately uses a UNIQUE constraint, not a PRIMARY KEY.
+-- Postgres forces every PRIMARY KEY column to NOT NULL, which would make
+-- start_date mandatory -- but 468 of 1,076 intervals legitimately have no start
+-- date, because those companies were already index members before the source's
+-- history begins. A PK here silently rejects 43% of the data. NULLS NOT DISTINCT
+-- (PG15+) keeps NULL meaningful while still refusing genuine duplicates.
 CREATE TABLE IF NOT EXISTS equities_data.sp500_membership (
     ticker      TEXT NOT NULL,
     start_date  DATE,               -- NULL = member from before the source's history begins
     end_date    DATE,               -- NULL = still a member
-    PRIMARY KEY (ticker, start_date)
+    UNIQUE NULLS NOT DISTINCT (ticker, start_date)
 );
 
 CREATE INDEX IF NOT EXISTS sp500_membership_window_idx
     ON equities_data.sp500_membership (start_date, end_date);
 
 COMMENT ON TABLE equities_data.sp500_membership IS
-    'Point-in-time S&P 500 membership intervals. Query: SELECT ticker WHERE <date> BETWEEN COALESCE(start_date,''-infinity'') AND COALESCE(end_date,''infinity'').';
+    'Point-in-time S&P 500 membership intervals. Query: SELECT ticker WHERE <date> BETWEEN COALESCE(start_date,''-infinity'') AND COALESCE(end_date,''infinity''). '
+    'KNOWN LIMITATION: the upstream point-in-time source is incomplete before ~2019 -- it carries ~450 names where the index held 500 '
+    '(2007-03-14: 449 in source). The reconstruction is faithful to it (matches within 1 ticker at every date checked), so the gap is '
+    'upstream, not in the rebuild. A historical backtest therefore selects from ~90%% of the real index in 2000-2015. Still far better '
+    'than selecting from today''s members, but not complete -- do not describe it as a full point-in-time universe.';
 
 -- ---------------------------------------------------------------------------
 -- 3. Historical ticker -> current symbol.
