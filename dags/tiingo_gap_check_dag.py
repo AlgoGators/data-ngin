@@ -27,6 +27,14 @@ def check_for_gaps(**kwargs):
     Failing loudly is the point: a symbol previously went missing for 24
     consecutive days without anyone noticing, because the orchestrator logs
     per-symbol failures and moves on.
+
+    Known limitation -- a TOTAL outage is invisible to this check. A day only
+    counts as a trading day if enough symbols have a bar on it, so if a pipeline
+    run fails for EVERY symbol, that day has zero bars, is not recognised as a
+    trading day, and produces no candidate holes for anyone. This check finds
+    per-symbol gaps, not missing days. Detecting a whole missing session needs an
+    authoritative market calendar to compare against, which is deliberately out of
+    scope here.
     """
     from datetime import date, timedelta as td
     from utils.dynamic_loader import load_config
@@ -46,7 +54,7 @@ def check_for_gaps(**kwargs):
         logging.error("MISSING BAR %s %s", symbol, day)
     raise ValueError(
         f"{len(holes)} missing bar(s) in {schema}.{table} since {since}. "
-        "Run: python3 scripts/repair_missing_bars.py"
+        "Run from the repo root: PYTHONPATH=. python3 scripts/repair_missing_bars.py"
     )
 
 
