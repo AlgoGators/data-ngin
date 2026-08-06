@@ -1,0 +1,8 @@
+ticker,verdict,note
+BRCM,OK,"Genuinely Broadcom Corp (the pre-Avago entity). Tiingo holds only 2016-01-04..02-09 of a 16-year membership -- 28 days. Correct data, tiny coverage; included because it is real, not because it is useful."
+FCPT,OK,"Four Corners Property Trust, correct company and Tiingo COVERS the whole membership. It was only in the index ~7 days (Darden spin-off, immediately removed), so the short window is the truth, not a coverage gap."
+ACS,NO_COVERAGE,"Affiliated Computer Services -- right company, but Tiingo starts 2010-02-05 and Xerox completed the acquisition days later. The 3-day overlap is the post-acquisition tail, worthless for a 6-year membership."
+DISCA,NO_COVERAGE,"Discovery became Warner Bros. Discovery in April 2022; Tiingo's DISCA is a 5-day stub with no security name. The real history lives under WBD -- add a ticker_aliases row rather than backfilling this."
+PEAK,REUSED_TICKER,"Tiingo returns PEAK INTERNATIONAL LTD (4 days in 2023). The index member was Healthpeak Properties, whose history is under DOC and already in the contract. Different company entirely."
+VIAC,NO_COVERAGE,"Tiingo's VIAC ends 2019-12-04 -- the day BEFORE ViacomCBS's membership began. It is pre-merger CBS Corp, not ViacomCBS. That era is under PARA (verified: Paramount Global Class B, 2006-01-03..2025-08-07)."
+WRK,REUSED_TICKER,"Tiingo returns WRKR LTD, an unrelated Australian company, with a single day of data. WestRock merged into Smurfit Westrock in July 2024."

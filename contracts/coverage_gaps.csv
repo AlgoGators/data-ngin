@@ -1,0 +1,272 @@
+ticker,reason,membership_from,membership_to,tiingo_name,tiingo_start,tiingo_end,note
+ABC,NO_PRICE_DATA,2001-08-30,2023-09-02,ADBRI LTD,,,ticker is known to Tiingo but carries no price history
+ABI,NO_COVERAGE,,2008-11-24,VICTORYSHARES PIONEER ASSET-BASED INCOME ETF ,2009-05-11,2026-08-04,Tiingo coverage starts 2009-05-11 but index membership ended 2008-11-24
+ABKFQ,NO_COVERAGE,2000-12-11,2008-06-11,"Ambac Financial Group, Inc",2010-11-09,2013-10-17,Tiingo coverage starts 2010-11-09 but index membership ended 2008-06-11
+ABS,NO_PRICE_DATA,,2006-06-02,ALBERTSONS INC,,,ticker is known to Tiingo but carries no price history
+ABX,NO_COVERAGE,,2002-07-22,Abacus Global Management Inc - Class A,2020-09-14,2026-08-04,Tiingo coverage starts 2020-09-14 but index membership ended 2002-07-22
+ACKH,NO_PRICE_DATA,,2000-11-17,ARMSTRONG HOLDINGS INC,,,ticker is known to Tiingo but carries no price history
+ACS,NO_COVERAGE,2004-04-02,2010-02-08,AFFILIATED COMPUTER SERVICES INC,2010-02-05,2011-02-14,"HUMAN OVERRIDE: Affiliated Computer Services -- right company, but Tiingo starts 2010-02-05 and Xerox completed the acquisition days later. The 3-day overlap is the post-acquisition tail, worthless for a 6-year membership. (auto verdict was: only 3 days of overlap -- needs a human decision)"
+ACV,NO_COVERAGE,,2006-11-17,Virtus Diversified Income & Convertible Fund,2015-05-22,2026-08-04,Tiingo coverage starts 2015-05-22 but index membership ended 2006-11-17
+ADCT,REUSED_TICKER,,2007-07-02,Adc Therapeutics SA,2020-05-15,2026-08-04,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+ADS,NO_PRICE_DATA,2013-12-23,2020-06-22,GRANITESHARES 2X SHORT ADBE DAILY ETF ,,,ticker is known to Tiingo but carries no price history
+AFS-A,NO_PRICE_DATA,,2000-12-01,Associates First Capital Corp,,,ticker is known to Tiingo but carries no price history
+AGC,NO_COVERAGE,,2001-08-29,Advent Claymore Convertible Securities and Income Fund Commo,2007-05-25,2018-08-24,Tiingo coverage starts 2007-05-25 but index membership ended 2001-08-29
+AL,NO_COVERAGE,,2002-07-22,Sumisho Air Lease Corp - Class A,2011-04-19,2026-08-04,Tiingo coverage starts 2011-04-19 but index membership ended 2002-07-22
+AM,NO_COVERAGE,,2004-05-03,Antero Midstream Corp,2014-11-05,2026-08-04,Tiingo coverage starts 2014-11-05 but index membership ended 2004-05-03
+ANDW,NO_PRICE_DATA,,2006-10-02,ANDREW CORP,,,ticker is known to Tiingo but carries no price history
+ANTM,NO_PRICE_DATA,2002-07-25,2022-06-28,,,,ticker is known to Tiingo but carries no price history
+APC,REUSED_TICKER,,2019-08-09,ARKO Petroleum Corp - Class A,2026-02-12,2026-08-04,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+APCC,NO_PRICE_DATA,2000-06-01,2007-02-15,AMERICAN POWER CONVERSION CORP,,,ticker is known to Tiingo but carries no price history
+APOL,NO_COVERAGE,2002-05-15,2013-07-01,Apollo Education Group Inc,2016-01-04,2017-02-09,Tiingo coverage starts 2016-01-04 but index membership ended 2013-07-01
+ARC,NO_COVERAGE,,2000-04-18,ARC Document Solutions Inc,2005-02-04,2024-11-22,Tiingo coverage starts 2005-02-04 but index membership ended 2000-04-18
+ASN,NO_PRICE_DATA,2004-12-20,2007-10-08,ARCHSTONE SMITH TRUST,,,ticker is known to Tiingo but carries no price history
+ASO,NO_COVERAGE,,2006-11-06,Academy Sports and Outdoors Inc,2020-10-02,2026-08-04,Tiingo coverage starts 2020-10-02 but index membership ended 2006-11-06
+AT,NO_COVERAGE,,2007-11-19,Atlantic Power Corp,2009-12-03,2021-05-14,Tiingo coverage starts 2009-12-03 but index membership ended 2007-11-19
+ATGE,NOT_FOUND,2009-06-09,2012-10-01,,,,Tiingo does not know this ticker at all
+AV,NO_COVERAGE,2000-10-02,2007-10-26,Aviva plc,2026-05-06,2026-08-04,Tiingo coverage starts 2026-05-06 but index membership ended 2007-10-26
+AW,NO_PRICE_DATA,,2008-12-05,Allied Waste Industries LLC,,,ticker is known to Tiingo but carries no price history
+AWE,NO_PRICE_DATA,2001-07-09,2004-10-27,ATT WIRELESS SERVICES INC,,,ticker is known to Tiingo but carries no price history
+AZA-A,NO_PRICE_DATA,,2001-06-25,Alza Corp,,,ticker is known to Tiingo but carries no price history
+BDK,NO_PRICE_DATA,,2010-03-15,BLACK & DECKER CORP,,,ticker is known to Tiingo but carries no price history
+BFO,NO_COVERAGE,,2000-10-03,BlackRock Florida Municipal 2020 Term Tr,2003-09-29,2020-12-15,Tiingo coverage starts 2003-09-29 but index membership ended 2000-10-03
+BGEN,NO_PRICE_DATA,2000-01-31,2003-11-13,BIOGEN INC,,,ticker is known to Tiingo but carries no price history
+BHMSQ,NO_PRICE_DATA,,2000-12-11,Bethlehem Steel Corp,,,ticker is known to Tiingo but carries no price history
+BIG,NO_PRICE_DATA,,2013-02-14,,,,ticker is known to Tiingo but carries no price history
+BLL,NO_PRICE_DATA,,2022-05-10,,,,ticker is known to Tiingo but carries no price history
+BLS,NO_PRICE_DATA,,2007-01-03,BELLSOUTH CORP,,,ticker is known to Tiingo but carries no price history
+BMET,NO_PRICE_DATA,,2007-07-12,BIOMET INC,,,ticker is known to Tiingo but carries no price history
+BNI,NO_PRICE_DATA,,2010-02-16,BURLINGTON NORTHERN SANTA FE LLC,,,ticker is known to Tiingo but carries no price history
+BOL,NO_PRICE_DATA,,2007-10-29,BAUSCH & LOMB INC,,,ticker is known to Tiingo but carries no price history
+BSC,NO_PRICE_DATA,,2008-06-02,BEAR STEARNS COMPANIES INC,,,ticker is known to Tiingo but carries no price history
+BTUUQ,NO_COVERAGE,2006-11-20,2014-09-22,PEABODY ENERGY CORP,2016-01-04,2017-04-11,Tiingo coverage starts 2016-01-04 but index membership ended 2014-09-22
+BUD,NO_COVERAGE,,2008-11-18,Anheuser-Busch InBev SA/NV,2009-07-01,2026-08-04,Tiingo coverage starts 2009-07-01 but index membership ended 2008-11-18
+CA,REUSED_TICKER,,2018-11-06,XTRACKERS CALIFORNIA MUNICIPAL BOND ETF ,2023-12-14,2026-08-04,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+CBE,NO_PRICE_DATA,,2012-12-03,Cooper Industries Plc,,,ticker is known to Tiingo but carries no price history
+CBH,NO_COVERAGE,2006-06-06,2008-03-31,Virtus Convertible & Income 2024 Target Term Fund,2017-06-28,2024-08-26,Tiingo coverage starts 2017-06-28 but index membership ended 2008-03-31
+CBS,NOT_FOUND,,2019-12-05,,,,Tiingo does not know this ticker at all
+CBSS,NO_PRICE_DATA,2004-12-20,2007-09-07,COMPASS BANCSHARES INC,,,ticker is known to Tiingo but carries no price history
+CCTYQ,NO_PRICE_DATA,,2008-03-31,CIRCUIT CITY STORES INC,,,ticker is known to Tiingo but carries no price history
+CDAY,NO_COVERAGE,2021-09-20,2024-02-02,Hamilton Enhanced Canadian Equity DayMAX ETF,2026-06-08,2026-06-10,Tiingo coverage starts 2026-06-08 but index membership ended 2024-02-02
+CEN,NO_COVERAGE,,2001-04-02,Center Coast Brookfield MLP & Energy Infrastructure Fund,2013-09-26,2023-10-06,Tiingo coverage starts 2013-09-26 but index membership ended 2001-04-02
+CEPH,NO_PRICE_DATA,2008-11-17,2011-10-14,CEPHALON INC,,,ticker is known to Tiingo but carries no price history
+CFC,NO_PRICE_DATA,,2008-07-01,COUNTRYWIDE FINANCIAL CORP,,,ticker is known to Tiingo but carries no price history
+CG,NO_COVERAGE,,2000-11-02,Carlyle Group Inc (The),2012-05-03,2026-08-04,Tiingo coverage starts 2012-05-03 but index membership ended 2000-11-02
+CGP,NO_PRICE_DATA,,2001-01-30,COASTAL CORP,,,ticker is known to Tiingo but carries no price history
+CHA,REUSED_TICKER,,2000-06-19,Chagee Holdings Ltd,2025-04-17,2026-08-04,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+CHIR,NO_COVERAGE,2000-11-24,2006-04-20,Global X MSCI China Real Estate ETF,2018-12-11,2024-02-23,Tiingo coverage starts 2018-12-11 but index membership ended 2006-04-20
+CIN,NO_PRICE_DATA,,2006-04-03,CINERGY CORP,,,ticker is known to Tiingo but carries no price history
+CIT-A,NO_PRICE_DATA,2000-07-17,2001-06-04,Cit Group Inc,,,ticker is known to Tiingo but carries no price history
+CITGQ,NO_PRICE_DATA,2004-10-27,2009-07-27,CIT GROUP INC,,,ticker is known to Tiingo but carries no price history
+CMVT,NO_COVERAGE,,2007-02-01,Comverse Technology Inc,2013-02-04,2013-02-21,Tiingo coverage starts 2013-02-04 but index membership ended 2007-02-01
+CMX,NO_PRICE_DATA,2004-03-25,2007-03-23,CHEMX MATERIALS LIMITED,,,ticker is known to Tiingo but carries no price history
+CNG,NO_PRICE_DATA,,2000-01-31,CONSOLIDATED NATURAL GAS CO,,,ticker is known to Tiingo but carries no price history
+CNXT,NO_COVERAGE,2000-01-31,2002-06-26,VANECK CHINEXT INNOVATORS ETF ,2014-07-24,2026-08-04,Tiingo coverage starts 2014-07-24 but index membership ended 2002-06-26
+COC-B,NO_PRICE_DATA,,2002-09-03,Conocophillips Holding Company,,,ticker is known to Tiingo but carries no price history
+COG,NO_PRICE_DATA,2008-06-23,2021-10-04,COG FINANCIAL SERVICES LTD,,,ticker is known to Tiingo but carries no price history
+COMS,NO_COVERAGE,,2000-07-28,COMSovereign Holding Corp,2020-01-13,2026-08-04,Tiingo coverage starts 2020-01-13 but index membership ended 2000-07-28
+CPNLQ,NO_PRICE_DATA,2000-12-01,2005-12-02,CALPINE CORP,,,ticker is known to Tiingo but carries no price history
+CPQ,NO_PRICE_DATA,,2002-05-06,COMPAQ COMPUTER CORP,,,ticker is known to Tiingo but carries no price history
+CR,NO_COVERAGE,,2004-12-20,Crane Company,2023-03-29,2026-08-04,Tiingo coverage starts 2023-03-29 but index membership ended 2004-12-20
+CSR,REUSED_TICKER,,2000-06-16,Centerspace,1997-10-17,2026-08-04,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+CTL,NO_PRICE_DATA,,2020-09-18,Qwest Corporation,,,ticker is known to Tiingo but carries no price history
+CTRA,REUSED_TICKER,2021-10-04,2026-05-07,Coterra Energy Inc,1990-02-08,2026-05-06,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+CTX,NO_COVERAGE,,2009-08-19,Qwest Corporation 7.00 Notes Due 2052,2012-04-03,2018-08-20,Tiingo coverage starts 2012-04-03 but index membership ended 2009-08-19
+CZR,REUSED_TICKER,2021-03-22,2025-09-22,Caesars Entertainment Inc,2014-09-22,2026-08-05,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+DALRQ,NO_PRICE_DATA,,2005-08-19,DELTA AIR LINES INC,,,ticker is known to Tiingo but carries no price history
+DCNAQ,NO_PRICE_DATA,,2006-03-03,DANA CORP,,,ticker is known to Tiingo but carries no price history
+DF,NO_COVERAGE,2006-04-03,2013-05-24,Dividend 15 Split Corp II - Class A,2026-06-04,2026-06-10,Tiingo coverage starts 2026-06-04 but index membership ended 2013-05-24
+DISCA,NO_COVERAGE,2010-03-01,2022-04-11,,2022-04-06,2022-09-16,HUMAN OVERRIDE: Discovery became Warner Bros. Discovery in April 2022; Tiingo's DISCA is a 5-day stub with no security name. The real history lives under WBD -- add a ticker_aliases row rather than backfilling this. (auto verdict was: only 5 days of overlap -- needs a human decision)
+DJ,NO_PRICE_DATA,,2007-12-14,DOW JONES & CO INC,,,ticker is known to Tiingo but carries no price history
+DPHIQ,NO_PRICE_DATA,,2005-10-11,DELPHI CORP,,,ticker is known to Tiingo but carries no price history
+DWDP,NOT_FOUND,2017-09-01,2019-06-03,,,,Tiingo does not know this ticker at all
+DYN,REUSED_TICKER,2000-10-03,2009-12-21,Dyne Therapeutics Inc,2020-09-17,2026-08-04,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+EC,NO_COVERAGE,,2006-06-06,Ecopetrol SA,2008-09-18,2026-08-04,Tiingo coverage starts 2008-09-18 but index membership ended 2006-06-06
+EFU,NO_COVERAGE,,2000-11-02,ProShares UltraShort MSCI EAFE -2x Shares,2007-10-25,2026-08-04,Tiingo coverage starts 2007-10-25 but index membership ended 2000-11-02
+EHC,NO_COVERAGE,,2003-03-21,Encompass Health Corp,2017-12-29,2026-08-04,Tiingo coverage starts 2017-12-29 but index membership ended 2003-03-21
+EKDKQ,NO_PRICE_DATA,,2010-12-20,Eastman Kodak Company,,,ticker is known to Tiingo but carries no price history
+ENDP,NOT_FOUND,2015-01-27,2017-03-02,,,,Tiingo does not know this ticker at all
+ENRNQ,NO_PRICE_DATA,,2001-11-30,ENRON CORP,,,ticker is known to Tiingo but carries no price history
+EOP,NO_PRICE_DATA,2001-10-10,2007-02-12,EQUITY OFFICE PROPERTIES TRUST,,,ticker is known to Tiingo but carries no price history
+EP,REUSED_TICKER,,2012-05-25,Empire Petroleum Corporation,2011-02-23,2026-08-04,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+EQ,NO_COVERAGE,2006-05-18,2009-07-01,Equillium Inc,2018-10-12,2026-08-04,Tiingo coverage starts 2018-10-12 but index membership ended 2009-07-01
+ESV,NOT_FOUND,2007-01-04,2016-03-30,,,,Tiingo does not know this ticker at all
+ETS,NO_COVERAGE,,2001-08-06,Elite Express Holding Inc - Class A,2025-08-21,2026-08-04,Tiingo coverage starts 2025-08-21 but index membership ended 2001-08-06
+FB,NO_COVERAGE,2013-12-23,2022-06-09,PROSHARES S&P 500 DYNAMIC DAILY BUFFER ETF ,2025-06-26,2026-08-04,Tiingo coverage starts 2025-06-26 but index membership ended 2022-06-09
+FBF,NO_PRICE_DATA,,2004-04-01,FLEETBOSTON FINANCIAL CORP,,,ticker is known to Tiingo but carries no price history
+FBHS,NO_PRICE_DATA,2016-06-24,2022-12-19,,,,ticker is known to Tiingo but carries no price history
+FDC,NO_COVERAGE,,2007-09-25,FIRST DATA CORP,2015-10-15,2019-08-05,Tiingo coverage starts 2015-10-15 but index membership ended 2007-09-25
+FII,NOT_FOUND,2003-04-16,2013-01-02,,,,Tiingo does not know this ticker at all
+FJ,NO_PRICE_DATA,,2000-11-24,FORT JAMES CORP,,,ticker is known to Tiingo but carries no price history
+FLTWQ,NO_PRICE_DATA,,2000-01-31,FLEETWOOD ENTERPRISES INC,,,ticker is known to Tiingo but carries no price history
+FPC,NO_COVERAGE,,2000-12-01,Ford Motor Company,2026-06-10,2026-08-04,Tiingo coverage starts 2026-06-10 but index membership ended 2000-12-01
+FRC,NOT_FOUND,2019-01-02,2023-05-07,,,,Tiingo does not know this ticker at all
+FSH,NO_PRICE_DATA,2004-08-03,2006-11-10,FISHER SCIENTIFIC INTERNATIONAL INC,,,ticker is known to Tiingo but carries no price history
+FSL,NO_COVERAGE,2004-12-03,2006-12-04,Freescale Semiconductor Ltd,2011-05-26,2015-12-15,Tiingo coverage starts 2011-05-26 but index membership ended 2006-12-04
+FTR,REUSED_TICKER,2001-02-27,2017-03-20,Frontier Communications Corp,2020-04-23,2021-06-01,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+G,NO_COVERAGE,,2005-10-03,Genpact Ltd,2007-08-02,2026-08-04,Tiingo coverage starts 2007-08-02 but index membership ended 2005-10-03
+GAPTQ,NO_PRICE_DATA,,2000-08-30,GREAT ATLANTIC PACIFIC TEA CO INC,,,ticker is known to Tiingo but carries no price history
+GDT,NO_COVERAGE,,2006-04-24,WISDOMTREE EFFICIENT TIPS PLUS GOLD FUND ,2026-01-22,2026-08-04,Tiingo coverage starts 2026-01-22 but index membership ended 2006-04-24
+GDW,NO_PRICE_DATA,,2006-10-02,GOLDEN WEST FINANCIAL CORP,,,ticker is known to Tiingo but carries no price history
+GLK,NO_PRICE_DATA,,2005-07-05,GREAT LAKES CHEMICAL CORP,,,ticker is known to Tiingo but carries no price history
+GP,NO_COVERAGE,,2005-12-20,GreenPower Motor Company Inc,2015-02-10,2026-08-04,Tiingo coverage starts 2015-02-10 but index membership ended 2005-12-20
+GPS,NO_PRICE_DATA,,2022-02-02,GPS ALLIANCE HOLDINGS LTD,,,ticker is known to Tiingo but carries no price history
+GPU,NO_PRICE_DATA,,2001-11-07,GPU INC,,,ticker is known to Tiingo but carries no price history
+GR,NO_PRICE_DATA,,2012-07-27,GOODRICH CORP,,,ticker is known to Tiingo but carries no price history
+GTE,NO_COVERAGE,,2000-07-03,Gran Tierra Energy Inc,2005-12-21,2026-08-04,Tiingo coverage starts 2005-12-21 but index membership ended 2000-07-03
+GTW,NO_PRICE_DATA,,2006-08-01,GATEWAY INC,,,ticker is known to Tiingo but carries no price history
+GX,NO_PRICE_DATA,,2001-10-10,GLOBAL CROSSING CAYMAN LTD,,,ticker is known to Tiingo but carries no price history
+H,NO_COVERAGE,,2007-04-10,Hyatt Hotels Corporation - Class A,2009-11-05,2026-08-04,Tiingo coverage starts 2009-11-05 but index membership ended 2007-04-10
+HCR,NO_COVERAGE,,2007-11-09,MANOR CARE INC,2019-06-03,2020-07-13,Tiingo coverage starts 2019-06-03 but index membership ended 2007-11-09
+HET,NO_PRICE_DATA,,2008-01-29,,,,ticker is known to Tiingo but carries no price history
+HFC,NOT_FOUND,2018-06-18,2021-06-04,,,,Tiingo does not know this ticker at all
+HI,NO_COVERAGE,,2003-03-31,Hillenbrand Inc,2008-03-28,2026-02-10,Tiingo coverage starts 2008-03-28 but index membership ended 2003-03-31
+HM,NO_PRICE_DATA,,2001-12-17,HOMESTAKE MINING CO,,,ticker is known to Tiingo but carries no price history
+HMA,REUSED_TICKER,2001-11-07,2007-03-02,Heartland Media Acquisition Corp - Class A,2022-03-14,2023-07-25,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+HRS,NOT_FOUND,2008-09-22,2019-06-01,,,,Tiingo does not know this ticker at all
+IAC,NO_PRICE_DATA,2006-12-01,2008-08-21,,,,ticker is known to Tiingo but carries no price history
+IGT,NO_PRICE_DATA,2001-09-04,2014-06-20,,,,ticker is known to Tiingo but carries no price history
+IKN,NO_COVERAGE,,2000-06-29,IKON OFFICE SOLUTIONS INC,2006-12-28,2008-11-21,Tiingo coverage starts 2006-12-28 but index membership ended 2000-06-29
+IMNX,NO_PRICE_DATA,2001-09-21,2002-07-16,IMMUNEX CORP,,,ticker is known to Tiingo but carries no price history
+INCLF,NO_PRICE_DATA,,2002-07-22,INCO LTD,,,ticker is known to Tiingo but carries no price history
+INFO,REUSED_TICKER,2017-06-02,2022-03-02,HARBOR PANAGORA DYNAMIC LARGE CAP CORE ETF ,2024-10-10,2026-08-04,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+JCP,NOT_FOUND,,2013-12-02,,,,Tiingo does not know this ticker at all
+JEC,NOT_FOUND,2007-10-26,2019-12-10,,,,Tiingo does not know this ticker at all
+JHF,NO_PRICE_DATA,2001-06-29,2004-04-29,HANCOCK JOHN FINANCIAL SERVICES INC,,,ticker is known to Tiingo but carries no price history
+JOS,NO_PRICE_DATA,,2000-05-10,JOSTENS INC,,,ticker is known to Tiingo but carries no price history
+JP,NOT_FOUND,,2006-04-03,,,,Tiingo does not know this ticker at all
+KM,NO_PRICE_DATA,,2002-01-17,KMART CORP,,,ticker is known to Tiingo but carries no price history
+KORS,NOT_FOUND,2013-11-13,2018-09-19,,,,Tiingo does not know this ticker at all
+KRB,NO_PRICE_DATA,,2006-01-03,MBNA CORP,,,ticker is known to Tiingo but carries no price history
+KRI,NO_PRICE_DATA,,2006-06-28,KNIGHT RIDDER INC,,,ticker is known to Tiingo but carries no price history
+KSE,NO_PRICE_DATA,2000-08-21,2007-08-27,KEYSPAN CORP,,,ticker is known to Tiingo but carries no price history
+LB,NO_COVERAGE,,2021-08-03,Landbridge Company LLC. - Class A,2024-06-28,2026-08-04,Tiingo coverage starts 2024-06-28 but index membership ended 2021-08-03
+LDG,NO_PRICE_DATA,,2001-07-02,LONGS DRUG STORES CORP,,,ticker is known to Tiingo but carries no price history
+LDW-B,NOT_FOUND,,1999-12-08,,,,Tiingo does not know this ticker at all
+LEHMQ,NO_PRICE_DATA,,2008-09-17,Lehman Brothers Holdings Inc,,,ticker is known to Tiingo but carries no price history
+LU,NO_COVERAGE,,2006-12-01,Lufax Holding Ltd,2020-10-30,2026-08-04,Tiingo coverage starts 2020-10-30 but index membership ended 2006-12-01
+LXK,NO_COVERAGE,,2012-10-01,Lexmark International Inc,2016-01-04,2016-11-29,Tiingo coverage starts 2016-01-04 but index membership ended 2012-10-01
+MAY,NO_PRICE_DATA,,2005-08-29,MAY DEPARTMENT STORES CO,,,ticker is known to Tiingo but carries no price history
+MEA,NO_COVERAGE,,2002-01-30,Metalico Inc,2005-08-17,2015-09-11,Tiingo coverage starts 2005-08-17 but index membership ended 2002-01-30
+MEDI,NO_COVERAGE,2000-06-16,2007-06-01,HARBOR HEALTH CARE ETF ,2022-11-17,2026-08-04,Tiingo coverage starts 2022-11-17 but index membership ended 2007-06-01
+MEE,NO_PRICE_DATA,,2011-06-02,MASSEY ENERGY CO,,,ticker is known to Tiingo but carries no price history
+MEL,NO_PRICE_DATA,,2007-07-02,MELLON FINANCIAL CORP,,,ticker is known to Tiingo but carries no price history
+MERQ,NO_PRICE_DATA,2000-06-29,2006-01-04,Merqueo Holdings,,,ticker is known to Tiingo but carries no price history
+MIR,REUSED_TICKER,,2003-07-17,Mirion Technologies Inc - Class A,2020-08-20,2026-08-04,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+MKG,NO_PRICE_DATA,,2000-10-18,MALLINCKRODT INC,,,ticker is known to Tiingo but carries no price history
+MMI,NO_COVERAGE,2011-01-04,2012-05-22,Marcus & Millichap Inc,2013-10-31,2026-08-04,Tiingo coverage starts 2013-10-31 but index membership ended 2012-05-22
+MOLX,NO_PRICE_DATA,,2013-12-09,Molex Inc,,,ticker is known to Tiingo but carries no price history
+MTLQQ,NO_PRICE_DATA,,2009-06-03,General Motors Corp,,,ticker is known to Tiingo but carries no price history
+MYG,NO_PRICE_DATA,,2006-04-03,MAYTAG CORP,,,ticker is known to Tiingo but carries no price history
+MZIAQ,NO_PRICE_DATA,,2000-06-29,MILACRON INC,,,ticker is known to Tiingo but carries no price history
+NCC,NO_PRICE_DATA,,2009-01-02,NATIONAL CITY CORP,,,ticker is known to Tiingo but carries no price history
+NCE,NO_PRICE_DATA,,2000-08-21,NEW CENTURY ENERGIES INC,,,ticker is known to Tiingo but carries no price history
+NCR,NO_PRICE_DATA,2000-01-04,2007-10-01,NUCOAL RESOURCES LTD,,,ticker is known to Tiingo but carries no price history
+NFB,NO_PRICE_DATA,2002-07-17,2006-12-01,NORTH FORK BANCORPORATION INC,,,ticker is known to Tiingo but carries no price history
+NFX,REUSED_TICKER,2010-12-20,2019-02-15,Corgi NFLX 2x Daily ETF,2026-07-07,2026-08-04,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+NGH,NO_PRICE_DATA,,2000-12-12,NABISCO GROUP HOLDINGS CORP,,,ticker is known to Tiingo but carries no price history
+NLOK,NOT_FOUND,2019-11-05,2022-11-08,,,,Tiingo does not know this ticker at all
+NLV,NOT_FOUND,,2000-01-06,,,,Tiingo does not know this ticker at all
+NMK,NOT_FOUND,,2002-02-01,,,,Tiingo does not know this ticker at all
+NOVL,NO_PRICE_DATA,,2011-04-28,NOVELL INC,,,ticker is known to Tiingo but carries no price history
+NRTLQ,NO_COVERAGE,,2002-07-22,Nortel Networks Corporation USA,2010-01-04,2015-10-13,Tiingo coverage starts 2010-01-04 but index membership ended 2002-07-22
+NSI,NO_COVERAGE,,2001-12-03,NATIONAL SECURITY EMERGING MARKETS INDEX ETF ,2023-12-07,2026-08-04,Tiingo coverage starts 2023-12-07 but index membership ended 2001-12-03
+NXTL,NO_PRICE_DATA,,2005-08-15,NEXTEL COMMUNICATIONS INC,,,ticker is known to Tiingo but carries no price history
+OAT,NOT_FOUND,,2001-08-03,,,,Tiingo does not know this ticker at all
+OK,NO_PRICE_DATA,1999-12-02,2001-04-02,OLD KENT FINANCIAL CORP,,,ticker is known to Tiingo but carries no price history
+ONE,NO_COVERAGE,,2004-07-01,HIGHER ONE HOLDINGS INC.,2010-06-16,2016-08-04,Tiingo coverage starts 2010-06-16 but index membership ended 2004-07-01
+OWENQ,NO_PRICE_DATA,,2000-10-02,OWENS CORNING,,,ticker is known to Tiingo but carries no price history
+PALM,NO_COVERAGE,2000-07-28,2002-08-14,PALM INC,2007-10-25,2010-07-19,Tiingo coverage starts 2007-10-25 but index membership ended 2002-08-14
+PARA,REUSED_TICKER,2022-02-17,2025-08-09,Paramount Global - Class B,2006-01-03,2025-08-07,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+PBY,REUSED_TICKER,,2000-04-03,Prospect Capital Corp,2018-06-18,2021-06-14,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+PCS,NO_COVERAGE,,2004-04-23,PGIM CORPORATE BOND 0-5 YEAR ETF ,2007-04-19,2026-08-04,Tiingo coverage starts 2007-04-19 but index membership ended 2004-04-23
+PD,REUSED_TICKER,,2007-03-20,Pagerduty Inc,2019-04-11,2026-08-04,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+PDG,NO_PRICE_DATA,,2002-07-22,PLACER DOME INC Foreign,,,ticker is known to Tiingo but carries no price history
+PEAK,REUSED_TICKER,2019-11-05,2024-03-04,PEAK INTERNATIONAL LTD,2023-02-10,2023-02-13,"HUMAN OVERRIDE: Tiingo returns PEAK INTERNATIONAL LTD (4 days in 2023). The index member was Healthpeak Properties, whose history is under DOC and already in the contract. Different company entirely. (auto verdict was: only 3 days of overlap -- needs a human decision)"
+PGL,NO_PRICE_DATA,,2007-02-22,PEOPLES ENERGY CORP,,,ticker is known to Tiingo but carries no price history
+PHA,NO_PRICE_DATA,,2003-04-16,PHARMACIA CORP,,,ticker is known to Tiingo but carries no price history
+PKI,NO_PRICE_DATA,,2023-05-18,,,,ticker is known to Tiingo but carries no price history
+PMCS,NO_COVERAGE,2001-08-03,2007-07-02,PMCSierra Inc,2016-01-04,2016-01-25,Tiingo coverage starts 2016-01-04 but index membership ended 2007-07-02
+PNU,NO_PRICE_DATA,,2000-04-03,PHARMACIA & UPJOHN INC,,,ticker is known to Tiingo but carries no price history
+PRD,NO_PRICE_DATA,,2000-12-12,POLAROID CORP,,,ticker is known to Tiingo but carries no price history
+PSFT,NO_COVERAGE,,2004-12-29,Powersafe Technology Corp,2008-04-10,2024-10-29,Tiingo coverage starts 2008-04-10 but index membership ended 2004-12-29
+PVN,NO_PRICE_DATA,,2005-10-03,,,,ticker is known to Tiingo but carries no price history
+PWER,NO_COVERAGE,2000-10-23,2005-03-14,MACQUARIE ENERGY TRANSITION ETF ,2023-11-29,2026-08-04,Tiingo coverage starts 2023-11-29 but index membership ended 2005-03-14
+PWJ,NO_PRICE_DATA,,2000-11-06,PAINE WEBBER GROUP INC,,,ticker is known to Tiingo but carries no price history
+QLGC,NO_COVERAGE,2000-12-12,2011-01-18,QLogic Corp,2016-01-04,2016-08-24,Tiingo coverage starts 2016-01-04 but index membership ended 2011-01-18
+QTRN,NO_PRICE_DATA,,2003-09-26,QUINTILES TRANSNATIONAL CORP,,,ticker is known to Tiingo but carries no price history
+RAD,NO_PRICE_DATA,,2000-07-27,RADIOPHARM THERANOSTICS LIMITED,,,ticker is known to Tiingo but carries no price history
+RAL,NO_COVERAGE,,2001-12-13,RALSTON PURINA CO,2025-06-30,2026-08-04,Tiingo coverage starts 2025-06-30 but index membership ended 2001-12-13
+RATL,NO_PRICE_DATA,2002-02-01,2003-02-21,RATIONAL SOFTWARE CORP,,,ticker is known to Tiingo but carries no price history
+RBK,NO_PRICE_DATA,,2006-02-01,REEBOK INTERNATIONAL LTD,,,ticker is known to Tiingo but carries no price history
+RDS-A,NO_COVERAGE,,2002-07-22,Shell Plc ADR (Representing - Class A),2005-07-21,2022-01-31,Tiingo coverage starts 2005-07-21 but index membership ended 2002-07-22
+RE,NO_PRICE_DATA,2017-06-19,2023-07-11,,,,ticker is known to Tiingo but carries no price history
+RLM,NO_COVERAGE,,2000-05-04,Realm Therapeutics ADR,2018-09-05,2019-07-31,Tiingo coverage starts 2018-09-05 but index membership ended 2000-05-04
+RML,NO_PRICE_DATA,,2000-12-12,RUSSELL CORP,,,ticker is known to Tiingo but carries no price history
+RNB,NO_PRICE_DATA,,2000-01-03,REPUBLIC NEW YORK CORP,,,ticker is known to Tiingo but carries no price history
+RX,NO_PRICE_DATA,,2010-02-26,IMS HEALTH INC,,,ticker is known to Tiingo but carries no price history
+SAF,NO_COVERAGE,,2008-09-23,Saratoga Investment Corp,2018-08-29,2021-08-30,Tiingo coverage starts 2018-08-29 but index membership ended 2008-09-23
+SBL,NO_PRICE_DATA,2000-12-11,2007-01-10,SYMBOL TECHNOLOGIES INC,,,ticker is known to Tiingo but carries no price history
+SDS,NO_COVERAGE,2002-07-22,2005-08-12,ProShares UltraShort S&P500 -2x Shares,2006-07-13,2026-08-04,Tiingo coverage starts 2006-07-13 but index membership ended 2005-08-12
+SEBL,NO_PRICE_DATA,2000-05-05,2006-02-01,SIEBEL SYSTEMS INC,,,ticker is known to Tiingo but carries no price history
+SEG,REUSED_TICKER,,2000-11-22,Seaport Entertainment Group Inc,2024-07-30,2026-08-04,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+SFA,NO_PRICE_DATA,,2006-02-27,SCIENTIFIC ATLANTA INC,,,ticker is known to Tiingo but carries no price history
+SGID,NO_PRICE_DATA,,2000-06-21,SILICON GRAPHICS INC,,,ticker is known to Tiingo but carries no price history
+SGP,NO_COVERAGE,,2009-11-04,SpyGlass Pharma Inc,2026-02-06,2026-08-04,Tiingo coverage starts 2026-02-06 but index membership ended 2009-11-04
+SIVB,NOT_FOUND,2018-03-19,2023-03-15,,,,Tiingo does not know this ticker at all
+SLR,NO_PRICE_DATA,,2007-10-02,SOLECTRON CORP,,,ticker is known to Tiingo but carries no price history
+SMI,NO_COVERAGE,,2000-12-12,VanEck HIP Sustainable Muni ETF,2021-09-10,2026-08-04,Tiingo coverage starts 2021-09-10 but index membership ended 2000-12-12
+SMS,NO_PRICE_DATA,,2000-06-08,SHARED MEDICAL SYSTEMS CORP,,,ticker is known to Tiingo but carries no price history
+SOLS,REUSED_TICKER,2025-10-30,2025-12-22,Solstice Advanced Materials Inc,2025-10-29,2026-08-05,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+SOTR,NO_PRICE_DATA,,2004-11-01,SOUTHTRUST CORP,,,ticker is known to Tiingo but carries no price history
+SPLS,REUSED_TICKER,,2017-09-13,PIMCO US Stocks PLUS Active Bond Exchange Traded Fund,2026-01-16,2026-08-04,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+STI,REUSED_TICKER,,2019-12-09,Solidion Technology Inc,2024-02-02,2026-08-04,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+SUB,NO_COVERAGE,,2001-03-01,ISHARES SHORT-TERM NATIONAL MUNI BOND ETF ,2008-11-07,2026-08-04,Tiingo coverage starts 2008-11-07 but index membership ended 2001-03-01
+SXCL,NO_COVERAGE,,2001-05-14,Steel Excel Inc,2006-12-28,2017-02-23,Tiingo coverage starts 2006-12-28 but index membership ended 2001-05-14
+SYMC,NOT_FOUND,2003-03-31,2019-11-05,,,,Tiingo does not know this ticker at all
+TE,NO_COVERAGE,2001-10-10,2016-07-01,T1 Energy Inc,2021-07-08,2026-08-04,Tiingo coverage starts 2021-07-08 but index membership ended 2016-07-01
+TEK,NO_COVERAGE,,2007-11-16,iShares Technology Opportunities Active ETF,2024-10-22,2026-08-04,Tiingo coverage starts 2024-10-22 but index membership ended 2007-11-16
+TIN,NO_COVERAGE,,2007-12-31,TempleInland Inc,2017-01-25,2017-02-03,Tiingo coverage starts 2017-01-25 but index membership ended 2007-12-31
+TLAB,NO_PRICE_DATA,,2011-12-21,Tellabs Inc,,,ticker is known to Tiingo but carries no price history
+TMC,NO_COVERAGE,,2000-06-13,TMC the metals company Inc,2021-09-10,2026-08-04,Tiingo coverage starts 2021-09-10 but index membership ended 2000-06-13
+TMC-A,NO_PRICE_DATA,,2000-06-13,Times Mirror Co,,,ticker is known to Tiingo but carries no price history
+TMK,NO_PRICE_DATA,,2019-08-08,TAMASKA OIL AND GAS LTD,,,ticker is known to Tiingo but carries no price history
+TNB,NO_PRICE_DATA,,2004-08-03,THOMAS & BETTS CORP,,,ticker is known to Tiingo but carries no price history
+TOS,NO_COVERAGE,,2001-09-17,Twin Oak Strategic Solutions ETF,2026-01-28,2026-08-04,Tiingo coverage starts 2026-01-28 but index membership ended 2001-09-17
+TOY,NO_PRICE_DATA,,2005-07-22,TOYS R US INC,,,ticker is known to Tiingo but carries no price history
+TRB,NO_PRICE_DATA,,2007-12-21,TRIBUNE CO,,,ticker is known to Tiingo but carries no price history
+TRW,NO_COVERAGE,,2002-12-12,TRW Automotive Holdings Corp,2004-02-03,2015-05-26,Tiingo coverage starts 2004-02-03 but index membership ended 2002-12-12
+TSG,NO_COVERAGE,2000-03-16,2007-04-02,SABRE HOLDINGS CORP,2010-10-15,2020-05-05,Tiingo coverage starts 2010-10-15 but index membership ended 2007-04-02
+TUP,NOT_FOUND,,2004-03-25,,,,Tiingo does not know this ticker at all
+TX,NO_COVERAGE,,2001-10-10,Ternium S.A.,2006-02-01,2026-08-04,Tiingo coverage starts 2006-02-01 but index membership ended 2001-10-10
+TXU,NO_PRICE_DATA,,2007-10-10,TXU CORP,,,ticker is known to Tiingo but carries no price history
+UAWGQ,NO_PRICE_DATA,,2002-05-15,Us Airways Group Inc,,,ticker is known to Tiingo but carries no price history
+UCL,NO_COVERAGE,,2005-08-11,Ucloudlink Group Inc,2020-06-10,2026-08-04,Tiingo coverage starts 2020-06-10 but index membership ended 2005-08-11
+UCM,NO_PRICE_DATA,,2000-10-23,UNICOM CORP,,,ticker is known to Tiingo but carries no price history
+UK,REUSED_TICKER,,2001-02-07,Ucommune International Ltd - Class A,2020-11-18,2026-08-04,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+UMG,NO_PRICE_DATA,,2000-06-15,UNITED MALT GROUP LTD,,,ticker is known to Tiingo but carries no price history
+UN,REUSED_TICKER,,2002-07-22,Corgi UNH 2x Daily ETF,2026-07-07,2026-08-04,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+UPC,NO_COVERAGE,,2004-07-01,Universe Pharmaceuticals Inc,2021-03-23,2026-08-04,Tiingo coverage starts 2021-03-23 but index membership ended 2004-07-01
+UPR,NO_PRICE_DATA,,2000-07-17,UNION PACIFIC RESOURCES GROUP INC,,,ticker is known to Tiingo but carries no price history
+UST,NO_COVERAGE,,2009-01-06,PROSHARES ULTRA 7-10 YEAR TREASURY ,2010-02-02,2026-08-04,Tiingo coverage starts 2010-02-02 but index membership ended 2009-01-06
+USW,NO_PRICE_DATA,,2000-07-03,MEDIAONE GROUP INC,,,ticker is known to Tiingo but carries no price history
+UTX,NOT_FOUND,,2020-04-03,,,,Tiingo does not know this ticker at all
+UVN,NO_PRICE_DATA,2001-02-07,2007-03-29,UNIVISION COMMUNICATIONS INC,,,ticker is known to Tiingo but carries no price history
+VIAC,NO_COVERAGE,2019-12-05,2022-02-17,CBS Corp,2005-12-05,2019-12-04,"HUMAN OVERRIDE: Tiingo's VIAC ends 2019-12-04 -- the day BEFORE ViacomCBS's membership began. It is pre-merger CBS Corp, not ViacomCBS. That era is under PARA (verified: Paramount Global Class B, 2006-01-03..2025-08-07). (auto verdict was: only -1 days of overlap -- needs a human decision)"
+VIAV,NO_COVERAGE,2000-07-27,2013-12-23,Viavi Solutions Inc,2015-08-04,2026-08-04,Tiingo coverage starts 2015-08-04 but index membership ended 2013-12-23
+VO,NO_COVERAGE,,2000-12-11,VANGUARD MID-CAP INDEX FUND ETF SHARES,2004-01-30,2026-08-04,Tiingo coverage starts 2004-01-30 but index membership ended 2000-12-11
+VRTS,NO_COVERAGE,2000-04-03,2005-07-05,Virtus Investment Partners Inc,2009-01-02,2026-08-04,Tiingo coverage starts 2009-01-02 but index membership ended 2005-07-05
+VSTNQ,NO_PRICE_DATA,2000-06-29,2006-01-03,VISTEON CORP,,,ticker is known to Tiingo but carries no price history
+WAMUQ,NO_PRICE_DATA,,2008-09-30,WMI HOLDINGS CORP,,,ticker is known to Tiingo but carries no price history
+WB,NO_COVERAGE,,2009-01-02,Weibo Corp,2014-04-17,2026-08-04,Tiingo coverage starts 2014-04-17 but index membership ended 2009-01-02
+WCOEQ,NO_PRICE_DATA,,2002-05-15,Worldcom Inc,,,ticker is known to Tiingo but carries no price history
+WFT,NOT_FOUND,2005-07-22,2009-02-26,,,,Tiingo does not know this ticker at all
+WIN,NO_COVERAGE,2006-07-18,2015-04-07,Garden Stage Ltd,2023-12-01,2026-08-04,Tiingo coverage starts 2023-12-01 but index membership ended 2015-04-07
+WLA,NO_PRICE_DATA,,2000-06-20,WARNER LAMBERT CO,,,ticker is known to Tiingo but carries no price history
+WLL,REUSED_TICKER,,2002-02-11,Whiting Petroleum Corp (New),2020-09-02,2022-07-01,"Tiingo's manifest lists this ticker 2 times, so the string was reused; the security returned may not be the index member"
+WLP,NO_COVERAGE,,2004-12-01,"WellPoint, Inc",2014-09-22,2014-12-02,Tiingo coverage starts 2014-09-22 but index membership ended 2004-12-01
+WLTW,NO_PRICE_DATA,2016-01-05,2022-01-20,,,,ticker is known to Tiingo but carries no price history
+WNDXQ,NO_PRICE_DATA,,2004-12-03,WINN DIXIE STORES INC,,,ticker is known to Tiingo but carries no price history
+WRK,REUSED_TICKER,2015-07-02,2024-07-09,WRKR LTD,2024-07-05,2024-07-05,"HUMAN OVERRIDE: Tiingo returns WRKR LTD, an unrelated Australian company, with a single day of data. WestRock merged into Smurfit Westrock in July 2024. (auto verdict was: only 0 days of overlap -- needs a human decision)"
+WWY,NO_PRICE_DATA,,2008-10-07,WRIGLEY WM JR CO,,,ticker is known to Tiingo but carries no price history
+WYE,NO_PRICE_DATA,,2009-10-16,WYETH,,,ticker is known to Tiingo but carries no price history
+YNR,NO_PRICE_DATA,2000-01-06,2000-10-03,YOUNG & RUBICAM INC.,,,ticker is known to Tiingo but carries no price history
