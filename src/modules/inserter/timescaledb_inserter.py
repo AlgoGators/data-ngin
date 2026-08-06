@@ -72,11 +72,23 @@ class TimescaleDBInserter(Inserter):
             table (str): The target table in TimescaleDB.
 
         Raises:
-            ValueError: If the data is empty or columns are not specified.
             RuntimeError: If the insertion into the database fails.
+            RuntimeError: If the target schema or table does not exist.
+
+        Note:
+            An empty `data` list is a logged no-op, not an error. This is normal when
+            a vendor returns zero rows for a symbol with no bars in the requested range.
         """
         if not self.connection:
             raise RuntimeError("Database connection is not established.")
+
+        # An empty payload is a normal outcome (symbol has no bars in the requested
+        # window), not an error. Returning early keeps it out of the orchestrator's
+        # per-symbol except handler, where it would masquerade as a fetch failure.
+        if not data:
+            self.logger.info("No rows to insert into %s.%s; skipping.", schema, table)
+            return
+
         schema_exists_sql = """
         SELECT 1 FROM information_schema.schemata WHERE schema_name = %s
         """
