@@ -8,7 +8,7 @@ services:
     container_name: airflow-init
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:algogators@172.31.23.190:5432/algo_data?options=-csearch_path%3Dairflow_metadata
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${AIRFLOW_DB_CONN:?AIRFLOW_DB_CONN is unset -- copy the line from .env.template into your .env and fill in the real credentials}
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT: "120"
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
@@ -32,7 +32,7 @@ services:
       - airflow-init
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:algogators@172.31.23.190:5432/algo_data?options=-csearch_path%3Dairflow_metadata
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${AIRFLOW_DB_CONN:?AIRFLOW_DB_CONN is unset -- copy the line from .env.template into your .env and fill in the real credentials}
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT: "120"
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
@@ -56,7 +56,7 @@ services:
       - airflow-init
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:algogators@172.31.23.190:5432/algo_data?options=-csearch_path%3Dairflow_metadata
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${AIRFLOW_DB_CONN:?AIRFLOW_DB_CONN is unset -- copy the line from .env.template into your .env and fill in the real credentials}
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT: "120"
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"

@@ -29,14 +29,23 @@ RENAME_MAP = {
     "splitFactor": "split_factor",
 }
 
-# Columns persisted to the equities / equities_raw tables. The fetcher trims its
-# output to exactly these so the raw insert (which inserts every column verbatim)
-# aligns with the table schema.
+# Columns persisted to the equities_data.ohlcv_1d / ohlcv_1d_raw tables. The fetcher
+# trims its output to exactly these so the raw insert (which inserts every column
+# verbatim) aligns with the table schema.
 OUTPUT_COLUMNS = [
     "time",
-    "open", "high", "low", "close", "volume",            # raw / as-traded
-    "adj_open", "adj_high", "adj_low", "adjusted_close", "adj_volume",  # split/div adjusted
-    "div_cash", "split_factor",                           # adjustment events
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",  # raw / as-traded
+    "adj_open",
+    "adj_high",
+    "adj_low",
+    "adjusted_close",
+    "adj_volume",  # split/div adjusted
+    "div_cash",
+    "split_factor",  # adjustment events
     "symbol",
 ]
 
@@ -87,7 +96,8 @@ class TiingoFetcher(Fetcher):
         # created lazily on first fetch so it binds to the running event loop.
         override = os.getenv("TIINGO_MAX_CONCURRENCY", "").strip()
         self._max_concurrency: int = (
-            int(override) if override.isdigit() and int(override) > 0
+            int(override)
+            if override.isdigit() and int(override) > 0
             else max(1, len(self.api_keys))
         )
         self._semaphore: Optional[asyncio.Semaphore] = None
@@ -143,7 +153,9 @@ class TiingoFetcher(Fetcher):
         start = self._primary_index(symbol)
         last_error = None
 
-        logger.info(f"[Tiingo] Fetching EOD data for {symbol} from {start_date} to {end_date}")
+        logger.info(
+            f"[Tiingo] Fetching EOD data for {symbol} from {start_date} to {end_date}"
+        )
 
         # Throttle: only self._max_concurrency requests are in flight at once across
         # all symbols, preventing the connection-saturation timeouts and 429 bursts
@@ -170,7 +182,9 @@ class TiingoFetcher(Fetcher):
                             last_error = f"HTTP {response.status}: {body}"
                             continue
                         # Non-key error (5xx, etc.): fail this symbol, don't burn the key.
-                        raise RuntimeError(f"[Tiingo] HTTP {response.status} for {symbol}: {body}")
+                        raise RuntimeError(
+                            f"[Tiingo] HTTP {response.status} for {symbol}: {body}"
+                        )
 
         if last_error is None:
             raise RuntimeError(

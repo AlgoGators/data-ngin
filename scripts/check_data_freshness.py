@@ -25,17 +25,22 @@ import sys
 from datetime import date, datetime, time, timedelta, timezone
 
 # (table, timestamp_column) -- confirmed against the live schema via
-# information_schema.columns (see PR discussion), NOT assumed from ADR-000.
-# futures_data.ohlcv_1d matches the ADR-000 C-2 contract exactly (time,
-# timestamptz). equities_data.ohlcv_1d does NOT match that contract -- it's
-# shaped like a raw Sharadar-style feed (ticker/date/close/closeadj/closeunadj/
-# lastupdated), not the documented symbol/adj_* column set. That's a real,
-# separate cross-repo-contract discrepancy (flagged to the team, not silently
-# fixed here); this script only needs a timestamp column to measure staleness,
-# so it uses the "date" column, which exists.
+# information_schema.columns, NOT assumed from ADR-000.
+#
+# The Sharadar-shaped table this script used to monitor as equities_data.ohlcv_1d
+# (ticker/date/close/closeadj/...) turned out to be a retired feed, frozen since
+# 2025-08-28, that was squatting on the canonical name -- so this check was
+# measuring staleness on data nobody ingests any more while the live Tiingo feed
+# went unmonitored. migrations/001_rename_equities_tables.sql moves it to
+# equities_data.sharadar_ohlcv_1d and puts the Tiingo tables on the contract
+# names, so both entries below now match ADR-000 C-2 exactly: a "time" timestamptz
+# column on a table the pipeline actually writes.
+#
+# sharadar_ohlcv_1d is deliberately NOT monitored -- it is frozen by design, so a
+# staleness alert on it would be permanent noise.
 TABLES = [
     ("futures_data.ohlcv_1d", "time"),
-    ("equities_data.ohlcv_1d", "date"),
+    ("equities_data.ohlcv_1d", "time"),
 ]
 
 STALE_THRESHOLD_HOURS = int(os.environ.get("STALE_THRESHOLD_HOURS", "72"))
