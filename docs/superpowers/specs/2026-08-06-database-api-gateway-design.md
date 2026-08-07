@@ -45,8 +45,47 @@ hold a database credential.
 
 **The database performs the enforcement, not the service.** For each request the service
 authenticates the caller, switches the connection to that caller's Postgres role with
-`SET ROLE`, and runs their SQL. Postgres accepts or rejects it according to that role's
-grants.
+`SET LOCAL ROLE`, and runs their SQL. Postgres accepts or rejects it according to that
+role's grants.
+
+### Three service logins, one per role
+
+The service does not connect as a single database user. It has three logins —
+`api_service_ro`, `api_service_rw`, `api_service_all` — each a member of exactly one of
+the three roles, and it connects with whichever matches the caller.
+
+**This is load-bearing, not tidiness.** Postgres authorises `SET ROLE` against
+`session_user`, not `current_user`. With one login that was a member of all three roles,
+`SET LOCAL ROLE db_readonly` narrows `current_user` but leaves `session_user` a member of
+everything — so any caller escalates by prefixing nine characters to their SQL:
+
+```sql
+SET ROLE db_readwrite_all; INSERT INTO trading.positions ...
+```
+
+That was implemented, and verified working from `db_readonly` against a real database,
+before being caught by the tests. Because the design deliberately never inspects the SQL
+it is given, no other layer would have caught it. With one login per role the same
+statement is refused outright: `api_service_ro` is not a member of `db_readwrite_all`, so
+Postgres will not grant the `SET ROLE`.
+
+Each login is additionally `NOINHERIT`, so it holds none of its role's privileges until
+it switches — a code path that forgets to `SET ROLE` fails closed rather than running
+with that role's access.
+
+Authentication and audit writes use `api_service_ro`, because authentication happens
+before the caller's role is known and so cannot run under any of the three roles. It
+holds direct grants on `auth.api_keys` and `auth.audit_log`; direct grants are unaffected
+by `NOINHERIT`. Only `_ro` holds them — giving the same access to `_rw` and `_all` would
+widen what a leaked password reaches for no gain.
+
+### `SET LOCAL ROLE`, not `SET ROLE`
+
+The role switch is scoped to a transaction. `SET ROLE` persists on the connection until
+explicitly reset, so an exception between the switch and the reset would leave a pooled
+connection holding an elevated role for whoever received it next. `SET LOCAL` reverts
+when the transaction ends, whether it commits or rolls back. The same applies to the
+per-caller `statement_timeout`.
 
 ### Why the database and not the service
 
@@ -78,10 +117,11 @@ consistent with what people already do in pgAdmin.
    no match / inactive -> 401, logged
 3. Acquire a concurrency slot: per-user cap, then global cap
    none available -> 429, logged
-4. SET ROLE <the caller's role>
+4. Open a transaction on the login matching the caller's role; SET LOCAL ROLE
 5. Execute their SQL
    role lacks permission -> Postgres raises, -> 403, logged
-6. RESET ROLE, write an audit row, release the slot, return the result
+6. End the transaction (the role reverts with it), write an audit row,
+   release the slot, return the result
 ```
 
 Every outcome produces an audit row, including authentication failures, permission
