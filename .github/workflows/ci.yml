@@ -93,6 +93,25 @@ jobs:
           print(f"OK: {len(bag.dags)} DAG(s) parsed cleanly: {sorted(bag.dags)}")
           PY
 
+      - name: Apply API gateway migrations
+        # The gateway's tests assert against real Postgres roles and grants,
+        # because a mocked permission system proves nothing about the real one.
+        # Those tests only skip when the DB_* vars are unset -- and this job sets
+        # them -- so without this step they run and fail on missing roles.
+        #
+        # Only 003 and 004. 001 renames the equities tables and guards on them
+        # existing, so it aborts by design on a database that has never run the
+        # pipelines. 002 creates the synthetic schema, which nothing here needs.
+        env:
+          PGPASSWORD: postgres
+        run: |
+          sudo apt-get install -y --no-install-recommends postgresql-client
+          for f in migrations/003_api_gateway_roles.sql \
+                   migrations/004_api_gateway_tables.sql; do
+            echo "applying $f"
+            psql -h localhost -U postgres -d data_ngin_test -v ON_ERROR_STOP=1 -f "$f"
+          done
+
       - name: Run tests (advisory)
         # Much of this suite touches Postgres and external market-data APIs
         # (Databento / Tiingo). A throwaway Postgres is provided above, but the
