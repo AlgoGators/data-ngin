@@ -22,7 +22,7 @@ class TestTimescaleDBInserter(unittest.TestCase):
         }
         self.inserter = TimescaleDBInserter(config=self.config)
 
-    @patch("data.modules.timescaledb_inserter.psycopg2.connect")
+    @patch("src.modules.inserter.timescaledb_inserter.psycopg2.connect")
     def test_connect(self, mock_connect: MagicMock) -> None:
         """
         Test that the connect method establishes a database connection.
@@ -31,7 +31,7 @@ class TestTimescaleDBInserter(unittest.TestCase):
         mock_connect.assert_called_once()
         self.assertIsNotNone(self.inserter.connection, "Database connection should not be None")
 
-    @patch("data.modules.timescaledb_inserter.psycopg2.connect")
+    @patch("src.modules.inserter.timescaledb_inserter.psycopg2.connect")
     def test_insert_data(self, mock_connect: MagicMock) -> None:
         """
         Test that data is inserted into the database using executemany.
@@ -68,7 +68,7 @@ class TestTimescaleDBInserter(unittest.TestCase):
         self.assertEqual(re.sub(r"\s+", " ", actual_query.strip()), expected_query)
         self.assertEqual(actual_data, data)
 
-    @patch("data.modules.timescaledb_inserter.psycopg2.connect")
+    @patch("src.modules.inserter.timescaledb_inserter.psycopg2.connect")
     def test_insert_data_empty(self, mock_connect: MagicMock) -> None:
         """
         Test inserting empty data, expecting ValueError.
@@ -77,7 +77,7 @@ class TestTimescaleDBInserter(unittest.TestCase):
         with self.assertRaises(ValueError, msg="No data provided for insertion."):
             self.inserter.insert_data([], schema="futures_data", table="ohlcv_1d")
 
-    @patch("data.modules.timescaledb_inserter.psycopg2.connect")
+    @patch("src.modules.inserter.timescaledb_inserter.psycopg2.connect")
     def test_insert_data_no_connection(self, mock_connect: MagicMock) -> None:
         """
         Test inserting data without a database connection, expecting RuntimeError.
@@ -85,7 +85,7 @@ class TestTimescaleDBInserter(unittest.TestCase):
         with self.assertRaises(RuntimeError, msg="Database connection is not established."):
             self.inserter.insert_data([{"time": "2023-01-01"}], schema="futures_data", table="ohlcv_1d")
 
-    @patch("data.modules.timescaledb_inserter.psycopg2.connect")
+    @patch("src.modules.inserter.timescaledb_inserter.psycopg2.connect")
     def test_close_connection(self, mock_connect: MagicMock) -> None:
         """
         Test closing an active database connection.

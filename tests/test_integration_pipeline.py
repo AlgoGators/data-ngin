@@ -1,4 +1,5 @@
 import unittest
+import pandas as pd
 import tempfile
 import os
 from unittest.mock import patch, MagicMock, AsyncMock
@@ -16,10 +17,10 @@ class TestIntegrationPipeline(unittest.IsolatedAsyncioTestCase):
         Set up mock configuration and create temporary test files.
         """
         self.mock_config: Dict[str, Any] = {
-            "loader": {"class": "CSVLoader", "module": "csv_loader", "file_path": ""},
-            "fetcher": {"class": "DatabentoFetcher", "module": "databento_fetcher"},
-            "cleaner": {"class": "DatabentoCleaner", "module": "databento_cleaner"},
-            "inserter": {"class": "TimescaleDBInserter", "module": "timescaledb_inserter"},
+            "loader": {"class": "CSVLoader", "module": "loader.csv_loader", "file_path": ""},
+            "fetcher": {"class": "DatabentoFetcher", "module": "fetcher.databento_fetcher"},
+            "cleaner": {"class": "DatabentoCleaner", "module": "cleaner.databento_cleaner"},
+            "inserter": {"class": "TimescaleDBInserter", "module": "inserter.timescaledb_inserter"},
             "time_range": {
                 "start_date": "2023-01-01",
                 "end_date": "2023-01-02",
@@ -55,22 +56,31 @@ class TestIntegrationPipeline(unittest.IsolatedAsyncioTestCase):
         if os.path.exists(self.temp_csv.name):
             os.remove(self.temp_csv.name)
 
-    @patch("data.modules.csv_loader.CSVLoader.load_symbols", return_value={"ES": "FUTURE", "NQ": "FUTURE"})
-    @patch("data.modules.databento_fetcher.DatabentoFetcher.fetch_data", new_callable=AsyncMock)
-    @patch("data.modules.databento_cleaner.DatabentoCleaner.clean")
-    @patch("data.modules.timescaledb_inserter.TimescaleDBInserter.insert_data")
+    @patch("src.modules.inserter.timescaledb_inserter.TimescaleDBInserter.close")
+    @patch("src.modules.inserter.timescaledb_inserter.TimescaleDBInserter.connect")
+    @patch("src.modules.loader.csv_loader.CSVLoader.load_symbols", return_value={"ES": "FUTURE", "NQ": "FUTURE"})
+    @patch("src.modules.fetcher.databento_fetcher.DatabentoFetcher.fetch_data", new_callable=AsyncMock)
+    @patch("src.modules.cleaner.databento_cleaner.DatabentoCleaner.clean")
+    @patch("src.modules.inserter.timescaledb_inserter.TimescaleDBInserter.insert_data")
     async def test_pipeline_run(
         self,
         mock_insert_data: MagicMock,
         mock_clean: MagicMock,
         mock_fetch_data: AsyncMock,
         mock_load_symbols: MagicMock,
+        mock_connect: MagicMock,
+        mock_close: MagicMock,
     ) -> None:
         """
         Test that the pipeline processes symbols end-to-end.
         """
         # Correctly mock fetcher return and cleaner output
-        mock_fetch_data.return_value = [{"time": "2023-01-01", "symbol": "ES", "open": 100.5}]
+        # A DataFrame, not a list: retrieve_and_process_data calls
+        # .to_dict(orient="records") on the fetcher's output before the raw insert.
+        # The old list fixture made every symbol fail with AttributeError, which the
+        # orchestrator's per-symbol except swallowed -- so the test saw 0 calls.
+        mock_fetch_data.return_value = pd.DataFrame(
+            [{"time": "2023-01-01", "symbol": "ES", "open": 100.5}])
         mock_clean.side_effect = lambda data: [{"time": "2023-01-01", "cleaned": True}]
 
         # Initialize the Orchestrator

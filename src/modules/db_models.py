@@ -62,8 +62,12 @@ def get_engine(config: Optional[Dict[str, Any]] = None) -> Engine:
     db_password: Optional[str] = os.getenv("DB_PASSWORD")
     db_host: Optional[str] = os.getenv("DB_HOST")
     db_port: Optional[str] = os.getenv("DB_PORT")
-    db_name = config.get("database", {}).get("db_name")
-    #db_name: Optional[str] = os.getenv("DB_NAME")
+    # config wins when supplied (each pipeline points at its own database), with
+    # DB_NAME as the fallback. The signature and docstring have always described
+    # config as optional, but the body called config.get() unconditionally -- so
+    # get_engine() with no argument raised AttributeError, taking DataAccess()'s
+    # own default with it.
+    db_name: Optional[str] = (config or {}).get("database", {}).get("db_name") or os.getenv("DB_NAME")
 
     # Validate that all required parameters are present
     if not all([db_user, db_password, db_host, db_port, db_name]):
