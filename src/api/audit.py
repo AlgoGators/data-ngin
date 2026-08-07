@@ -10,7 +10,25 @@ removing someone does not erase them from history.
 
 import logging
 
+from src.api.keys import PREFIX_LENGTH
+
 logger = logging.getLogger(__name__)
+
+
+def _safe_prefix(value):
+    """Truncate anything destined for key_prefix.
+
+    key_prefix exists to identify which key was presented, not to store it. The
+    column is unbounded TEXT, so a caller passing the raw Authorization header
+    would write a complete, working key into the audit log -- the one table an
+    attacker or a curious insider would most like to read. Truncating here means
+    that cannot happen even if a caller forgets, rather than depending on every
+    call site getting it right.
+    """
+    if value is None:
+        return None
+    return value[:PREFIX_LENGTH]
+
 
 _INSERT = (
     "INSERT INTO auth.audit_log"
@@ -38,7 +56,7 @@ def record(
             caller.email,
             caller.name,
             caller.db_role,
-            caller.key_prefix,
+            _safe_prefix(caller.key_prefix),
             statement,
             row_count,
             outcome,
@@ -68,7 +86,7 @@ def record_anonymous(
             "unknown",
             "unknown",
             "none",
-            key_prefix,
+            _safe_prefix(key_prefix),
             None,
             None,
             outcome,

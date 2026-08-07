@@ -93,3 +93,31 @@ class TestAudit(unittest.TestCase):
             self.conn, "denied", key_prefix="ag_rw_123", error_message="unknown key"
         )
         self.assertEqual(self._latest()[7], "ag_rw_123")
+
+    def test_a_full_key_passed_as_prefix_is_truncated(self):
+        """key_prefix identifies which key was tried; it must never be able to
+        hold a working one. The column is unbounded TEXT, so a caller passing
+        the raw Authorization header would otherwise write a valid key into the
+        one table an attacker would most want to read. Truncation happens in
+        audit.py so it cannot be forgotten at a call site."""
+        from src.api.keys import PREFIX_LENGTH, generate_key
+
+        full_key, _, _ = generate_key("db_readonly")
+        record_anonymous(self.conn, "denied", key_prefix=full_key)
+
+        stored = self._latest()[7]
+        self.assertEqual(len(stored), PREFIX_LENGTH)
+        self.assertNotEqual(stored, full_key)
+        self.assertTrue(full_key.startswith(stored))
+
+    def test_a_full_key_on_an_authenticated_row_is_truncated_too(self):
+        from src.api.keys import PREFIX_LENGTH, Caller, generate_key
+
+        full_key, _, _ = generate_key("db_readwrite")
+        oversized = Caller(
+            email="test-audit@x.com", name="Audit Person",
+            db_role="db_readwrite", key_prefix=full_key,
+            max_concurrent=1, statement_timeout_ms=1000,
+        )
+        record(self.conn, oversized, "SELECT 1", "success")
+        self.assertEqual(len(self._latest()[7]), PREFIX_LENGTH)
