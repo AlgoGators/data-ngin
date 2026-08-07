@@ -12,18 +12,16 @@ means:
 - **No per-person control.** Access is granted by handing out a password. It cannot be
   revoked from one person without changing it for everyone.
 - **No resource control.** A single unbounded query against `sharadar_ohlcv_1d`
-  (45.5M rows) can take down a server that has 957MB of RAM and is already ~1.3GB into
-  swap.
+  (45.5M rows) can exhaust a server that has 957MB of RAM and is already deep in swap.
 
 Reads through pgAdmin are already constrained by the read-only `fund_member` Postgres
-role, so the data is not currently at risk of accidental modification. What is missing
-is the ability to write in a controlled, attributable way, and any visibility into who
-is doing what.
+role, so data is not currently at risk of accidental modification. What is missing is a
+way to write in a controlled, attributable way, and any visibility into who does what.
 
 ## Goals
 
-1. Every database *edit* is attributable to a named person and recorded.
-2. Permissions are per-person, not only per-role. Nobody can widen their own access.
+1. Every database edit is attributable to a named person and recorded.
+2. Access is granted per person and revocable per person.
 3. Requests are bounded so no single caller can exhaust the server.
 4. Adding and removing people is a one-row operation.
 
@@ -31,85 +29,112 @@ is doing what.
 
 - **Logging reads made through pgAdmin.** Those bypass the service entirely and cannot
   be attributed while pgAdmin uses a shared login. Reads made *through the API* are
-  logged; that coverage improves as people adopt the API. Complete read logging would
-  require per-person Postgres accounts and removing direct access — a separate,
-  later decision.
-- **Auditing admin writes made outside the API.** Admins hold Postgres write access, so
-  an admin editing in pgAdmin will not appear in the audit log. The log answers "what
-  changed through the API", not "what changed". Closing this would mean removing direct
-  write access from admins.
+  logged; coverage improves as people adopt it.
+- **Auditing admin writes made outside the API.** The six admins share the `postgres`
+  login by decision, so an admin editing in pgAdmin appears in Postgres's own logs as
+  `postgres`, with no name attached. The audit log answers "what changed through the
+  API", not "what changed". Closing this would require individual admin logins.
 - **Replacing pgAdmin.** It remains the read tool. The API is additive.
 
 ## Architecture
 
-One new FastAPI service between users and Postgres. It holds two connections and users
-hold neither:
+One new FastAPI service between users and Postgres. Users hold an API key; they never
+hold a database credential.
 
-| Connection | Postgres role | Used for |
-|---|---|---|
-| Read | `fund_member` (read-only) | Every read |
-| Write | `api_writer` (new) | Writes, only after a permission check passes |
+**The database performs the enforcement, not the service.** For each request the service
+authenticates the caller, switches the connection to that caller's Postgres role with
+`SET ROLE`, and runs their SQL. Postgres accepts or rejects it according to that role's
+grants.
 
-Users authenticate with an API key. They never receive a database credential capable of
-writing.
+### Why the database and not the service
 
-`api_writer` needs write grants on every schema the API may write to — that is, the union
-of what any tier can reach, including the protected schemas that only admins may target.
-It is therefore the most privileged credential in the system and lives only in the
-service's configuration.
+The service cannot determine what a SQL statement writes to without parsing it, and
+parsing it correctly is not feasible. The target can be concealed in a comment, buried in
+a CTE, split across statements, hidden inside a `DO` block, or left unqualified so that
+it resolves through `search_path`:
 
-**A consequence worth stating plainly:** because there is a single write role, the
-read/write split is defended twice but the *scope* of a write is defended once. A bug in
-the gate cannot turn a read into a write — the read-only role refuses that — but it could
-in principle let a quant_dev write somewhere only an admin should. Splitting `api_writer`
-into per-tier roles would close this; see Deferred.
+```sql
+INSERT INTO /* research.notes */ equities_data.ohlcv_1d VALUES (...);
+WITH x AS (INSERT INTO research.a VALUES (1) RETURNING *)
+     INSERT INTO equities_data.ohlcv_1d SELECT * FROM x;
+DO $$ BEGIN EXECUTE 'DELETE FROM backtest.results'; END $$;
+```
+
+Handling these correctly requires a real SQL parser plus `search_path` resolution plus
+following functions and triggers, and every gap is a permission bypass. Postgres already
+has a parser and a permission system; running the statement as the caller delegates the
+problem to the component that solves it correctly.
+
+This also means raw SQL is safe for writes as well as reads, which keeps the API
+consistent with what people already do in pgAdmin.
 
 ### Request flow
 
 ```
 1. Extract API key from the Authorization header
-2. sha256(key) -> look up auth.api_keys -> email, name, tier, exceptions, caps
+2. sha256(key) -> look up auth.api_keys -> email, name, role, caps
    no match / inactive -> 401, logged
 3. Acquire a concurrency slot: per-user cap, then global cap
    none available -> 429, logged
-4. Check permission: tier permissions + user exceptions
-   not permitted -> 403, logged
-5. Execute on the appropriate connection
-6. Write an audit row: who, when, operation, target, statement, outcome, duration
-7. Release the slot, return the result
+4. SET ROLE <the caller's role>
+5. Execute their SQL
+   role lacks permission -> Postgres raises, -> 403, logged
+6. RESET ROLE, write an audit row, release the slot, return the result
 ```
 
-### Two properties this design depends on
+Every outcome produces an audit row, including authentication failures, permission
+denials and rate limits. A log recording only successes says nothing about someone
+probing for access.
 
-**The permission check and the connection choice are independent defenses.** If the gate
-had a bug and admitted a write on a read path, the read-only Postgres role would still
-refuse it. Enforcement of the read/write boundary does not rest on the application logic
-being correct. (Enforcement of *which schema* a write targets does — see the note on
-`api_writer` above.)
+## The three roles
 
-**The audit row is written regardless of outcome**, including authentication failures,
-permission denials and rate limits. A log that records only successes says nothing about
-someone probing for access.
+| Role | Assigned to | Reads | Writes |
+|---|---|---|---|
+| `db_readonly` | General members | All data schemas | Nothing |
+| `db_readwrite` | Quant dev | All data schemas | Everything except `trading` and `auth` |
+| `db_readwrite_all` | Admin | Everything | Everything |
+
+Quant dev can write `equities_data`, `futures_data`, `backtest`, `research`,
+`synthetic`, `macro_data`, `eia` and `metadata`. Requiring an admin to backfill a few
+rows would add days of turnaround to routine work; the audit log is what makes the looser
+grant acceptable, since a bad write is now attributable and recoverable from backups.
+
+Two carve-outs:
+
+- **`trading`** holds live positions, executions and results. A wrong backfill in
+  `equities_data` produces bad research that can be re-derived. A wrong `UPDATE` on
+  `trading.positions` misstates what the fund holds. Different failure mode, and nobody
+  is blocked by being unable to hand-edit live positions.
+- **`auth`** holds the key table and the audit log. Write access there would let someone
+  grant themselves admin or delete their own trail, defeating the system.
+
+**Exceptions are additional roles, not a separate mechanism.** Because Postgres performs
+the enforcement, a service-level exception cannot grant what a role lacks — Postgres
+refuses regardless. If someone needs a permission set none of the three cover, that is a
+fourth role with those grants, and they are assigned to it. If a permission set is worth
+granting, it is worth naming.
+
+Role definitions live in a SQL migration, so they are version-controlled, reviewable and
+attributable. There is no separate permissions file to keep in sync.
 
 ## Components
 
 ### `auth.api_keys`
 
-Lives in `auth` because that schema is already excluded from the `fund_member` and
-`quant_dev` Postgres grants — admin-only by default rather than by remembering to lock
-it down.
+Lives in `auth`, which is already excluded from the `fund_member` and `quant_dev` grants
+— admin-only by default rather than by remembering to lock it down.
 
 ```sql
 CREATE TABLE auth.api_keys (
     email            TEXT PRIMARY KEY,
     name             TEXT NOT NULL,
-    tier             TEXT NOT NULL CHECK (tier IN ('general_member','quant_dev','admin')),
+    db_role          TEXT NOT NULL
+        CHECK (db_role IN ('db_readonly','db_readwrite','db_readwrite_all')),
 
     key_hash         TEXT NOT NULL UNIQUE,   -- sha256 hex; the key itself is never stored
     key_prefix       TEXT NOT NULL,          -- e.g. 'ag_qd_7Kx9', for display only
 
-    permission_exceptions TEXT[] NOT NULL DEFAULT '{}',
-    max_concurrent   INT NOT NULL DEFAULT 1,
+    max_concurrent       INT NOT NULL DEFAULT 1,
     statement_timeout_ms INT NOT NULL DEFAULT 120000,
 
     active           BOOLEAN NOT NULL DEFAULT TRUE,
@@ -120,34 +145,41 @@ CREATE TABLE auth.api_keys (
 );
 ```
 
-Email is the primary key: one row per person. Adding someone is one `INSERT`; removing
-them is `active = false`.
+Email is the primary key: one row per person, and the table is the complete picture of
+who has access. Adding someone is one `INSERT`; removing them is `active = false`.
+
+Anything added later that references a person should carry `ON DELETE CASCADE`, so
+removing a row cannot leave orphans.
 
 **Soft delete, not hard.** Keeping the row preserves the answer to "who had access in
-March?" A deleted row cannot answer that.
+March?"
 
-**The `CHECK` on tier is load-bearing.** Without it, a typo such as `quantdev` creates a
-user whose tier does not exist in the permissions file, and behaviour then depends on how
-the lookup was written. The constraint makes that state unrepresentable.
+**The `CHECK` constraint is load-bearing.** Without it a typo produces a row naming a role
+that does not exist, and the failure surfaces at request time rather than at write time.
+
+**No Postgres role is created per person.** Three roles serve everyone; the table maps
+people onto them. This is what keeps offboarding to a single update — per-person roles
+would mean `DROP ROLE` failing whenever that person owns a table, and reassigning owned
+objects before they can be removed.
 
 ### Key format and lifecycle
 
 ```
 ag_qd_7Kx9mPw2nR4vT8yB3cF6hJ1sL5dG0aZq
 └┬┘ └┬┘ └──────────── secrets.token_urlsafe(24) ────────────┘
- │   └── tier prefix (gm / qd / ad)
+ │   └── role prefix (ro / rw / ad)
  └────── org prefix: greppable in leaked code, teachable to secret scanners
 ```
 
-Only `sha256(key)` is stored. The plaintext is displayed once, at creation.
+Only `sha256(key)` is stored; the plaintext is displayed once, at creation.
 
-SHA-256 rather than bcrypt: bcrypt exists to slow brute-forcing of *guessable* secrets
-such as human-chosen passwords. A 32-character random token has enough entropy that
-brute force is irrelevant, and SHA-256 is fast enough to run on every request.
+SHA-256 rather than bcrypt: bcrypt exists to slow brute-forcing of guessable secrets such
+as human-chosen passwords. A 32-character random token has enough entropy that brute
+force is irrelevant, and SHA-256 is fast enough to run on every request.
 
-This matters concretely here. This database was internet-facing with a published
-password for months during 2026. If that recurs and the key table is plaintext, every
-key is immediately usable; hashed, the leak is worthless.
+This matters concretely here. This database was internet-facing with a published password
+for months during 2026. If that recurs and the key table is plaintext, every key is
+immediately usable; hashed, the leak is worthless.
 
 | Action | Mechanism |
 |---|---|
@@ -158,77 +190,23 @@ key is immediately usable; hashed, the leak is worthless.
 **Key creation is a CLI script, not an endpoint**, to avoid a bootstrap problem: an
 endpoint would require a key in order to create the first key.
 
-### Permissions
-
-Two layers, deliberately stored in different places.
-
-**Tier definitions live in a JSON file in the repo**, so changing what an entire tier can
-do goes through a pull request and acquires review, history and blame.
-
-```json
-{
-  "version": 1,
-  "roles": {
-    "general_member": { "permissions": ["read"] },
-    "quant_dev": {
-      "permissions": ["read", "*:research", "*:synthetic",
-                      "*:macro_data", "*:eia", "*:metadata"]
-    },
-    "admin": { "permissions": ["*"] }
-  }
-}
-```
-
-**Per-user exceptions live in `api_keys.permission_exceptions`**, because they change
-often and per-person. A researcher who needs write access to one schema receives an
-exception rather than a promotion. Only admins can edit that column, so nobody can widen
-their own access.
-
-```
-effective_permissions = tier.permissions + user.permission_exceptions
-```
-
-Grammar is `verb:schema`, with `*` permitted on either side. Verbs: `insert`, `update`,
-`delete`, `create_table`, `drop_table`. `read` is a bare permission with no schema.
-
-An unknown tier fails closed: denied and logged, never defaulted.
-
-**Reads are all-or-nothing in the JSON.** Because reads are raw SQL, the gate cannot know
-which schemas a query touches without parsing SQL. `read` grants use of the read
-endpoint; *what is readable* is enforced by the read-only Postgres role's grants, exactly
-as in pgAdmin today. Narrowing reads per-schema would require a second read-only Postgres
-role, not a JSON change.
-
 ### Endpoints
 
-Reads are raw SQL; writes are structured. The asymmetry is deliberate.
-
 ```
-POST /v1/query          { "sql": "SELECT ..." }
+POST /v1/query      { "sql": "..." }     -- any SQL; the role decides what is permitted
 
-POST /v1/insert         { "schema": ..., "table": ..., "rows": [...] }
-POST /v1/update         { "schema": ..., "table": ..., "set": {...}, "where": "..." }
-POST /v1/delete         { "schema": ..., "table": ..., "where": "..." }
-POST /v1/create_table   { "schema": ..., "table": ..., "columns": [...] }
-POST /v1/drop_table     { "schema": ..., "table": ... }
+GET  /v1/schemas
+GET  /v1/tables?schema=...
+GET  /v1/columns?schema=...&table=...
 ```
 
-**Why writes are not raw SQL.** To permission a write, the gate must know its target
-schema. With raw SQL that means either parsing it — rejected as a rabbit hole with an
-unbounded set of edge cases — or trusting a caller-supplied declaration, which is
-spoofable. Structured requests make the target a field rather than an inference, so the
-check is exact.
+One execution endpoint, because the role determines what the statement may do. There is
+no read/write distinction in the API surface — that distinction is the database's.
 
-Reads do not have this problem because they do not need per-schema checks; the read-only
-role already bounds them.
-
-`where` remains a raw SQL fragment. Structured, equality-only predicates would be too
-limiting, and since the caller is already authorised to write that table, a free-form
-predicate grants nothing extra.
-
-**Accepted limitation:** genuinely complex writes — `UPDATE ... FROM` with a join,
-multi-statement transactions, bulk `INSERT ... SELECT` — do not fit these endpoints and
-remain admin-in-pgAdmin operations. Revisit if that proves common.
+The metadata endpoints exist so tooling can discover structure programmatically rather
+than a person reading it out of pgAdmin. They are convenience wrappers over
+`information_schema`, which Postgres already filters to what the calling role may see, so
+they need no permission logic of their own.
 
 ### `auth.audit_log`
 
@@ -239,12 +217,9 @@ CREATE TABLE auth.audit_log (
 
     actor_email    TEXT NOT NULL,
     actor_name     TEXT NOT NULL,
-    actor_tier     TEXT NOT NULL,
+    actor_role     TEXT NOT NULL,
     key_prefix     TEXT,
 
-    operation      TEXT NOT NULL,
-    target_schema  TEXT,
-    target_table   TEXT,
     statement      TEXT,
     row_count      INTEGER,
 
@@ -258,19 +233,22 @@ CREATE INDEX ON auth.audit_log (occurred_at DESC);
 CREATE INDEX ON auth.audit_log (actor_email, occurred_at DESC);
 ```
 
-**Actor identity is denormalised on purpose.** Storing only the email and joining to
-`api_keys` for the name means removing someone erases their name from every historical
-entry — the audit trail would degrade as people leave, which is backwards. Storing only
-the name loses the stable identifier: names are not unique and do change. Snapshotting
-both makes each row self-contained, historically accurate, and readable without a join.
+**Actor identity is denormalised deliberately.** Storing only the email and joining to
+`api_keys` for the name would erase a person's name from every historical entry when they
+are removed — the trail degrades as people leave, which is backwards. Storing only the
+name loses the stable identifier, since names are neither unique nor permanent.
+Snapshotting both makes each row self-contained, historically accurate and readable
+without a join.
 
-Lives in `auth`, so it inherits admin-only access: nobody can read or delete their own
-activity.
+The statement is stored verbatim. Since the role decides what was permitted, the SQL text
+is the record of what was attempted, whether or not it succeeded.
+
+Lives in `auth`, so nobody can read or delete their own activity.
 
 ## Resource limits
 
-The server has 957MB of RAM, roughly 333MB available, and about 1.3GB in swap while
-running Airflow, Postgres, promtail and trade-ngin.
+The server has 957MB of RAM, roughly 330MB available, and over 1GB in swap while running
+Airflow, Postgres, promtail and trade-ngin.
 
 | Setting | Value | Rationale |
 |---|---|---|
@@ -289,32 +267,63 @@ point is choosing which thing fails.
 The row limit is the most likely day-one outage prevented: a single unbounded `SELECT *`
 would try to materialise 45.5M rows inside a 200MB container.
 
+120 seconds rather than something tighter because legitimate aggregations over 45M rows
+on a swapping box are genuinely slow, and a timeout that kills real work teaches people
+to route around the API — which defeats the logging.
+
 ## Deployment
 
-The service runs as a fourth container on the existing host.
+The service runs as an additional container on the existing host, bound to `localhost`
+only, with Caddy in front of it terminating TLS.
 
-**This is a budget-constrained decision, not the right architecture.** A separate
-instance (~$8/month) would isolate API failures from ingestion and keep the write
-credential on a different machine from the database. That was ruled out because no spend
-is available. When the instance upgrade happens — already required for the Airflow 3
-migration in PR #42 — relocating this service is the first thing to revisit. The limits
-above are tight because of the hardware, not because they are correct on merit.
+```
+data-ngin.algogators.com {
+    reverse_proxy localhost:8000
+}
+```
 
 **TLS is required, not optional.** Callers transmit API keys in a header; over plain HTTP
-those are readable by anyone on the network path. A service whose purpose is
-authentication cannot ship without it. Port 443 is already open in security group
-`sg-046d7aeb9acb4f883`; the service needs either a reverse proxy terminating TLS or a
-certificate of its own.
+those are readable by anyone on the network path. The certificate is not about the keys —
+it proves the server's identity and encrypts the connection in both directions.
+
+Certificate authorities issue certificates for domain names, never for bare IP addresses,
+which is the only reason a subdomain is involved. The alternative is a self-signed
+certificate, which encrypts but makes every client show a warning, so everyone learns to
+disable certificate verification — a worse habit than the problem it solves.
+
+Caddy rather than nginx with certbot because certbot renewal is a scheduled job that can
+fail silently. This deployment already lost nine months of database backups to exactly
+that failure mode: a nightly cron job that ran, failed, and uploaded empty files without
+anyone noticing. Caddy obtains and renews certificates itself, which removes that class
+of failure for roughly 10MB more memory.
+
+**Prerequisites, in order:**
+
+1. **An Elastic IP**, attached. Without one the instance's public address changes on
+   stop/start — which happens when the instance is resized — and the DNS record breaks.
+   (An Elastic IP was allocated and released on 2026-08-06; allocate a fresh one at this
+   point. AWS bills every public IPv4 since February 2024, so an attached Elastic IP
+   costs the same as the auto-assigned address it replaces.)
+2. **A DNS A record** for `data-ngin.algogators.com` pointing at it. The domain is on
+   GitHub Pages; this is an independent record and no traffic passes through the site.
+3. **Caddy**, then the service.
+
+**Running on the existing host is a budget constraint, not the right architecture.** A
+separate instance (~$8/month) would isolate API failures from ingestion and keep the write
+credential on a different machine from the database. No spend is available. When the
+instance is upgraded — already required for the Airflow 3 migration in PR #42 —
+relocating this service is the first thing to revisit. The limits above are tight because
+of the hardware, not because they are correct on merit.
 
 ## What is cheap to change later, and what is not
 
 **Cheap** — a config value or one line plus a restart: memory limit, both concurrency
-caps, row limit, statement timeout, tier permissions, per-user exceptions and caps.
-Moving to a larger instance changes nothing about the design.
+caps, row limit, statement timeout, and the grants attached to any role. Moving to a
+larger instance changes nothing about the design.
 
 **Sticky** — needs a migration or breaks existing clients: the `api_keys` and `audit_log`
-schemas, the permission-string grammar once keys are issued, and the structured-writes
-decision.
+schemas, the key format once keys are issued, and the decision to enforce through Postgres
+roles rather than in the service.
 
 ## Deferred
 
@@ -322,14 +331,12 @@ decision.
   a year of daily use is real. Add a retention job later; it should be a known task
   rather than a surprise.
 - **Rejecting oversized requests before execution.** The row limit truncates after the
-  fact. Estimating cost up front — via `EXPLAIN` — would reject earlier.
-- **Per-schema read permissions.** Requires additional read-only Postgres roles.
-- **Complete read attribution.** Requires per-person Postgres accounts and removing
-  direct pgAdmin access.
-- **Per-tier write roles.** Splitting `api_writer` into `api_writer_open` (research,
-  synthetic, macro_data, eia, metadata) and `api_writer_admin` (everything) would make
-  write *scope* enforced by Postgres rather than by the gate alone. Deferred because it
-  interacts awkwardly with per-user exceptions: an exception granting a quant_dev write
-  access to a protected schema would be admitted by the gate and then refused by the
-  role. Worth doing if exceptions turn out to be rare, or if the gate grows complex
-  enough that a bug in it becomes plausible.
+  fact; estimating cost up front via `EXPLAIN` would reject earlier.
+- **Per-schema read permissions.** All three roles currently read everything outside
+  `auth`. Narrowing this means additional roles.
+- **Complete read attribution.** Requires per-person Postgres logins and removing shared
+  pgAdmin access.
+- **Airflow behind the same Caddy instance.** The Airflow UI on port 8080 is plain HTTP
+  and open to the internet, so its logins travel in cleartext. Adding
+  `airflow.algogators.com` to the Caddy config and closing 8080 would retire that. Out of
+  scope here, but it is two additional lines once Caddy exists.
