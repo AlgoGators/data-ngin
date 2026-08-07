@@ -51,7 +51,7 @@ class TestDataAccess(unittest.TestCase):
         self.assertEqual(inserted_obj.time, records[0]["time"])
         self.mock_session.commit.assert_called_once()
 
-    @patch("data.modules.data_access.sessionmaker")
+    @patch("src.modules.data_access.sessionmaker")
     def test_get_ohlcv_data(self, mock_session_factory):
         # Create DataAccess after patch is in place
         data_access = DataAccess()

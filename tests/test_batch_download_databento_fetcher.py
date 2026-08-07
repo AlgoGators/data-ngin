@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 import numpy as np
 import pandas as pd
 import databento as db
-from src.modules.batch_download_databento_fetcher import BatchDownloadDatabentoFetcher
+from src.modules.fetcher.batch_download_databento_fetcher import BatchDownloadDatabentoFetcher
 
 class TestBatchDownloadDatabentoFetcher(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
@@ -30,9 +30,9 @@ class TestBatchDownloadDatabentoFetcher(unittest.IsolatedAsyncioTestCase):
         
         # Create patches
         self.patches = [
-            patch("data.modules.databento_fetcher.db.Historical"),
-            patch("data.modules.databento_fetcher.db.Schema", self.mock_schema),
-            patch("data.modules.databento_fetcher.db.SType", self.mock_stype)
+            patch("src.modules.fetcher.databento_fetcher.db.Historical"),
+            patch("src.modules.fetcher.databento_fetcher.db.Schema", self.mock_schema),
+            patch("src.modules.fetcher.databento_fetcher.db.SType", self.mock_stype)
         ]
         
         # Start all patches

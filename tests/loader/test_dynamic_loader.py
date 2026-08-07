@@ -16,10 +16,10 @@ class TestDynamicLoader(unittest.TestCase):
         Set up mock configuration data for testing.
         """
         self.mock_config: Dict[str, Any] = {
-            "loader": {"class": "CSVLoader", "module": "csv_loader"},
-            "fetcher": {"class": "DatabentoFetcher", "module": "databento_fetcher"},
-            "cleaner": {"class": "DatabentoCleaner", "module": "databento_cleaner"},
-            "inserter": {"class": "TimescaleDBInserter", "module": "timescaledb_inserter"},
+            "loader": {"class": "CSVLoader", "module": "loader.csv_loader"},
+            "fetcher": {"class": "DatabentoFetcher", "module": "fetcher.databento_fetcher"},
+            "cleaner": {"class": "DatabentoCleaner", "module": "cleaner.databento_cleaner"},
+            "inserter": {"class": "TimescaleDBInserter", "module": "inserter.timescaledb_inserter"},
         }
 
     def create_temp_yaml(self, data: Dict[str, Any]) -> str:
@@ -120,7 +120,7 @@ class TestDynamicLoader(unittest.TestCase):
 
         instance: Any = get_instance(self.mock_config, "loader", "class")
 
-        mock_load_class.assert_called_once_with("data.modules.csv_loader", "CSVLoader")
+        mock_load_class.assert_called_once_with("src.modules.loader.csv_loader", "CSVLoader")
         mock_class.assert_called_once_with(config=self.mock_config)
         self.assertEqual(instance, mock_instance)
 

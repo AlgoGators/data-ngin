@@ -1,4 +1,5 @@
 import unittest
+import pandas as pd
 from unittest.mock import patch, MagicMock, AsyncMock
 from typing import Dict, Any
 from src.orchestrator import Orchestrator
@@ -14,15 +15,15 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
         Set up mock configuration and patch dynamic imports.
         """
         self.mock_config: Dict[str, Any] = {
-            "loader": {"class": "CSVLoader", "module": "csv_loader", "file_path": ""},
-            "fetcher": {"class": "DatabentoFetcher", "module": "databento_fetcher"},
-            "cleaner": {"class": "DatabentoCleaner", "module": "databento_cleaner"},
-            "inserter": {"class": "TimescaleDBInserter", "module": "timescaledb_inserter"},
+            "loader": {"class": "CSVLoader", "module": "loader.csv_loader", "file_path": ""},
+            "fetcher": {"class": "DatabentoFetcher", "module": "fetcher.databento_fetcher"},
+            "cleaner": {"class": "DatabentoCleaner", "module": "cleaner.databento_cleaner"},
+            "inserter": {"class": "TimescaleDBInserter", "module": "inserter.timescaledb_inserter"},
             "time_range": {"start_date": "2023-01-01", "end_date": "2023-01-02"},
             "database": {"target_schema": "futures_data", "raw_table": "ohlcv_1d_raw", "table": "ohlcv_1d"}
         }
 
-    @patch("data.orchestrator.get_instance")
+    @patch("src.orchestrator.get_instance")
     def test_orchestrator_initialization(self, mock_get_instance: MagicMock) -> None:
         """
         Test that Orchestrator initializes all modules dynamically.
@@ -49,9 +50,9 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
         mock_get_instance.assert_any_call(self.mock_config, "cleaner", "class")
         mock_get_instance.assert_any_call(self.mock_config, "inserter", "class")
 
-    @patch("data.orchestrator.determine_date_range", return_value=("2023-01-01", "2023-01-02"))
-    @patch("data.orchestrator.Orchestrator.retrieve_and_process_data", new_callable=AsyncMock)
-    @patch("data.modules.csv_loader.CSVLoader.load_symbols", return_value={"ES": "FUTURE", "NQ": "FUTURE"})
+    @patch("src.orchestrator.determine_date_range", return_value=("2023-01-01", "2023-01-02"))
+    @patch("src.orchestrator.Orchestrator.retrieve_and_process_data", new_callable=AsyncMock)
+    @patch("src.modules.loader.csv_loader.CSVLoader.load_symbols", return_value={"ES": "FUTURE", "NQ": "FUTURE"})
     async def test_orchestrator_run(
         self,
         mock_load_symbols: MagicMock,
@@ -92,19 +93,33 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
 
 
 
-    @patch("data.modules.databento_fetcher.DatabentoFetcher.fetch_data", new_callable=AsyncMock)
-    @patch("data.modules.databento_cleaner.DatabentoCleaner.clean", return_value=[{"time": "2023-01-01"}])
-    @patch("data.modules.timescaledb_inserter.TimescaleDBInserter.insert_data")
+    @patch("src.modules.inserter.timescaledb_inserter.TimescaleDBInserter.close")
+    @patch("src.modules.inserter.timescaledb_inserter.TimescaleDBInserter.connect")
+    @patch("src.modules.fetcher.databento_fetcher.DatabentoFetcher.fetch_data", new_callable=AsyncMock)
+    @patch("src.modules.cleaner.databento_cleaner.DatabentoCleaner.clean", return_value=[{"time": "2023-01-01"}])
+    @patch("src.modules.inserter.timescaledb_inserter.TimescaleDBInserter.insert_data")
     async def test_retrieve_and_process_data(
         self,
         mock_insert_data: MagicMock,
         mock_clean: MagicMock,
         mock_fetch: AsyncMock,
+        mock_connect: MagicMock,
+        mock_close: MagicMock,
     ) -> None:
         """
         Test that retrieve_and_process_data calls fetcher, cleaner, and inserter in sequence.
+
+        connect/close are patched deliberately: this test previously opened a REAL
+        connection to the production database, because it stubbed the component
+        methods but not the connection lifecycle. A unit test must not touch prod.
+
+        fetch_data returns a DataFrame, not a list -- retrieve_and_process_data calls
+        .to_dict(orient="records") on it before the raw insert. The old fixture
+        returned a list, so every symbol failed with AttributeError and the
+        orchestrator's per-symbol except swallowed it.
         """
-        mock_fetch.return_value = [{"time": "2023-01-01", "symbol": "ES", "open": 100.5}]
+        raw = pd.DataFrame([{"time": "2023-01-01", "symbol": "ES", "open": 100.5}])
+        mock_fetch.return_value = raw
 
         orchestrator = Orchestrator(config=self.mock_config)
         await orchestrator.retrieve_and_process_data({"dataSymbol": "ES", "instrumentType": "FUTURE"}, "2023-01-01", "2023-01-02")
@@ -116,13 +131,16 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
             end_date="2023-01-02",
         )
 
-        mock_clean.assert_called_once_with([{"time": "2023-01-01", "symbol": "ES", "open": 100.5}])
+        mock_clean.assert_called_once()
+        pd.testing.assert_frame_equal(mock_clean.call_args[0][0], raw)
 
         mock_insert_data.assert_called_with(
             data=[{"time": "2023-01-01"}],
             schema="futures_data",
             table="ohlcv_1d"
         )
+        mock_connect.assert_called()
+        mock_close.assert_called()
 
 
 if __name__ == "__main__":

@@ -19,7 +19,7 @@ def load_config() -> Dict[str, Any]:
         FileNotFoundError: If the configuration file is not found.
         yaml.YAMLError: If there is an error parsing the YAML file.
     """
-    config_path: str = os.path.join("data", "config", "config.yaml")
+    config_path: str = os.path.join("src", "config", "config.yaml")
     
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Configuration file not found at {config_path}")

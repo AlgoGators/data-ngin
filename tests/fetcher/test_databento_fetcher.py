@@ -29,9 +29,9 @@ class TestDatabentoFetcher(unittest.IsolatedAsyncioTestCase):
         
         # Create patches
         self.patches = [
-            patch("data.modules.databento_fetcher.db.Historical"),
-            patch("data.modules.databento_fetcher.db.Schema", self.mock_schema),
-            patch("data.modules.databento_fetcher.db.SType", self.mock_stype)
+            patch("src.modules.fetcher.databento_fetcher.db.Historical"),
+            patch("src.modules.fetcher.databento_fetcher.db.Schema", self.mock_schema),
+            patch("src.modules.fetcher.databento_fetcher.db.SType", self.mock_stype)
         ]
         
         # Start all patches

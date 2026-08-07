@@ -88,10 +88,10 @@ class TestDBModels(unittest.TestCase):
         expected_columns: Dict[str, str] = {
             "time": "TIMESTAMP",
             "symbol": "TEXT",
-            "open": "DOUBLE_PRECISION",
-            "high": "DOUBLE_PRECISION",
-            "low": "DOUBLE_PRECISION",
-            "close": "DOUBLE_PRECISION",
+            "open": "DOUBLE PRECISION",
+            "high": "DOUBLE PRECISION",
+            "low": "DOUBLE PRECISION",
+            "close": "DOUBLE PRECISION",
             "volume": "INTEGER",
         }
 
@@ -99,8 +99,8 @@ class TestDBModels(unittest.TestCase):
             self.assertIn(column, columns, f"Column `{column}` is missing.")
             self.assertEqual(str(columns[column]), col_type, f"Type mismatch for `{column}`.")
 
-    @patch("data.modules.db_models.Session.add")
-    @patch("data.modules.db_models.Session.commit")
+    @patch("src.modules.db_models.Session.add")
+    @patch("src.modules.db_models.Session.commit")
     def test_insert_ohlcv(self, mock_commit: MagicMock, mock_add: MagicMock) -> None:
         """
         Test inserting a record into the `ohlcv_1d` table.
@@ -120,7 +120,7 @@ class TestDBModels(unittest.TestCase):
         mock_add.assert_called_once_with(record)
         mock_commit.assert_called_once()
 
-    @patch("data.modules.db_models.Session.commit")
+    @patch("src.modules.db_models.Session.commit")
     def test_insert_duplicate_ohlcv(self, mock_commit: MagicMock) -> None:
         """
         Test inserting duplicate records and expecting an IntegrityError.
@@ -142,7 +142,7 @@ class TestDBModels(unittest.TestCase):
         with self.assertRaises(IntegrityError, msg="Duplicate record did not raise IntegrityError."):
             self.session.commit()
 
-    @patch("data.modules.db_models.Session.query")
+    @patch("src.modules.db_models.Session.query")
     def test_query_ohlcv(self, mock_query: MagicMock) -> None:
         """
         Test querying the `ohlcv_1d` table.
@@ -163,8 +163,8 @@ class TestDBModels(unittest.TestCase):
         self.assertIsNotNone(result, "The queried record was not found.")
         self.assertEqual(result.close, 200.5, "The `close` field did not match the inserted value.")
 
-    @patch("data.modules.db_models.Session.delete")
-    @patch("data.modules.db_models.Session.commit")
+    @patch("src.modules.db_models.Session.delete")
+    @patch("src.modules.db_models.Session.commit")
     def test_delete_ohlcv(self, mock_commit: MagicMock, mock_delete: MagicMock) -> None:
         """
         Test deleting a record from the `ohlcv_1d` table.

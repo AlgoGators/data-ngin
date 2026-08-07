@@ -54,7 +54,12 @@ class Orchestrator:
             end_date (str): End date for fetching data. 
         """
         try:
-            batch_config = self.config.get("batch_downloading")
+            # batch_downloading is an optional section -- the Tiingo config sets it,
+            # but a config without it must fall back to single-symbol fetching rather
+            # than raising AttributeError on None and failing EVERY symbol. The
+            # orchestrator swallows per-symbol exceptions, so that failure mode is
+            # silent: the DAG goes green having written nothing.
+            batch_config = self.config.get("batch_downloading") or {}
             is_batch_enabled = batch_config.get("batch")
 
             if is_batch_enabled:
