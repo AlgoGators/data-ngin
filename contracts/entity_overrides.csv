@@ -8,3 +8,8 @@ VIAC,NO_COVERAGE,"Tiingo's VIAC ends 2019-12-04 -- the day BEFORE ViacomCBS's me
 WRK,REUSED_TICKER,"Tiingo returns WRKR LTD, an unrelated Australian company, with a single day of data. WestRock merged into Smurfit Westrock in July 2024."
 MDP,NO_PRICE_DATA,"Tiingo's metadata claims Meredith Corp 1985-07-01..2021-12-01, but the prices endpoint returns 0 rows for that exact range. Vendor inconsistency between its own two endpoints -- caught by the backfill, which refuses to treat a validated target returning nothing as success."
 NYX,NO_PRICE_DATA,"Tiingo's metadata claims NYSE Euronext 2007-06-04..2013-11-12, but the prices endpoint returns 0 rows. Same metadata/prices inconsistency as MDP."
+AA,REUSED_TICKER,"Alcoa Inc split Nov 2016 into Alcoa Corp (kept AA) and Arconic. Tiingo's AA starts 2016-10-18 and is Alcoa Corp -- the post-split entity -- so it is not the Alcoa Inc that held the index seat until 2016-11-01. Same ticker, different company."
+ARNC,REUSED_TICKER,"Arconic Inc (2016-2020, the renamed Alcoa Inc) vs Arconic Corporation (the 2020 spin-off). Tiingo's ARNC starts 2020-04-01 and is the spin-off; the index membership 2016-11-01..2020-04-01 belongs to the predecessor."
+SUN,REUSED_TICKER,"Sunoco Inc was acquired by Energy Transfer in Oct 2012. Tiingo's SUN is Sunoco LP, a separate MLP that took the ticker -- not the company that held the index seat."
+MBC,OK,"MasterBrand. Tiingo covers 2022-12-09 onward and the index membership was 2022-12-15..12-19 -- fully covered. A four-day membership is the truth here, not a coverage gap."
+PCP,OK,"Precision Castparts, correct company. Berkshire completed the acquisition in Feb 2016, so Tiingo holds only 2016-01-04..02-08 of a long membership. Real data, minimal coverage -- same call as BRCM."
