@@ -74,21 +74,59 @@ BEGIN
     END LOOP;
 END $$;
 
--- The login the service uses. NOINHERIT means it holds no privileges of its own
--- despite being a member of all three roles -- it must SET ROLE explicitly. A
--- bug that forgets to SET ROLE therefore fails closed instead of running with
--- full access.
+-- THREE logins, one per role. This is not redundancy -- a single login that was
+-- a member of all three roles would be trivially escalatable.
+--
+-- Postgres authorises SET ROLE against session_user, not current_user. So with
+-- one shared login, SET LOCAL ROLE db_readonly narrows current_user but leaves
+-- session_user a member of every role, and any caller escalates by prefixing
+-- nine characters to their SQL:
+--
+--     SET ROLE db_readwrite_all; INSERT INTO trading.positions ...
+--
+-- That was verified working from db_readonly against a real database before
+-- this was changed. Because the service deliberately never inspects the SQL it
+-- is given, there is no layer that would catch it.
+--
+-- With one login per role, the same statement fails: api_service_ro is not a
+-- member of db_readwrite_all, so Postgres refuses the SET ROLE outright.
+--
+-- NOINHERIT is retained on top of that. It means each login holds none of its
+-- role's privileges until it issues SET ROLE, so a code path that forgets to
+-- switch fails closed rather than running with that role's access.
+DO $$
+DECLARE r record;
+BEGIN
+    FOR r IN
+        SELECT * FROM (VALUES
+            ('api_service_ro',  'db_readonly'),
+            ('api_service_rw',  'db_readwrite'),
+            ('api_service_all', 'db_readwrite_all')
+        ) AS t(login, granted)
+    LOOP
+        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r.login) THEN
+            EXECUTE format(
+                'CREATE ROLE %I LOGIN NOINHERIT PASSWORD %L',
+                r.login, 'CHANGE_ME_BEFORE_DEPLOY'
+            );
+        END IF;
+        EXECUTE format('GRANT %I TO %I', r.granted, r.login);
+    END LOOP;
+END $$;
+
+-- Remove the single-login form if an earlier revision of this migration created
+-- it. Leaving it in place would leave the escalation path open.
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'api_service') THEN
-        CREATE ROLE api_service LOGIN NOINHERIT PASSWORD 'CHANGE_ME_BEFORE_DEPLOY';
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'api_service') THEN
+        REVOKE db_readonly, db_readwrite, db_readwrite_all FROM api_service;
     END IF;
 END $$;
 
-GRANT db_readonly, db_readwrite, db_readwrite_all TO api_service;
-
 COMMIT;
 
--- After running, set a real password:
---   ALTER ROLE api_service WITH PASSWORD '<generated>';
--- and put it in the service's environment as API_DB_PASSWORD.
+-- After running, set a real password for each and put them in the service's
+-- environment as API_DB_PASSWORD_RO / _RW / _ALL:
+--   ALTER ROLE api_service_ro  WITH PASSWORD '<generated>';
+--   ALTER ROLE api_service_rw  WITH PASSWORD '<generated>';
+--   ALTER ROLE api_service_all WITH PASSWORD '<generated>';
