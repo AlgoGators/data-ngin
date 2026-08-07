@@ -142,8 +142,22 @@ async def refresh(config: Dict[str, Any], dry_run: bool = False,
                 cur.execute(f'SELECT DISTINCT symbol FROM {schema}.{table} ORDER BY symbol')
                 todo_all = [r[0] for r in cur.fetchall()]
 
-        done = load_done()
+        done = load_done(CHECKPOINT)
         todo = [s for s in todo_all if s not in done]
+
+        # Rolling sweep. A full pass over 852 symbols is one vendor request each,
+        # which exceeds an hour of free-tier key budget, so a scheduled run takes a
+        # --limit slice and the checkpoint carries progress between runs. Once every
+        # symbol has been visited the checkpoint is cleared and the next run starts a
+        # fresh pass -- otherwise the job would go permanently quiet after one sweep
+        # while adjustments kept rotting.
+        if not todo and todo_all:
+            logger.info("full pass complete over %d symbols; starting a new sweep", len(todo_all))
+            if os.path.exists(CHECKPOINT):
+                os.remove(CHECKPOINT)
+            done = set()
+            todo = list(todo_all)
+
         if limit:
             todo = todo[:limit]
         logger.info("%d symbols in table; %d already refreshed; %d this run",
@@ -164,7 +178,7 @@ async def refresh(config: Dict[str, Any], dry_run: bool = False,
                         f'{", ".join(ADJ_COLUMNS)} FROM {schema}.{table} WHERE symbol = %s', (sym,))
                     rows = cur.fetchall()
                 if not rows:
-                    _checkpoint(sym, "DONE", 0)
+                    _checkpoint(sym, "DONE", 0, CHECKPOINT)
                     continue
                 ours = {r[0]: dict(zip(ADJ_COLUMNS, r[1:])) for r in rows}
                 lo, hi = min(ours), max(ours)
@@ -174,13 +188,13 @@ async def refresh(config: Dict[str, Any], dry_run: bool = False,
                 theirs = _vendor_frame_to_map(raw)
                 if not theirs:
                     logger.warning("%s: vendor returned nothing for %s..%s; leaving as-is", sym, lo, hi)
-                    _checkpoint(sym, "EMPTY", 0)
+                    _checkpoint(sym, "EMPTY", 0, CHECKPOINT)
                     continue
 
                 diffs = differing_rows(ours, theirs)
                 checked += 1
                 if not diffs:
-                    _checkpoint(sym, "DONE", 0)
+                    _checkpoint(sym, "DONE", 0, CHECKPOINT)
                     continue
 
                 payload = [(sym, d, *[vals.get(c) for c in ADJ_COLUMNS]) for d, vals in diffs]
@@ -203,12 +217,12 @@ async def refresh(config: Dict[str, Any], dry_run: bool = False,
                         payload, page_size=1000)
                 updated_rows += len(diffs)
                 updated_symbols += 1
-                _checkpoint(sym, "DONE", len(diffs))
+                _checkpoint(sym, "DONE", len(diffs), CHECKPOINT)
                 logger.info("%-7s %d bar(s) re-adjusted", sym, len(diffs))
             except Exception as exc:  # noqa: BLE001
                 logger.error("%s: FAILED: %s", sym, exc)
                 failed.append(sym)
-                _checkpoint(sym, "FAILED", 0)
+                _checkpoint(sym, "FAILED", 0, CHECKPOINT)
     finally:
         inserter.close()
 

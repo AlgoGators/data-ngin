@@ -105,3 +105,36 @@ class TestCheckpoint(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestRollingSweepReset(unittest.TestCase):
+    """A scheduled sweep must restart once it has visited every symbol. Without the
+    reset the job goes permanently quiet after one pass while adjustments keep
+    rotting -- the same silent-success failure this project keeps running into."""
+
+    def test_checkpoint_is_cleared_when_every_symbol_is_done(self) -> None:
+        import asyncio
+        from unittest.mock import MagicMock, patch
+        import scripts.refresh_adjustments as ra
+
+        with tempfile.TemporaryDirectory() as d:
+            ckpt = os.path.join(d, "p.csv")
+            with open(ckpt, "w", newline="", encoding="utf-8") as f:
+                w = csv.writer(f, lineterminator="\n")
+                w.writerow(["symbol", "status", "rows_updated", "at"])
+                for s in ("AAA", "BBB"):
+                    w.writerow([s, "DONE", "0", "2026-08-07T10:00:00"])
+
+            inserter = MagicMock()
+            cur = inserter.connection.cursor.return_value.__enter__.return_value
+            cur.fetchall.return_value = [("AAA",), ("BBB",)]
+            inst = {"fetcher": MagicMock(), "inserter": inserter}
+
+            with patch.object(ra, "CHECKPOINT", ckpt), \
+                 patch("utils.dynamic_loader.get_instance",
+                       side_effect=lambda c, k, ck: inst[k]):
+                cfg = {"database": {"target_schema": "equities_data", "table": "ohlcv_1d"}}
+                asyncio.run(ra.refresh(cfg, dry_run=True))
+
+            self.assertFalse(os.path.exists(ckpt),
+                             "a completed pass must clear the checkpoint so the next run resweeps")

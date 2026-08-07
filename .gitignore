@@ -14,3 +14,7 @@ build/
 venv/
 .idea
 MISSING_CMD.txt
+
+# Runtime checkpoints -- per-deployment progress state, not source
+contracts/adjustment_refresh_progress.csv
+contracts/*_progress.csv
