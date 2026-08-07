@@ -53,12 +53,48 @@ CREATE INDEX IF NOT EXISTS audit_log_occurred_idx
 CREATE INDEX IF NOT EXISTS audit_log_actor_idx
     ON auth.audit_log (actor_email, occurred_at DESC);
 
--- api_service needs these directly rather than through role membership, because
--- it is NOINHERIT and authentication happens before any SET ROLE.
-GRANT USAGE ON SCHEMA auth TO api_service;
-GRANT SELECT ON auth.api_keys TO api_service;
-GRANT UPDATE (last_used_at) ON auth.api_keys TO api_service;
-GRANT INSERT ON auth.audit_log TO api_service;
-GRANT USAGE ON SEQUENCE auth.audit_log_id_seq TO api_service;
+-- Authentication happens before the caller's role is known, so it cannot run
+-- under any of the three roles -- it needs a login with direct access to the
+-- key table. api_service_ro carries that, and the service uses it for both the
+-- key lookup and for writing audit rows.
+--
+-- Only api_service_ro, not all three. Each login is NOINHERIT, so a caller
+-- cannot reach these grants without a SET ROLE that Postgres refuses; giving
+-- the same access to _rw and _all would widen the blast radius of a leaked
+-- password for no gain.
+--
+-- Direct grants, not role membership: NOINHERIT suppresses privileges inherited
+-- through a role, but not privileges granted to the login itself.
+GRANT USAGE ON SCHEMA auth TO api_service_ro;
+GRANT SELECT ON auth.api_keys TO api_service_ro;
+GRANT UPDATE (last_used_at) ON auth.api_keys TO api_service_ro;
+GRANT INSERT ON auth.audit_log TO api_service_ro;
+GRANT USAGE ON SEQUENCE auth.audit_log_id_seq TO api_service_ro;
+
+-- audit_log.id is BIGSERIAL, so INSERT on the table is not sufficient on its
+-- own -- writing a row also needs USAGE on the backing sequence. Without this,
+-- migration 003's "GRANT ALL ON ALL TABLES IN SCHEMA auth TO db_readwrite_all"
+-- does not actually permit an insert, which is a confusing state to leave for
+-- whoever reads the grants and believes them.
+GRANT USAGE ON SEQUENCE auth.audit_log_id_seq TO db_readwrite_all;
+
+-- Remove the single-login form from any earlier revision. It was granted SELECT
+-- on auth.api_keys, so anyone still holding its password could read every key
+-- hash in the system. Revoked before dropping, so the grants are gone even if
+-- the DROP is refused because the role owns an object.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'api_service') THEN
+        REVOKE ALL ON auth.api_keys FROM api_service;
+        REVOKE ALL ON auth.audit_log FROM api_service;
+        REVOKE ALL ON SCHEMA auth FROM api_service;
+        REVOKE ALL ON SEQUENCE auth.audit_log_id_seq FROM api_service;
+        BEGIN
+            DROP ROLE api_service;
+        EXCEPTION WHEN dependent_objects_still_exist THEN
+            RAISE NOTICE 'api_service still owns objects; grants revoked but role retained';
+        END;
+    END IF;
+END $$;
 
 COMMIT;

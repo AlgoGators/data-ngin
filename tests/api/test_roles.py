@@ -67,16 +67,37 @@ class TestRoleGrants(unittest.TestCase):
     def test_readwrite_all_can_write_trading(self):
         self.assertTrue(self._write_allowed("db_readwrite_all", "trading.probe"))
 
-    def test_api_service_has_no_inherited_privileges(self):
-        """api_service is NOINHERIT: it must SET ROLE to do anything, so a bug
-        that skips SET ROLE fails closed rather than running with full access."""
+    def test_service_logins_have_no_inherited_privileges(self):
+        """Each service login is NOINHERIT: it must SET ROLE to do anything, so
+        a bug that skips SET ROLE fails closed rather than running with its
+        role's access."""
+        for login in ("api_service_ro", "api_service_rw", "api_service_all"):
+            with self.subTest(login=login):
+                with self.conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT rolinherit FROM pg_roles WHERE rolname = %s",
+                        (login,),
+                    )
+                    row = cur.fetchone()
+                self.assertIsNotNone(row, f"{login} does not exist")
+                self.assertFalse(row[0], f"{login} must be NOINHERIT")
+
+    def test_the_single_login_form_is_gone(self):
+        """An earlier revision used one login that was a member of all three
+        roles, which allowed any caller to escalate via SET ROLE. If it still
+        exists it must at least hold no access to the key table, since it could
+        otherwise read every key hash in the system."""
         with self.conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM pg_roles WHERE rolname = 'api_service'")
+            if cur.fetchone() is None:
+                return  # dropped outright, which is the intended end state
             cur.execute(
-                "SELECT rolinherit FROM pg_roles WHERE rolname = 'api_service'"
+                "SELECT has_table_privilege('api_service','auth.api_keys','SELECT')"
             )
-            row = cur.fetchone()
-        self.assertIsNotNone(row, "api_service role does not exist")
-        self.assertFalse(row[0], "api_service must be NOINHERIT")
+            self.assertFalse(
+                cur.fetchone()[0],
+                "the retired api_service login can still read the key table",
+            )
 
 
 @unittest.skipUnless(
