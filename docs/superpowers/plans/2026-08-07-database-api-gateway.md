@@ -1,5 +1,62 @@
 # Database API Gateway Implementation Plan
 
+> **STATUS: implemented on `feat/database-api-gateway`. The code is the source of
+> truth, not this document.** All eleven tasks are complete and 99 tests pass. The
+> task bodies below are kept as the record of how the work was decomposed, but
+> several diverged during implementation — the divergences are listed immediately
+> below, and the security-relevant one is not optional.
+
+## What changed during implementation
+
+Six defects in this plan were found by building it. Testing against a real Postgres
+found all of them; none would have been caught by reading the code.
+
+**1. One service login was escalatable — this is the important one.** Task 1
+originally created a single `api_service` login that was a member of all three
+roles. Postgres authorises `SET ROLE` against `session_user`, not `current_user`,
+so `SET LOCAL ROLE db_readonly` narrowed `current_user` while `session_user`
+remained a member of everything. Any caller escalated by prefixing nine characters
+to their SQL:
+
+```sql
+SET ROLE db_readwrite_all; INSERT INTO trading.positions ...
+```
+
+Verified working from a `db_readonly` key against a real database. Because the
+design deliberately never inspects the SQL, no other layer would have caught it.
+There are now three logins — `api_service_ro`, `api_service_rw`,
+`api_service_all` — each a member of exactly one role, and `app.py` selects the
+connection by `caller.db_role`. **Do not consolidate these back into one.**
+
+**2. Migration 004 did not follow 003.** Its grants still named the retired
+`api_service`, so the three new logins had no access to `auth.api_keys` at all and
+authentication would have failed for every request.
+
+**3. `client_ip` silently destroyed the audit trail.** `audit_log.client_ip` is
+`INET`, and any unparseable value fails the whole insert. Because audit writes are
+deliberately swallowed so logging cannot fail a request, the entire row vanished
+with only a local log line. A `_client_ip()` helper now drops the address rather
+than the row.
+
+**4. Migration 003 was order-dependent.** Grants were guarded on the schema
+already existing, so on a fresh database nothing was granted — and because
+`ALTER DEFAULT PRIVILEGES` sat inside the same skipped branch, tables created
+later inherited nothing either. It now creates each schema it grants on.
+
+**5. `BIGSERIAL` needs a sequence grant.** `GRANT ALL ON ALL TABLES IN SCHEMA auth`
+did not permit an audit insert without `USAGE` on `audit_log_id_seq`.
+
+**6. The metadata endpoints were unaudited and uncapped.** They wrote no audit row
+even for rejected keys, and bypassed the concurrency limiter while opening two
+connections each. Both now follow the same path as `/v1/query`.
+
+**Other corrections:** the subdomain is `data-ngin.algogators.com`, not
+`data-ngin.algogators.com`; there is no `rotate` command — `create` upserts on email;
+CI must apply migrations 003 and 004 before pytest, or the integration tests run
+and fail; and the final suite is 99 tests, not the 65 stated in Verification below.
+
+---
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a FastAPI service that lets fund members run SQL against Postgres using an API key, where Postgres itself enforces what each caller may do and every request is recorded.
@@ -2460,7 +2517,7 @@ poetry run pytest tests/api/ -v
 docker rm -f pgverify
 ```
 
-Expected: 65 passed.
+Expected: 99 passed. (This plan originally said 65; tasks 9-10 and the three-login split added more.)
 
 Also confirm the suite still passes with no database available, since that is how it runs on a laptop:
 
