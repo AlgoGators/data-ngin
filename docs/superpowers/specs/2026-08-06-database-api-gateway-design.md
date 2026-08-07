@@ -28,8 +28,10 @@ way to write in a controlled, attributable way, and any visibility into who does
 ## Non-goals
 
 - **Logging reads made through pgAdmin.** Those bypass the service entirely and cannot
-  be attributed while pgAdmin uses a shared login. Reads made *through the API* are
-  logged; coverage improves as people adopt it.
+  be attributed, because everyone connects with one of two shared logins. **This is a
+  settled decision, not a limitation awaiting a fix:** per-person database logins were
+  considered and rejected. Reads made *through the API* are logged; reads made in pgAdmin
+  are not, permanently.
 - **Auditing admin writes made outside the API.** The six admins share the `postgres`
   login by decision, so an admin editing in pgAdmin appears in Postgres's own logs as
   `postgres`, with no name attached. The audit log answers "what changed through the
@@ -106,7 +108,9 @@ Two carve-outs:
   `trading.positions` misstates what the fund holds. Different failure mode, and nobody
   is blocked by being unable to hand-edit live positions.
 - **`auth`** holds the key table and the audit log. Write access there would let someone
-  grant themselves admin or delete their own trail, defeating the system.
+  grant themselves admin or delete their own trail, defeating the system. **This is what
+  keeps the log itself out of reach** — the audit table is not a separate carve-out, it
+  sits inside `auth` precisely so that no rule has to be remembered for it.
 
 **Exceptions are additional roles, not a separate mechanism.** Because Postgres performs
 the enforcement, a service-level exception cannot grant what a role lacks — Postgres
@@ -334,8 +338,6 @@ roles rather than in the service.
   fact; estimating cost up front via `EXPLAIN` would reject earlier.
 - **Per-schema read permissions.** All three roles currently read everything outside
   `auth`. Narrowing this means additional roles.
-- **Complete read attribution.** Requires per-person Postgres logins and removing shared
-  pgAdmin access.
 - **Airflow behind the same Caddy instance.** The Airflow UI on port 8080 is plain HTTP
   and open to the internet, so its logins travel in cleartext. Adding
   `airflow.algogators.com` to the Caddy config and closing 8080 would retire that. Out of
