@@ -204,3 +204,97 @@ async def query(
 
     finally:
         auth_conn.close()
+
+
+def _metadata_query(authorization, sql, params=None):
+    """Run a service-constructed metadata query as the caller.
+
+    information_schema is filtered by Postgres to what the calling role may see,
+    so these endpoints need no permission logic of their own -- a general member
+    simply does not see tables they cannot read. That is also why the statement
+    runs on the caller's own login rather than on the authentication connection:
+    reusing the latter would answer every caller with api_service_ro's view.
+
+    Query parameters are passed to psycopg2 rather than interpolated. The
+    caller's role would bound the damage either way, but building SQL out of
+    user input by hand is a habit worth not having.
+
+    Returns (result, error_response); exactly one of the two is None.
+    """
+    auth_conn = _connect(AUTH_ROLE)
+    auth_conn.autocommit = True
+    try:
+        caller = authenticate(auth_conn, _bearer(authorization))
+        if caller is None:
+            return None, JSONResponse(
+                {"detail": "invalid API key"}, status_code=401
+            )
+
+        try:
+            exec_conn = _connect(caller.db_role)
+        except (ValueError, psycopg2.OperationalError):
+            # Misconfiguration or an unreachable database. The message is not
+            # echoed: it names logins and hosts, and the caller did nothing
+            # wrong, so there is nothing here for them to act on.
+            return None, JSONResponse(
+                {"detail": "service misconfigured"}, status_code=500
+            )
+
+        try:
+            # Not autocommit, for the reason execute_as needs a real
+            # transaction: SET LOCAL is ignored outside one, so the query would
+            # run as the bare NOINHERIT login and see nothing at all.
+            return execute_as(exec_conn, caller, sql, ROW_LIMIT, params), None
+        finally:
+            exec_conn.close()
+    finally:
+        auth_conn.close()
+
+
+@app.get("/v1/schemas")
+def list_schemas(authorization: str | None = Header(default=None)):
+    result, error = _metadata_query(
+        authorization,
+        "SELECT schema_name FROM information_schema.schemata"
+        " WHERE schema_name NOT LIKE 'pg\\_%'"
+        "   AND schema_name <> 'information_schema'"
+        " ORDER BY schema_name",
+    )
+    if error is not None:
+        return error
+    return {"schemas": [r[0] for r in result.rows]}
+
+
+@app.get("/v1/tables")
+def list_tables(
+    schema: str, authorization: str | None = Header(default=None)
+):
+    result, error = _metadata_query(
+        authorization,
+        "SELECT table_name FROM information_schema.tables"
+        " WHERE table_schema = %s ORDER BY table_name",
+        (schema,),
+    )
+    if error is not None:
+        return error
+    return {"schema": schema, "tables": [r[0] for r in result.rows]}
+
+
+@app.get("/v1/columns")
+def list_columns(
+    schema: str, table: str, authorization: str | None = Header(default=None)
+):
+    result, error = _metadata_query(
+        authorization,
+        "SELECT column_name, data_type FROM information_schema.columns"
+        " WHERE table_schema = %s AND table_name = %s"
+        " ORDER BY ordinal_position",
+        (schema, table),
+    )
+    if error is not None:
+        return error
+    return {
+        "schema": schema,
+        "table": table,
+        "columns": [{"name": r[0], "type": r[1]} for r in result.rows],
+    }
