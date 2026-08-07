@@ -215,3 +215,60 @@ class TestMetadataEndpoints(unittest.TestCase):
             app_module._connect = original
 
         self.assertEqual(roles, ["db_readonly", "db_readwrite_all"])
+
+    def _audit_rows(self, since_id):
+        with self.admin.cursor() as cur:
+            cur.execute(
+                "SELECT actor_email, outcome FROM auth.audit_log"
+                " WHERE id > %s ORDER BY id",
+                (since_id,),
+            )
+            return cur.fetchall()
+
+    def _max_audit_id(self):
+        with self.admin.cursor() as cur:
+            cur.execute("SELECT coalesce(max(id), 0) FROM auth.audit_log")
+            return cur.fetchone()[0]
+
+    def test_a_successful_lookup_is_audited(self):
+        """Metadata endpoints are a way to read the shape of the database. A
+        request that leaves no trace is the one worth probing against."""
+        before = self._max_audit_id()
+        self._get("/v1/schemas", key=self.ro_key)
+        rows = self._audit_rows(before)
+        self.assertEqual(len(rows), 1, f"expected one audit row, got {rows}")
+        self.assertEqual(rows[0][1], "success")
+
+    def test_a_rejected_key_is_audited(self):
+        before = self._max_audit_id()
+        r = self._get("/v1/schemas", key="ag_ro_notarealkey")
+        self.assertEqual(r.status_code, 401)
+        rows = self._audit_rows(before)
+        self.assertEqual(len(rows), 1, f"expected one audit row, got {rows}")
+        self.assertEqual(rows[0], ("unknown", "denied"))
+
+    def test_all_three_metadata_endpoints_are_audited(self):
+        before = self._max_audit_id()
+        self._get("/v1/schemas", key=self.ro_key)
+        self._get("/v1/tables?schema=research", key=self.ro_key)
+        self._get("/v1/columns?schema=research&table=meta_probe", key=self.ro_key)
+        self.assertEqual(len(self._audit_rows(before)), 3)
+
+    def test_metadata_respects_the_concurrency_cap(self):
+        """These open two connections each, the same as /v1/query, on a box the
+        design notes has 957MB of RAM. Leaving them uncapped would make them the
+        cheapest way to exhaust it."""
+        import asyncio
+
+        from src.api import app as app_module
+
+        async def two_at_once():
+            slot = app_module.limiter.slot("test-meta@x.com", 1)
+            async with slot:
+                # A second concurrent request from the same caller must be
+                # refused while the first holds the only slot.
+                with self.assertRaises(app_module.AtCapacity):
+                    async with app_module.limiter.slot("test-meta@x.com", 1):
+                        pass
+
+        asyncio.run(two_at_once())

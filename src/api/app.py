@@ -206,7 +206,7 @@ async def query(
         auth_conn.close()
 
 
-def _metadata_query(authorization, sql, params=None):
+async def _metadata_query(authorization, sql, params=None, client_ip=None):
     """Run a service-constructed metadata query as the caller.
 
     information_schema is filtered by Postgres to what the calling role may see,
@@ -220,45 +220,95 @@ def _metadata_query(authorization, sql, params=None):
     user input by hand is a habit worth not having.
 
     Returns (result, error_response); exactly one of the two is None.
+
+    These endpoints are audited and rate limited on the same terms as /v1/query.
+    They read less, but they still authenticate, still consume two connections,
+    and are still a way to probe the service with a stolen or guessed key. An
+    endpoint that leaves no trace is the one worth probing against.
     """
+    key = _bearer(authorization)
     auth_conn = _connect(AUTH_ROLE)
     auth_conn.autocommit = True
     try:
-        caller = authenticate(auth_conn, _bearer(authorization))
+        caller = authenticate(auth_conn, key)
         if caller is None:
+            audit.record_anonymous(
+                auth_conn, "denied",
+                key_prefix=key[:PREFIX_LENGTH] or None,
+                error_message="unknown or revoked key",
+                client_ip=client_ip,
+            )
             return None, JSONResponse(
                 {"detail": "invalid API key"}, status_code=401
             )
 
         try:
-            exec_conn = _connect(caller.db_role)
-        except (ValueError, psycopg2.OperationalError):
-            # Misconfiguration or an unreachable database. The message is not
-            # echoed: it names logins and hosts, and the caller did nothing
-            # wrong, so there is nothing here for them to act on.
-            return None, JSONResponse(
-                {"detail": "service misconfigured"}, status_code=500
-            )
+            async with limiter.slot(caller.email, caller.max_concurrent):
+                started = time.monotonic()
+                try:
+                    exec_conn = _connect(caller.db_role)
+                except (ValueError, psycopg2.OperationalError) as exc:
+                    # Misconfiguration or an unreachable database. The message
+                    # is not echoed: it names logins and hosts, and the caller
+                    # did nothing wrong, so there is nothing here to act on.
+                    audit.record(
+                        auth_conn, caller, sql, "error",
+                        error_message=str(exc).strip(), client_ip=client_ip,
+                    )
+                    return None, JSONResponse(
+                        {"detail": "service misconfigured"}, status_code=500
+                    )
 
-        try:
-            # Not autocommit, for the reason execute_as needs a real
-            # transaction: SET LOCAL is ignored outside one, so the query would
-            # run as the bare NOINHERIT login and see nothing at all.
-            return execute_as(exec_conn, caller, sql, ROW_LIMIT, params), None
-        finally:
-            exec_conn.close()
+                try:
+                    # Not autocommit, for the reason execute_as needs a real
+                    # transaction: SET LOCAL is ignored outside one, so the
+                    # query would run as the bare NOINHERIT login and see
+                    # nothing at all.
+                    result = execute_as(
+                        exec_conn, caller, sql, ROW_LIMIT, params
+                    )
+                except psycopg2.Error as exc:
+                    audit.record(
+                        auth_conn, caller, sql, "error",
+                        error_message=str(exc).strip(),
+                        duration_ms=int((time.monotonic() - started) * 1000),
+                        client_ip=client_ip,
+                    )
+                    return None, JSONResponse(
+                        {"detail": str(exc).strip()}, status_code=400
+                    )
+                finally:
+                    exec_conn.close()
+
+                audit.record(
+                    auth_conn, caller, sql, "success",
+                    row_count=result.row_count,
+                    duration_ms=int((time.monotonic() - started) * 1000),
+                    client_ip=client_ip,
+                )
+                return result, None
+
+        except AtCapacity as exc:
+            audit.record(
+                auth_conn, caller, sql, "rate_limited",
+                error_message=str(exc), client_ip=client_ip,
+            )
+            return None, JSONResponse({"detail": str(exc)}, status_code=429)
     finally:
         auth_conn.close()
 
 
 @app.get("/v1/schemas")
-def list_schemas(authorization: str | None = Header(default=None)):
-    result, error = _metadata_query(
+async def list_schemas(
+    request: Request, authorization: str | None = Header(default=None)
+):
+    result, error = await _metadata_query(
         authorization,
         "SELECT schema_name FROM information_schema.schemata"
         " WHERE schema_name NOT LIKE 'pg\\_%'"
         "   AND schema_name <> 'information_schema'"
         " ORDER BY schema_name",
+        client_ip=_client_ip(request),
     )
     if error is not None:
         return error
@@ -266,14 +316,16 @@ def list_schemas(authorization: str | None = Header(default=None)):
 
 
 @app.get("/v1/tables")
-def list_tables(
-    schema: str, authorization: str | None = Header(default=None)
+async def list_tables(
+    schema: str, request: Request,
+    authorization: str | None = Header(default=None),
 ):
-    result, error = _metadata_query(
+    result, error = await _metadata_query(
         authorization,
         "SELECT table_name FROM information_schema.tables"
         " WHERE table_schema = %s ORDER BY table_name",
         (schema,),
+        client_ip=_client_ip(request),
     )
     if error is not None:
         return error
@@ -281,15 +333,17 @@ def list_tables(
 
 
 @app.get("/v1/columns")
-def list_columns(
-    schema: str, table: str, authorization: str | None = Header(default=None)
+async def list_columns(
+    schema: str, table: str, request: Request,
+    authorization: str | None = Header(default=None),
 ):
-    result, error = _metadata_query(
+    result, error = await _metadata_query(
         authorization,
         "SELECT column_name, data_type FROM information_schema.columns"
         " WHERE table_schema = %s AND table_name = %s"
         " ORDER BY ordinal_position",
         (schema, table),
+        client_ip=_client_ip(request),
     )
     if error is not None:
         return error
