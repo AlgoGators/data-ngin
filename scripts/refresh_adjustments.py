@@ -220,7 +220,10 @@ async def refresh(config: Dict[str, Any], dry_run: bool = False,
                 _checkpoint(sym, "DONE", len(diffs), CHECKPOINT)
                 logger.info("%-7s %d bar(s) re-adjusted", sym, len(diffs))
             except Exception as exc:  # noqa: BLE001
-                logger.error("%s: FAILED: %s", sym, exc)
+                # Include the type: transient aiohttp errors (ServerDisconnectedError,
+                # TimeoutError) carry no args, so "%s" alone logs a bare empty string
+                # and the failure looks like it had no cause at all.
+                logger.error("%s: FAILED: %s: %s", sym, type(exc).__name__, exc)
                 failed.append(sym)
                 _checkpoint(sym, "FAILED", 0, CHECKPOINT)
     finally:
