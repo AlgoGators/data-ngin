@@ -31,7 +31,7 @@ requests = "^2.32.3"
 
 [tool.poetry.group.dev.dependencies]
 mkdocs = "^1.6.1"
-mkdocstrings = "^0.27.0"
+mkdocstrings = "^1.0.6"
 mkdocs-material = "^9.5.49"
 
 [build-system]
