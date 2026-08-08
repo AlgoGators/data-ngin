@@ -14,6 +14,11 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
       PYTHONPATH: /opt/airflow/data_engine
+      # DAG failures file a GitHub issue via github_issue_notifier. Optional --
+      # the notifier logs a warning and returns if unset, so it must never block
+      # startup. Without it, DAG-failure alerting silently does nothing.
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_REPO: ${GITHUB_REPO:-AlgoGators/data-ngin}
     volumes:
       - ./dags:/opt/airflow/dags
       - .:/opt/airflow/data_engine
@@ -38,6 +43,11 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
       PYTHONPATH: /opt/airflow/data_engine
+      # DAG failures file a GitHub issue via github_issue_notifier. Optional --
+      # the notifier logs a warning and returns if unset, so it must never block
+      # startup. Without it, DAG-failure alerting silently does nothing.
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_REPO: ${GITHUB_REPO:-AlgoGators/data-ngin}
     volumes:
       - ./dags:/opt/airflow/dags
       - .:/opt/airflow/data_engine
@@ -62,6 +72,11 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
       PYTHONPATH: /opt/airflow/data_engine
+      # DAG failures file a GitHub issue via github_issue_notifier. Optional --
+      # the notifier logs a warning and returns if unset, so it must never block
+      # startup. Without it, DAG-failure alerting silently does nothing.
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_REPO: ${GITHUB_REPO:-AlgoGators/data-ngin}
     volumes:
       - ./dags:/opt/airflow/dags
       - .:/opt/airflow/data_engine

@@ -85,8 +85,43 @@ class CSVLoader(Loader):
         contracts_df["dataSymbol"] = contracts_df["dataSymbol"].str.strip()
         contracts_df["instrumentType"] = contracts_df["instrumentType"].str.upper()
 
+        # Optional 'active' column: skip securities that have stopped trading.
+        #
+        # A delisted symbol returns nothing from the vendor forever, so fetching it
+        # daily burns a request and an error log every run for data that cannot
+        # exist. EA is the live example -- acquired 2026-08-04, still in the
+        # contract, contributing nothing since.
+        #
+        # The column is OPTIONAL so contracts without it (the futures ones) keep
+        # working unchanged. When absent, every row is active, which is the
+        # historical behaviour.
+        total = len(contracts_df)
+        if "active" in contracts_df.columns:
+            contracts_df = contracts_df[contracts_df["active"].map(self._is_active)]
+            skipped = total - len(contracts_df)
+            if skipped:
+                logging.info(
+                    "Skipping %d inactive symbol(s) from %s; %d remain active.",
+                    skipped, self.contract_path, len(contracts_df),
+                )
+
         # Create a dictionary mapping symbols to their asset types
         symbol_dict: Dict[str, str] = dict(zip(contracts_df["dataSymbol"], contracts_df["instrumentType"]))
 
         logging.info(f"Successfully loaded {len(symbol_dict)} symbols from {self.contract_path}.")
         return symbol_dict
+
+    @staticmethod
+    def _is_active(value: Any) -> bool:
+        """
+        Interpret one 'active' cell.
+
+        Anything unrecognised counts as ACTIVE. A typo must never silently drop a
+        symbol from the daily run -- that is the exact failure this project spent
+        weeks chasing. Only an explicit, recognised false value excludes a row.
+        """
+        if isinstance(value, bool):
+            return value
+        if value is None or (isinstance(value, float) and pd.isna(value)):
+            return True
+        return str(value).strip().lower() not in {"false", "f", "no", "n", "0"}
