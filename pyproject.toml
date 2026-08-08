@@ -11,7 +11,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.11, <3.13"
 pandas = "^2.2.3"
-yfinance = "^0.2.48"
+yfinance = "^1.5.2"
 databento = "^0.44.1"
 python-dotenv = "^1.0.1"
 pyyaml = "^6.0.2"
