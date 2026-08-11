@@ -4,7 +4,8 @@ import logging
 from typing import List, Dict, Any, Optional
 import databento as db
 import pandas as pd
-from src.modules.fetcher.fetcher import Fetcher
+from src.infrastructure.fetcher.fetcher import Fetcher
+from src.domain.services import SymbolRemapper
 
 
 class DatabentoFetcher(Fetcher):
@@ -24,6 +25,7 @@ class DatabentoFetcher(Fetcher):
         self.client: db.Historical = db.Historical(api_key)
         self.logger: logging.Logger = logging.getLogger("DatabentoFetcher")
         self.logger.setLevel(logging.INFO)
+        self.symbol_remapper: SymbolRemapper = SymbolRemapper(config.get("symbol_remap"))
 
     async def fetch_data(
         self,
@@ -84,14 +86,7 @@ class DatabentoFetcher(Fetcher):
             df = data.to_df()
 
             # --- Remap E-mini symbols to Micro equivalents for DB storage ---
-            symbol_remap = {
-                "ES": "MES",
-                "RTY": "M2K",
-                "NQ": "MNQ",
-                "YM": "MYM"
-            }
-
-            mapped_symbol = symbol_remap.get(symbol, symbol)
+            mapped_symbol = self.symbol_remapper.remap(symbol)
             if mapped_symbol != symbol:
                 self.logger.info(f"Fetched {symbol} data, remapping to {mapped_symbol} for storage")
 

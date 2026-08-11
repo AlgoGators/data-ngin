@@ -6,8 +6,8 @@ loader:
   # otherwise /opt/airflow/data_engine/contracts/contract_valid.csv
 
 inserter:
-  class: "TimescaleDBInserter"
-  module: "inserter.timescaledb_inserter"
+  class: "OhlcvRepository"
+  module: "repository.ohlcv_repository"
 
 #Changed This
 fetcher:
@@ -26,6 +26,20 @@ provider:
   schema: "OHLCV_1D"                # Only OHLCV_1D for now (TO:DO: Add OHLCV 1h, 1m and MBO)
   roll_type: "v"                    # Calendar = c, Open Interest = n, Volume = v
   contract_type: "0"                # AKA Rank: 0 = front, 1 = second, 2 = third, etc.
+
+# Remap E-mini symbols to their Micro equivalents for DB storage (was a hardcoded
+# dict duplicated in both fetcher classes; now a SymbolRemapper domain service
+# consumes this table).
+symbol_remap:
+  ES: "MES"
+  RTY: "M2K"
+  NQ: "MNQ"
+  YM: "MYM"
+
+# Which asset type the back-adjustment (futures roll) algorithm runs for.
+# Previously ran unconditionally, including for EQUITY rows, where it's meaningless.
+back_adjustment:
+  applies_to: "FUTURE"
 
 # Database configuration
 database:

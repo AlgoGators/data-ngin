@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 import numpy as np
 import pandas as pd
 import databento as db
-from src.modules.batch_download_databento_fetcher import BatchDownloadDatabentoFetcher
+from src.infrastructure.fetcher.batch_download_databento_fetcher import BatchDownloadDatabentoFetcher
 
 class TestBatchDownloadDatabentoFetcher(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
@@ -30,9 +30,9 @@ class TestBatchDownloadDatabentoFetcher(unittest.IsolatedAsyncioTestCase):
         
         # Create patches
         self.patches = [
-            patch("data.modules.databento_fetcher.db.Historical"),
-            patch("data.modules.databento_fetcher.db.Schema", self.mock_schema),
-            patch("data.modules.databento_fetcher.db.SType", self.mock_stype)
+            patch("src.infrastructure.fetcher.databento_fetcher.db.Historical"),
+            patch("src.infrastructure.fetcher.databento_fetcher.db.Schema", self.mock_schema),
+            patch("src.infrastructure.fetcher.databento_fetcher.db.SType", self.mock_stype)
         ]
         
         # Start all patches
@@ -150,6 +150,83 @@ class TestBatchDownloadDatabentoFetcher(unittest.IsolatedAsyncioTestCase):
             )
 
         self.assertEqual(str(context.exception), "API error")
+
+    async def test_generate_and_fetch_data_preserves_chronological_order(self) -> None:
+        """
+        Regression test for a real bug: batches used to be concatenated with
+        `pd.concat([data, master_df], ...)` inside the loop, prepending each
+        new (later) batch before the accumulator -- so a multi-batch fetch
+        came back chronologically DESCENDING across batch boundaries, which
+        corrupted BackAdjuster's roll detection downstream (it assumes
+        ascending time order). generate_batches with 2 daily units over a
+        4-day range produces 2 batches; each fetch_data call here returns a
+        distinct, individually-labeled frame so batch order is verifiable in
+        the final concatenated result.
+        """
+        batch_1_df = pd.DataFrame({"time": ["2023-01-01", "2023-01-02"], "batch": [1, 1]})
+        batch_2_df = pd.DataFrame({"time": ["2023-01-03", "2023-01-04"], "batch": [2, 2]})
+
+        with patch.object(self.fetcher, "fetch_data", new_callable=AsyncMock) as mock_fetch:
+            mock_fetch.side_effect = [batch_1_df, batch_2_df]
+
+            result = await self.fetcher.generate_and_fetch_data(
+                symbol="ES",
+                loaded_asset_type="FUTURE",
+                start_date="2023-01-01",
+                end_date="2023-01-05",
+                unit="daily",
+                max_units_allowed=2,
+            )
+
+        self.assertEqual(list(result["batch"]), [1, 1, 2, 2])
+        self.assertEqual(list(result["time"]), ["2023-01-01", "2023-01-02", "2023-01-03", "2023-01-04"])
+
+    async def test_generate_and_fetch_data_no_batches_returns_empty_frame(self) -> None:
+        """When start_date >= end_date, generate_batches returns [] -- must not error, must return an empty DataFrame."""
+        result = await self.fetcher.generate_and_fetch_data(
+            symbol="ES", loaded_asset_type="FUTURE",
+            start_date="2023-01-05", end_date="2023-01-01",
+            unit="daily", max_units_allowed=1,
+        )
+        self.assertTrue(result.empty)
+
+    async def test_retrieve_batches_by_default(self) -> None:
+        """
+        With no `batch` key (or `batch: true`), retrieve() must go through
+        the batching path (generate_and_fetch_data), matching config.yaml's
+        default of fetcher.class=BatchDownloadDatabentoFetcher + batch=true.
+        """
+        with patch.object(self.fetcher, "generate_and_fetch_data", new_callable=AsyncMock) as mock_batch, \
+             patch.object(self.fetcher, "fetch_data", new_callable=AsyncMock) as mock_single:
+            mock_batch.return_value = pd.DataFrame()
+            await self.fetcher.retrieve(
+                symbol="ES", loaded_asset_type="FUTURE",
+                start_date="2023-01-01", end_date="2023-01-02",
+                batch_config={"unit": "daily", "max_units": 2},
+            )
+            mock_batch.assert_called_once()
+            mock_single.assert_not_called()
+
+    async def test_retrieve_skips_batching_when_flag_false(self) -> None:
+        """
+        `batch_downloading.batch: false` must fall back to a single unbatched
+        fetch even though BatchDownloadDatabentoFetcher is the configured
+        class -- this flag was silently ignored before (class selection alone
+        decided batching); this pins it as a real, working gate again.
+        """
+        with patch.object(self.fetcher, "generate_and_fetch_data", new_callable=AsyncMock) as mock_batch, \
+             patch.object(self.fetcher, "fetch_data", new_callable=AsyncMock) as mock_single:
+            mock_single.return_value = pd.DataFrame()
+            await self.fetcher.retrieve(
+                symbol="ES", loaded_asset_type="FUTURE",
+                start_date="2023-01-01", end_date="2023-01-02",
+                batch_config={"batch": False, "unit": "daily", "max_units": 2},
+            )
+            mock_single.assert_called_once_with(
+                symbol="ES", loaded_asset_type="FUTURE",
+                start_date="2023-01-01", end_date="2023-01-02",
+            )
+            mock_batch.assert_not_called()
 
     async def test_fetch_data_no_data(self) -> None:
         """

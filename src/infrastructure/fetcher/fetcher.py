@@ -43,6 +43,34 @@ class Fetcher(ABC):
         """
         pass
 
+    async def retrieve(
+        self,
+        symbol: str,
+        loaded_asset_type: str,
+        start_date: str,
+        end_date: str,
+        batch_config: Dict[str, Any] = None,
+    ):
+        """
+        Uniform fetch entry point. Default implementation delegates straight to
+        `fetch_data`; subclasses that support batching (e.g. `BatchDownloadDatabentoFetcher`)
+        override this to split the range into batches first. Callers don't need to
+        know which behavior a given fetcher class implements.
+
+        Args:
+            symbol (str): The symbol to fetch data for.
+            loaded_asset_type (str): Type of asset to load (e.g., "FUTURE").
+            start_date (str): Start date for fetching.
+            end_date (str): End date for fetching.
+            batch_config (Dict[str, Any]): Batch-downloading settings (unit, max_units); ignored by non-batching fetchers.
+        """
+        return await self.fetch_data(
+            symbol=symbol,
+            loaded_asset_type=loaded_asset_type,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
 #9
     def detect_time_gaps(self, data: List[Dict[str, Any]], time_column: str, freq: str) -> List[str]:
         """

@@ -3,7 +3,7 @@ import tempfile
 import os
 from typing import Dict, Any
 from unittest.mock import MagicMock, patch
-from utils.dynamic_loader import load_config, load_class, get_instance
+from src.utils.dynamic_loader import load_config, load_class, get_instance, determine_date_range
 
 
 class TestDynamicLoader(unittest.TestCase):
@@ -19,7 +19,20 @@ class TestDynamicLoader(unittest.TestCase):
             "loader": {"class": "CSVLoader", "module": "csv_loader"},
             "fetcher": {"class": "DatabentoFetcher", "module": "databento_fetcher"},
             "cleaner": {"class": "DatabentoCleaner", "module": "databento_cleaner"},
-            "inserter": {"class": "TimescaleDBInserter", "module": "timescaledb_inserter"},
+            "inserter": {"class": "OhlcvRepository", "module": "repository.ohlcv_repository"},
+            "provider": {
+                "name": "databento",
+                "asset": "FUTURE",
+                "dataset": "GLBX.MDP3",
+                "schema": "OHLCV_1D",
+                "roll_type": "v",
+                "contract_type": "0",
+            },
+            "database": {
+                "target_schema": "futures_data",
+                "raw_table": "ohlcv_1d_raw",
+                "table": "ohlcv_1d",
+            },
         }
 
     def create_temp_yaml(self, data: Dict[str, Any]) -> str:
@@ -45,11 +58,39 @@ class TestDynamicLoader(unittest.TestCase):
 
     def test_load_config_valid(self) -> None:
         """
-        Test that `load_config` correctly loads a valid YAML configuration file.
+        Test that `load_config` correctly loads a valid YAML configuration
+        file. `load_config` now validates through `PipelineConfig`, which
+        fills in defaults for sections not present in the YAML (missing_data,
+        logging, batch_downloading, back_adjustment, symbol_remap) -- so the
+        result is a superset of the input, not an exact match.
         """
         temp_file_path: str = self.create_temp_yaml(self.mock_config)
         config: Dict[str, Any] = load_config(temp_file_path)
-        self.assertEqual(config, self.mock_config, "Loaded configuration does not match expected result.")
+
+        for section, expected in self.mock_config.items():
+            for key, value in expected.items():
+                self.assertEqual(
+                    config[section][key], value,
+                    f"Section '{section}.{key}' does not match expected result.",
+                )
+
+        # Defaulted sections should be present even though absent from the input YAML.
+        self.assertIn("missing_data", config)
+        self.assertIn("symbol_remap", config)
+        self.assertIn("back_adjustment", config)
+
+    def test_load_config_fails_schema_validation(self) -> None:
+        """
+        Test that `load_config` raises ValueError (not a downstream KeyError
+        deep in the pipeline) when a required section is missing.
+        """
+        incomplete_config = dict(self.mock_config)
+        del incomplete_config["provider"]
+        temp_file_path: str = self.create_temp_yaml(incomplete_config)
+
+        with self.assertRaises(ValueError) as context:
+            load_config(temp_file_path)
+        self.assertIn("failed schema validation", str(context.exception))
 
     def test_load_config_missing_file(self) -> None:
         """
@@ -73,7 +114,7 @@ class TestDynamicLoader(unittest.TestCase):
             load_config(temp_file.name)
         self.assertIn("Error parsing configuration file", str(context.exception))
 
-    @patch("utils.dynamic_loader.importlib.import_module")
+    @patch("src.utils.dynamic_loader.importlib.import_module")
     def test_load_class_valid(self, mock_import_module: MagicMock) -> None:
         """
         Test that `load_class` correctly imports a class from a valid module.
@@ -89,8 +130,8 @@ class TestDynamicLoader(unittest.TestCase):
         mock_import_module.assert_called_once_with("mock_module")
         self.assertEqual(loaded_class, mock_class)
 
-    @patch("utils.dynamic_loader.importlib.import_module")
-    @patch("utils.dynamic_loader.getattr")
+    @patch("src.utils.dynamic_loader.importlib.import_module")
+    @patch("src.utils.dynamic_loader.getattr")
     def test_load_class_missing_class(self, mock_getattr: MagicMock, mock_import_module: MagicMock) -> None:
         """
         Test that `load_class` raises ImportError for a missing class in the module.
@@ -108,7 +149,7 @@ class TestDynamicLoader(unittest.TestCase):
         )
         mock_getattr.assert_called_once_with(mock_module, "NonExistentClass")
 
-    @patch("utils.dynamic_loader.load_class")
+    @patch("src.utils.dynamic_loader.load_class")
     def test_get_instance_valid(self, mock_load_class: MagicMock) -> None:
         """
         Test that `get_instance` correctly creates an instance of a dynamically loaded class.
@@ -120,7 +161,7 @@ class TestDynamicLoader(unittest.TestCase):
 
         instance: Any = get_instance(self.mock_config, "loader", "class")
 
-        mock_load_class.assert_called_once_with("data.modules.csv_loader", "CSVLoader")
+        mock_load_class.assert_called_once_with("src.infrastructure.csv_loader", "CSVLoader")
         mock_class.assert_called_once_with(config=self.mock_config)
         self.assertEqual(instance, mock_instance)
 
@@ -137,6 +178,78 @@ class TestDynamicLoader(unittest.TestCase):
         """
         with self.assertRaises(ValueError):
             get_instance(self.mock_config, "loader", "non_existent_key")
+
+    @patch("src.utils.dynamic_loader.load_class")
+    def test_get_instance_expected_port_satisfied(self, mock_load_class: MagicMock) -> None:
+        """
+        A class that structurally implements the expected port constructs
+        without error.
+        """
+        from src.domain.ports import SymbolSourcePort
+
+        class ConformingLoader:
+            def __init__(self, config):
+                self.config = config
+
+            def load_symbols(self):
+                return {}
+
+        mock_load_class.return_value = ConformingLoader
+
+        instance = get_instance(self.mock_config, "loader", "class", expected_port=SymbolSourcePort)
+        self.assertIsInstance(instance, ConformingLoader)
+
+    @patch("src.utils.dynamic_loader.load_class")
+    def test_get_instance_expected_port_violation_raises_type_error(self, mock_load_class: MagicMock) -> None:
+        """
+        A class configured for a role but missing that role's required
+        method(s) must fail at construction (here), not mid-pipeline with an
+        AttributeError once the missing method is actually called.
+        """
+        from src.domain.ports import SymbolSourcePort
+
+        class NonConformingLoader:
+            def __init__(self, config):
+                self.config = config
+            # no load_symbols() -- violates SymbolSourcePort
+
+        mock_load_class.return_value = NonConformingLoader
+
+        with self.assertRaises(TypeError):
+            get_instance(self.mock_config, "loader", "class", expected_port=SymbolSourcePort)
+
+    def test_determine_date_range_uses_config_dates_without_repository(self) -> None:
+        """
+        When both dates are present in config, determine_date_range must not
+        touch the database at all -- no OhlcvRepository should be built.
+        """
+        config = dict(self.mock_config)
+        config["time_range"] = {"start_date": "2023-01-01", "end_date": "2023-01-02"}
+
+        with patch("src.utils.dynamic_loader.OhlcvRepository") as mock_repo_cls:
+            start_date, end_date = determine_date_range(config)
+
+        mock_repo_cls.assert_not_called()
+        self.assertEqual((start_date, end_date), ("2023-01-01", "2023-01-02"))
+
+    @patch("src.utils.dynamic_loader.OhlcvRepository")
+    def test_determine_date_range_falls_back_to_repository(self, mock_repo_cls: MagicMock) -> None:
+        """
+        With no start_date in config, determine_date_range should query the
+        (consolidated) repository for the latest date and close it afterward.
+        """
+        config = dict(self.mock_config)
+        config["time_range"] = {"end_date": "2023-01-05"}
+        mock_repository = MagicMock()
+        mock_repository.get_latest_date.return_value = "2023-01-01"
+        mock_repo_cls.return_value = mock_repository
+
+        start_date, end_date = determine_date_range(config)
+
+        mock_repository.get_latest_date.assert_called_once()
+        mock_repository.close.assert_called_once()
+        self.assertEqual(start_date, "2023-01-02")
+        self.assertEqual(end_date, "2023-01-05")
 
 
 if __name__ == "__main__":

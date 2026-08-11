@@ -1,37 +1,49 @@
 import importlib
 import os
 import yaml
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 from datetime import datetime, timedelta
-from src.modules.data_access import DataAccess 
+from pydantic import ValidationError
+from src.infrastructure.repository.ohlcv_repository import OhlcvRepository
+from src.config.schema import PipelineConfig
 
 
 def load_config(config_path: str = "src/config/config.yaml") -> Dict[str, Any]:
     """
-    Load configuration settings from a YAML file.
+    Load configuration settings from a YAML file and validate them against
+    `PipelineConfig` so config.yaml is a checked contract rather than an
+    untyped blob -- e.g. `missing_data.*` values become real booleans instead
+    of the legacy "True"/"False" strings, and unknown/missing keys fail loudly
+    at load time instead of silently no-op'ing deep inside the pipeline.
 
     Args:
         config_path (str): The path to the YAML configuration file.
 
     Returns:
-        Dict[str, Any]: The loaded configuration as a dictionary.
+        Dict[str, Any]: The validated configuration as a dictionary (same
+            dict-style shape every existing config[...] access expects).
 
     Raises:
         FileNotFoundError: If the specified configuration file does not exist.
-        ValueError: If the configuration file is empty or invalid.
+        ValueError: If the configuration file is empty, invalid YAML, or fails schema validation.
     """
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Configuration file not found at {config_path}")
     with open(config_path, "r") as file:
         try:
-            config: Dict[str, Any] = yaml.safe_load(file)
+            raw_config: Dict[str, Any] = yaml.safe_load(file)
         except yaml.YAMLError as e:
             raise ValueError(f"Error parsing configuration file at {config_path}: {e}")
 
-    if not config:
+    if not raw_config:
         raise ValueError(f"Configuration file at {config_path} is empty or invalid.")
 
-    return config
+    try:
+        validated = PipelineConfig(**raw_config)
+    except ValidationError as e:
+        raise ValueError(f"Configuration file at {config_path} failed schema validation: {e}")
+
+    return validated.model_dump(by_alias=True)
 
 
 def load_class(module_name: str, class_name: str) -> Any:
@@ -58,7 +70,13 @@ def load_class(module_name: str, class_name: str) -> Any:
         raise ImportError(f"Class '{class_name}' does not exist in module '{module_name}'.")
 
 
-def get_instance(config: Dict[str, Any], module_key: str, class_key: str, **kwargs: Any) -> Any:
+def get_instance(
+    config: Dict[str, Any],
+    module_key: str,
+    class_key: str,
+    expected_port: Optional[type] = None,
+    **kwargs: Any,
+) -> Any:
     """
     Create an instance of a dynamically loaded class based on the configuration.
 
@@ -66,6 +84,12 @@ def get_instance(config: Dict[str, Any], module_key: str, class_key: str, **kwar
         config (Dict[str, Any]): The configuration dictionary.
         module_key (str): The top-level key for the module in the configuration.
         class_key (str): The key for the class name in the module configuration.
+        expected_port (Optional[type]): A `@runtime_checkable` Protocol (see
+            src/domain/ports.py) the constructed instance must structurally
+            satisfy. When given, a misconfigured `module`/`class` in
+            config.yaml (e.g. pointing at a class missing `retrieve()`) fails
+            here, at construction time, instead of mid-pipeline with an
+            AttributeError once that method is actually called.
         **kwargs (Any): Additional arguments to pass to the class constructor.
 
     Returns:
@@ -74,6 +98,7 @@ def get_instance(config: Dict[str, Any], module_key: str, class_key: str, **kwar
     Raises:
         ValueError: If the module_key or class_key is not found in the configuration.
         ImportError: If the module or class cannot be loaded.
+        TypeError: If expected_port is given and the constructed instance doesn't satisfy it.
     """
     # Validate the presence of module_key and class_key
     module_config = config.get(module_key)
@@ -85,7 +110,7 @@ def get_instance(config: Dict[str, Any], module_key: str, class_key: str, **kwar
         raise ValueError(f"Class key '{class_key}' not found in '{module_key}' configuration.")
 
     # Extract module name and load class
-    module_name: str = f"src.modules.{module_config.get('module', module_key)}"
+    module_name: str = f"src.infrastructure.{module_config.get('module', module_key)}"
     try:
         cls: Any = load_class(module_name, class_name)
         print(f"Successfully loaded class '{class_name}' from module '{module_name}'.")
@@ -93,7 +118,15 @@ def get_instance(config: Dict[str, Any], module_key: str, class_key: str, **kwar
         raise ImportError(f"Error loading class '{class_name}' from module '{module_name}': {e}")
 
     # Create and return an instance of the class
-    return cls(config=config, **kwargs)
+    instance = cls(config=config, **kwargs)
+
+    if expected_port is not None and not isinstance(instance, expected_port):
+        raise TypeError(
+            f"'{class_name}' (configured for '{module_key}') does not implement "
+            f"the {expected_port.__name__} contract required for this role."
+        )
+
+    return instance
 
 
 def determine_date_range(config: Dict[str, Any]) -> Tuple[str, str]:
@@ -110,14 +143,16 @@ def determine_date_range(config: Dict[str, Any]) -> Tuple[str, str]:
     Raises:
         ValueError: If neither the config nor the database can determine the start_date.
     """
-    data_access: DataAccess = DataAccess()
-
     # Check if 'start_date' exists in the config
     if config['time_range'].get('start_date'):
         start_date = config['time_range']['start_date']
     else:
         # Get the latest date from the database and add one day
-        latest_date = data_access.get_latest_date()
+        repository = OhlcvRepository(config)
+        try:
+            latest_date = repository.get_latest_date()
+        finally:
+            repository.close()
         if latest_date:
             start_date = (datetime.strptime(latest_date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
         else:

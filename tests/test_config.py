@@ -1,8 +1,8 @@
 import unittest
-import yaml
 import os
 from typing import Dict, Any
 from dotenv import load_dotenv
+from src.utils.dynamic_loader import load_config as _load_config
 
 # Load environment variables
 load_dotenv()
@@ -10,24 +10,21 @@ load_dotenv()
 
 def load_config() -> Dict[str, Any]:
     """
-    Loads the configuration settings from the config.yaml file.
+    Loads the (schema-validated) configuration settings from config.yaml.
+
+    Delegates to utils.dynamic_loader.load_config -- this file used to
+    duplicate that logic with its own copy pointed at the wrong path
+    ("data/config/config.yaml", which never existed; the real file is at
+    "src/config/config.yaml"), so it always raised FileNotFoundError.
 
     Returns:
         Dict[str, Any]: The configuration settings as a dictionary.
 
     Raises:
         FileNotFoundError: If the configuration file is not found.
-        yaml.YAMLError: If there is an error parsing the YAML file.
+        ValueError: If the configuration file is invalid or fails schema validation.
     """
-    config_path: str = os.path.join("data", "config", "config.yaml")
-    
-    if not os.path.exists(config_path):
-        raise FileNotFoundError(f"Configuration file not found at {config_path}")
-    
-    with open(config_path, 'r') as file:
-        config: Dict[str, Any] = yaml.safe_load(file)
-    
-    return config
+    return _load_config("src/config/config.yaml")
 
 
 class TestConfig(unittest.TestCase):

@@ -1,8 +1,9 @@
 import unittest
 import tempfile
 import os
+import pandas as pd
 from unittest.mock import patch, MagicMock, AsyncMock
-from src.orchestrator import Orchestrator
+from src.application.orchestrator import Orchestrator
 from typing import Dict, Any
 
 
@@ -16,10 +17,10 @@ class TestIntegrationPipeline(unittest.IsolatedAsyncioTestCase):
         Set up mock configuration and create temporary test files.
         """
         self.mock_config: Dict[str, Any] = {
-            "loader": {"class": "CSVLoader", "module": "csv_loader", "file_path": ""},
-            "fetcher": {"class": "DatabentoFetcher", "module": "databento_fetcher"},
-            "cleaner": {"class": "DatabentoCleaner", "module": "databento_cleaner"},
-            "inserter": {"class": "TimescaleDBInserter", "module": "timescaledb_inserter"},
+            "loader": {"class": "CSVLoader", "module": "loader.csv_loader", "file_path": ""},
+            "fetcher": {"class": "DatabentoFetcher", "module": "fetcher.databento_fetcher"},
+            "cleaner": {"class": "DatabentoCleaner", "module": "cleaner.databento_cleaner"},
+            "inserter": {"class": "OhlcvRepository", "module": "repository.ohlcv_repository"},
             "time_range": {
                 "start_date": "2023-01-01",
                 "end_date": "2023-01-02",
@@ -36,6 +37,7 @@ class TestIntegrationPipeline(unittest.IsolatedAsyncioTestCase):
                 "raw_table": "ohlcv_1d_raw",
                 "table": "ohlcv_1d",
             },
+            "batch_downloading": {"batch": False, "unit": "Daily", "max_units": 30},
         }
 
         # Create a temporary CSV file to simulate the contracts CSV
@@ -55,22 +57,30 @@ class TestIntegrationPipeline(unittest.IsolatedAsyncioTestCase):
         if os.path.exists(self.temp_csv.name):
             os.remove(self.temp_csv.name)
 
-    @patch("data.modules.csv_loader.CSVLoader.load_symbols", return_value={"ES": "FUTURE", "NQ": "FUTURE"})
-    @patch("data.modules.databento_fetcher.DatabentoFetcher.fetch_data", new_callable=AsyncMock)
-    @patch("data.modules.databento_cleaner.DatabentoCleaner.clean")
-    @patch("data.modules.timescaledb_inserter.TimescaleDBInserter.insert_data")
+    @patch("src.infrastructure.loader.csv_loader.CSVLoader.load_symbols", return_value={"ES": "FUTURE", "NQ": "FUTURE"})
+    @patch("src.infrastructure.fetcher.databento_fetcher.db.Historical")
+    @patch("src.infrastructure.fetcher.databento_fetcher.DatabentoFetcher.fetch_data", new_callable=AsyncMock)
+    @patch("src.infrastructure.cleaner.databento_cleaner.DatabentoCleaner.clean")
+    @patch("src.infrastructure.repository.ohlcv_repository.OhlcvRepository.connect")
+    @patch("src.infrastructure.repository.ohlcv_repository.OhlcvRepository.close")
+    @patch("src.infrastructure.repository.ohlcv_repository.OhlcvRepository.insert_data")
     async def test_pipeline_run(
         self,
         mock_insert_data: MagicMock,
+        mock_close: MagicMock,
+        mock_connect: MagicMock,
         mock_clean: MagicMock,
         mock_fetch_data: AsyncMock,
+        mock_historical: MagicMock,
         mock_load_symbols: MagicMock,
     ) -> None:
         """
         Test that the pipeline processes symbols end-to-end.
         """
         # Correctly mock fetcher return and cleaner output
-        mock_fetch_data.return_value = [{"time": "2023-01-01", "symbol": "ES", "open": 100.5}]
+        mock_fetch_data.return_value = pd.DataFrame(
+            [{"time": "2023-01-01", "symbol": "ES", "open": 100.5}]
+        )
         mock_clean.side_effect = lambda data: [{"time": "2023-01-01", "cleaned": True}]
 
         # Initialize the Orchestrator

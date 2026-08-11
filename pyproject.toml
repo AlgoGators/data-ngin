@@ -20,6 +20,7 @@ sqlalchemy = "1.4.36"
 apache-airflow = "^2.10.4"
 fastapi = "^0.115.6"
 uvicorn = "^0.34.0"
+strawberry-graphql = {extras = ["fastapi"], version = "^0.253.0"}
 pyarrow = "^18.1.0"
 pydantic = "^2.10.4"
 tzdata = "^2024.2"

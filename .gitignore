@@ -1,15 +1,30 @@
+# Environment / secrets
 .env
+
+# Python
 __pycache__/
-*pyc
-*.log
 *.py[cod]
+*.pyc
+*.pyo
+*.pyd
+*.pdb
 *.so
 *.egg
 *.egg-info/
-*.pyd
-*.pyo
-*.pdb
 dist/
 build/
 venv/
-.idea
+
+# Logs
+*.log
+logs/
+
+# Editors / IDE
+.idea/
+.vscode/
+
+# Tooling caches
+.pytest_cache/
+
+# Project-specific
+graphify-out/

@@ -1,7 +1,8 @@
 import pandas as pd
 from enum import Enum
 from typing import Dict, Any, List
-from src.modules.cleaner.cleaner import Cleaner
+from src.infrastructure.cleaner.cleaner import Cleaner
+from src.domain.services import BackAdjuster, MissingDataFiller
 import logging
 
 
@@ -47,6 +48,8 @@ class DatabentoCleaner(Cleaner):
         """
         self.config: Dict[str, Any] = config
         self.logger: logging.Logger = logging.getLogger("DatabentoCleaner")
+        applies_to = config.get("back_adjustment", {}).get("applies_to", "FUTURE")
+        self.back_adjuster: BackAdjuster = BackAdjuster(applies_to=applies_to)
 
     def clean(self, data: pd.DataFrame) -> List[Dict[str, any]]:
         """
@@ -127,26 +130,8 @@ class DatabentoCleaner(Cleaner):
         Returns:
             pd.DataFrame: The data after handling missing values.
         """
-        # Get numeric columns
-        numeric_columns = data.select_dtypes(include=['int64', 'float64']).columns
-
-        method_switch = {
-            "drop_nan": lambda d: d.dropna(),
-            "forward_fill": lambda d: d.ffill(),
-            "backward_fill": lambda d: d.bfill(),
-            "interpolate": lambda d: d.infer_objects().interpolate(),
-            "zero_fill": lambda d: d.fillna(0),
-            "mean_fill": lambda d: d.fillna({col: d[col].mean() for col in numeric_columns}),
-            "median_fill": lambda d: d.fillna({col: d[col].median() for col in numeric_columns}),
-            "custom_fill": lambda d: d.fillna(self.config["missing_data"].get("custom_value", 0)),
-        }
-
-        for method, action in method_switch.items():
-            if self.config.get("missing_data", {}).get(method, "False") == "True":
-                logging.info(f"Applying {method.replace('_', ' ')}.")
-                data = action(data)
-
-        return data
+        filler = MissingDataFiller(self.config.get("missing_data", {}))
+        return filler.fill(data)
 
     def transform_data(self, data: pd.DataFrame) -> pd.DataFrame:
         """
@@ -211,29 +196,5 @@ class DatabentoCleaner(Cleaner):
         Returns:
             pd.DataFrame: DataFrame with back-adjusted price columns.
         """
-        # Reset index to have indexing 
-        data = data.reset_index(drop=True)
-
-        # Find roll points 
-        # Detected when the symbol changes and the new contract's volume is greater
-        roll_factors = []
-        for i in range(1, len(data)):
-            if data.loc[i, 'symbol'] != data.loc[i - 1, 'symbol']:
-                if data.loc[i, 'volume'] > data.loc[i - 1, 'volume']:
-                    # Adjustment factor: previous contract's close minus new contract's open
-                    adjustment = data.loc[i - 1, 'close'] - data.loc[i, 'open']
-                    roll_factors.append((i, adjustment))
-
-        # Cumulative adjustment for each row:
-        cumulative_adjustments = []
-        for i in range(len(data)):
-            cum_adj = sum(adj for (roll_idx, adj) in roll_factors if roll_idx > i)
-            cumulative_adjustments.append(cum_adj)
-
-        # Apply back-adjustment directly to the original OHLC columns
-        data['open'] = data['open'] + cumulative_adjustments
-        data['high'] = data['high'] + cumulative_adjustments
-        data['low'] = data['low'] + cumulative_adjustments
-        data['close'] = data['close'] + cumulative_adjustments
-
-        return data
+        asset_type = self.config.get("provider", {}).get("asset")
+        return self.back_adjuster.apply(data, asset_type=asset_type)
