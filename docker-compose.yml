@@ -68,6 +68,44 @@ services:
       - airflow_data:/opt/airflow
     command: ["airflow", "scheduler"]
 
+  api:
+    build:
+      context: .
+      dockerfile: DockerFile
+    container_name: data-ngin-api
+    restart: always
+    # Hard cap so the API is what dies under memory pressure. Without it the
+    # kernel OOM killer picks by its own scoring, and the largest consumer on
+    # this box is often Postgres -- the database could be lost to an API bug.
+    mem_limit: 200m
+    environment:
+      API_DB_HOST: ${API_DB_HOST:?API_DB_HOST is unset -- copy the API_DB_* block from .env.template into your .env and fill in the real values}
+      API_DB_PORT: ${API_DB_PORT:-5432}
+      API_DB_NAME: ${API_DB_NAME:?API_DB_NAME is unset -- copy the API_DB_* block from .env.template into your .env and fill in the real values}
+      # Three passwords, not one, because there are three logins: api_service_ro,
+      # api_service_rw and api_service_all. The service picks the login from the
+      # caller's role. A single shared login that was a member of all three roles
+      # could be escalated by any caller prefixing "SET ROLE db_readwrite_all;"
+      # to their SQL, because Postgres authorises SET ROLE against session_user.
+      # See migrations/003_api_gateway_roles.sql. All three are required: without
+      # one of them, every caller holding that role gets a 500 at request time
+      # rather than an error at startup, so fail here instead.
+      API_DB_PASSWORD_RO: ${API_DB_PASSWORD_RO:?API_DB_PASSWORD_RO is unset -- api_service_ro's password; set all three of _RO, _RW and _ALL}
+      API_DB_PASSWORD_RW: ${API_DB_PASSWORD_RW:?API_DB_PASSWORD_RW is unset -- api_service_rw's password; set all three of _RO, _RW and _ALL}
+      API_DB_PASSWORD_ALL: ${API_DB_PASSWORD_ALL:?API_DB_PASSWORD_ALL is unset -- api_service_all's password; set all three of _RO, _RW and _ALL}
+      API_ROW_LIMIT: "100000"
+      # Two in flight, two connections each, so at most four backends from this
+      # service. Sized for a 957MB box that also runs Airflow and Postgres.
+      API_GLOBAL_CONCURRENCY: "2"
+      PYTHONPATH: /opt/airflow/data_engine
+    volumes:
+      - .:/opt/airflow/data_engine
+    working_dir: /opt/airflow/data_engine
+    # Bound to localhost only. Caddy is the only thing on a public port.
+    ports:
+      - "127.0.0.1:8000:8000"
+    command: ["uvicorn", "src.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+
 volumes:
   db_data:
   airflow_data:

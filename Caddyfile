@@ -1,0 +1,19 @@
+# TLS for the database API.
+#
+# Callers send their API key in an Authorization header; over plain HTTP anyone
+# on the network path can read it, and a key read in transit is as good as the
+# key itself -- the service has no second factor.
+#
+# Caddy obtains and renews a Let's Encrypt certificate itself, rather than
+# certbot plus a cron job. This deployment already lost nine months of database
+# backups to a scheduled job that failed silently, and certificate renewal has
+# exactly that failure shape: nothing is wrong until the day everything is.
+#
+# Install: sudo cp Caddyfile /etc/caddy/Caddyfile && sudo systemctl reload caddy
+# See docs/api-gateway-deployment.md.
+
+data-ngin.algogators.com {
+    # The API listens on 127.0.0.1:8000 (see docker-compose.yml). Caddy is the
+    # only process on a public port.
+    reverse_proxy localhost:8000
+}
