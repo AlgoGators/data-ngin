@@ -20,6 +20,7 @@ import time
 
 import psycopg2
 from fastapi import FastAPI, Header, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -70,13 +71,16 @@ def _connect(db_role: str):
     if db_role not in LOGIN_BY_ROLE:
         raise ValueError(f"no service login is configured for role {db_role!r}")
     user, password_var = LOGIN_BY_ROLE[db_role]
-    return psycopg2.connect(
-        host=os.environ["API_DB_HOST"],
-        port=os.environ.get("API_DB_PORT", "5432"),
-        user=user,
-        password=os.environ[password_var],
-        dbname=os.environ["API_DB_NAME"],
-    )
+    try:
+        return psycopg2.connect(
+            host=os.environ["API_DB_HOST"],
+            port=os.environ.get("API_DB_PORT", "5432"),
+            user=user,
+            password=os.environ[password_var],
+            dbname=os.environ["API_DB_NAME"],
+        )
+    except KeyError as exc:
+        raise ValueError(f"missing required environment variable {exc}") from exc
 
 
 def _client_ip(request) -> str | None:
@@ -119,14 +123,15 @@ async def query(
     key = _bearer(authorization)
     client_ip = _client_ip(request)
 
-    auth_conn = _connect(AUTH_ROLE)
+    auth_conn = await run_in_threadpool(_connect, AUTH_ROLE)
     auth_conn.autocommit = True
 
     try:
-        caller = authenticate(auth_conn, key)
+        caller = await run_in_threadpool(authenticate, auth_conn, key)
         if caller is None:
             # The prefix identifies which key was tried without storing it.
-            audit.record_anonymous(
+            await run_in_threadpool(
+                audit.record_anonymous,
                 auth_conn, "denied",
                 key_prefix=key[:PREFIX_LENGTH] or None,
                 error_message="unknown or revoked key",
@@ -141,18 +146,20 @@ async def query(
                 # A second connection, opened as this caller's login. Two per
                 # request, and the global cap is 2, so at most four backends.
                 try:
-                    exec_conn = _connect(caller.db_role)
+                    exec_conn = await run_in_threadpool(_connect, caller.db_role)
                 except (ValueError, psycopg2.OperationalError) as exc:
                     # Misconfiguration or an unreachable database: the caller
                     # did nothing wrong, so this is not a 4xx.
-                    audit.record(
+                    await run_in_threadpool(
+                        audit.record,
                         auth_conn, caller, body.sql, "error",
                         error_message=str(exc).strip(),
                         duration_ms=int((time.monotonic() - started) * 1000),
                         client_ip=client_ip,
                     )
                     return JSONResponse(
-                        {"detail": "service misconfigured"}, status_code=500
+                        {"detail": "service misconfigured", "code": "misconfigured"},
+                        status_code=500,
                     )
 
                 try:
@@ -160,29 +167,45 @@ async def query(
                     # transaction: SET LOCAL is silently ignored outside one, so
                     # an autocommit connection would run every statement as the
                     # bare NOINHERIT login and refuse everything.
-                    result = execute_as(exec_conn, caller, body.sql, ROW_LIMIT)
+                    result = await run_in_threadpool(
+                        execute_as, exec_conn, caller, body.sql, ROW_LIMIT
+                    )
                 except PermissionDenied as exc:
-                    audit.record(
+                    await run_in_threadpool(
+                        audit.record,
                         auth_conn, caller, body.sql, "denied",
                         error_message=str(exc),
                         duration_ms=int((time.monotonic() - started) * 1000),
                         client_ip=client_ip,
                     )
-                    return JSONResponse({"detail": str(exc)}, status_code=403)
+                    return JSONResponse(
+                        {
+                            "detail": "the caller's role does not have "
+                            "permission for this statement",
+                            "code": "permission_denied",
+                        },
+                        status_code=403,
+                    )
                 except psycopg2.Error as exc:
-                    audit.record(
+                    await run_in_threadpool(
+                        audit.record,
                         auth_conn, caller, body.sql, "error",
                         error_message=str(exc).strip(),
                         duration_ms=int((time.monotonic() - started) * 1000),
                         client_ip=client_ip,
                     )
                     return JSONResponse(
-                        {"detail": str(exc).strip()}, status_code=400
+                        {
+                            "detail": "the statement could not be executed",
+                            "code": "query_failed",
+                        },
+                        status_code=400,
                     )
                 finally:
-                    exec_conn.close()
+                    await run_in_threadpool(exec_conn.close)
 
-                audit.record(
+                await run_in_threadpool(
+                    audit.record,
                     auth_conn, caller, body.sql, "success",
                     row_count=result.row_count,
                     duration_ms=int((time.monotonic() - started) * 1000),
@@ -196,14 +219,15 @@ async def query(
                 }
 
         except AtCapacity as exc:
-            audit.record(
+            await run_in_threadpool(
+                audit.record,
                 auth_conn, caller, body.sql, "rate_limited",
                 error_message=str(exc), client_ip=client_ip,
             )
             return JSONResponse({"detail": str(exc)}, status_code=429)
 
     finally:
-        auth_conn.close()
+        await run_in_threadpool(auth_conn.close)
 
 
 async def _metadata_query(authorization, sql, params=None, client_ip=None):
@@ -227,12 +251,13 @@ async def _metadata_query(authorization, sql, params=None, client_ip=None):
     endpoint that leaves no trace is the one worth probing against.
     """
     key = _bearer(authorization)
-    auth_conn = _connect(AUTH_ROLE)
+    auth_conn = await run_in_threadpool(_connect, AUTH_ROLE)
     auth_conn.autocommit = True
     try:
-        caller = authenticate(auth_conn, key)
+        caller = await run_in_threadpool(authenticate, auth_conn, key)
         if caller is None:
-            audit.record_anonymous(
+            await run_in_threadpool(
+                audit.record_anonymous,
                 auth_conn, "denied",
                 key_prefix=key[:PREFIX_LENGTH] or None,
                 error_message="unknown or revoked key",
@@ -246,17 +271,19 @@ async def _metadata_query(authorization, sql, params=None, client_ip=None):
             async with limiter.slot(caller.email, caller.max_concurrent):
                 started = time.monotonic()
                 try:
-                    exec_conn = _connect(caller.db_role)
+                    exec_conn = await run_in_threadpool(_connect, caller.db_role)
                 except (ValueError, psycopg2.OperationalError) as exc:
                     # Misconfiguration or an unreachable database. The message
                     # is not echoed: it names logins and hosts, and the caller
                     # did nothing wrong, so there is nothing here to act on.
-                    audit.record(
+                    await run_in_threadpool(
+                        audit.record,
                         auth_conn, caller, sql, "error",
                         error_message=str(exc).strip(), client_ip=client_ip,
                     )
                     return None, JSONResponse(
-                        {"detail": "service misconfigured"}, status_code=500
+                        {"detail": "service misconfigured", "code": "misconfigured"},
+                        status_code=500,
                     )
 
                 try:
@@ -264,23 +291,29 @@ async def _metadata_query(authorization, sql, params=None, client_ip=None):
                     # transaction: SET LOCAL is ignored outside one, so the
                     # query would run as the bare NOINHERIT login and see
                     # nothing at all.
-                    result = execute_as(
-                        exec_conn, caller, sql, ROW_LIMIT, params
+                    result = await run_in_threadpool(
+                        execute_as, exec_conn, caller, sql, ROW_LIMIT, params
                     )
                 except psycopg2.Error as exc:
-                    audit.record(
+                    await run_in_threadpool(
+                        audit.record,
                         auth_conn, caller, sql, "error",
                         error_message=str(exc).strip(),
                         duration_ms=int((time.monotonic() - started) * 1000),
                         client_ip=client_ip,
                     )
                     return None, JSONResponse(
-                        {"detail": str(exc).strip()}, status_code=400
+                        {
+                            "detail": "the statement could not be executed",
+                            "code": "query_failed",
+                        },
+                        status_code=400,
                     )
                 finally:
-                    exec_conn.close()
+                    await run_in_threadpool(exec_conn.close)
 
-                audit.record(
+                await run_in_threadpool(
+                    audit.record,
                     auth_conn, caller, sql, "success",
                     row_count=result.row_count,
                     duration_ms=int((time.monotonic() - started) * 1000),
@@ -289,13 +322,14 @@ async def _metadata_query(authorization, sql, params=None, client_ip=None):
                 return result, None
 
         except AtCapacity as exc:
-            audit.record(
+            await run_in_threadpool(
+                audit.record,
                 auth_conn, caller, sql, "rate_limited",
                 error_message=str(exc), client_ip=client_ip,
             )
             return None, JSONResponse({"detail": str(exc)}, status_code=429)
     finally:
-        auth_conn.close()
+        await run_in_threadpool(auth_conn.close)
 
 
 @app.get("/v1/schemas")
