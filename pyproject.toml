@@ -87,7 +87,7 @@ pygments = ">=2.20.0"             # ReDoS
 idna = ">=3.15"                    # DoS on crafted input
 markdown = ">=3.8.1"              # ReDoS
 requests = ">=2.33.0"            # .netrc credential leak / redirect handling
-sqlparse = ">=0.5.4"             # ReDoS
+sqlparse = ">=0.6.0"             # ReDoS + two O(n^2) DoS advisories fixed in 0.6.0
 
 
 [tool.poetry.group.dev.dependencies]
