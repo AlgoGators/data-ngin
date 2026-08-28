@@ -28,15 +28,18 @@ provider:
 # db_name selects the target database (used by get_engine + TimescaleDBInserter) — keep
 # equities in new_algo_data alongside corporate_action / the Sharadar tables. The futures
 # pipelines keep their own db_name in config.yaml (algo_data) / new_config.yaml.
+# Table names follow the cross-repo contract in adr/ADR-000-cross-repo-contracts.md (C-2):
+# {asset_class}_data.ohlcv_{freq}[_raw] -- matches trade-ngin's build_table_name(). Renamed
+# from equities/equities_raw 2026-07-24; see migrations/001_rename_equities_tables.sql.
 database:
   db_name: "new_algo_data"
   target_schema: "equities_data"
-  raw_table: "equities_raw"
-  table: "equities"
+  raw_table: "ohlcv_1d_raw"
+  table: "ohlcv_1d"
 
 # Time range for data fetching, YYYY-MM-DD. Tiingo's endDate is INCLUSIVE.
 # Incremental mode: blank start_date -> fetch only new days since the latest row in
-# equities_data.equities; blank end_date -> up to yesterday. seed_start_date is used
+# equities_data.ohlcv_1d; blank end_date -> up to yesterday. seed_start_date is used
 # only on the very first run, when the table is empty.
 time_range:
   start_date: ""

@@ -1,0 +1,30 @@
+name: Dependency Review
+
+# Blocks a PR at review time if it introduces a known-vulnerable or
+# license-incompatible dependency. Only evaluates the PR's diff against
+# dependency manifests, so it is safe to make blocking from day one -- it never
+# retroactively fails on what's already in the repo.
+
+on:
+  pull_request:
+    branches: [main]
+
+# contents: read is all the scan itself needs. pull-requests: write is required by
+# comment-summary-in-pr below -- without it the action cannot post the summary and
+# the check reports a bare failure with no indication of which dependency tripped
+# it. Safe here because the trigger is pull_request, not pull_request_target: PRs
+# from forks receive a read-only token regardless, so this grants no write access
+# to untrusted code.
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: always

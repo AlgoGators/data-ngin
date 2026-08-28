@@ -1,0 +1,46 @@
+version: 2
+
+# Version updates are GROUPED deliberately. Security updates (which come from the
+# alert feed, not this file) already account for 18 of the repo's 25 open PRs;
+# ungrouped weekly version updates would add up to 10 more per ecosystem on top of
+# that and drown the review queue. Grouping collapses each ecosystem into a single
+# rolled-up PR per week, which is also easier to test as one unit than a dozen
+# independent lock-file bumps.
+#
+# Patch/minor are grouped together; majors are deliberately left ungrouped so a
+# breaking bump (the apache-airflow 2->3 class of change) arrives as its own PR
+# with its own diff to review, rather than hidden inside a batch.
+
+updates:
+  # Python deps (Poetry: pyproject.toml + poetry.lock)
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels: [dependencies, python]
+    groups:
+      python-minor-and-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  # Airflow base image in the Dockerfile
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    labels: [dependencies, docker]
+    groups:
+      docker-minor-and-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  # Keep the Actions themselves current
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels: [dependencies, ci]
+    groups:
+      actions-all:
+        patterns: ["*"]

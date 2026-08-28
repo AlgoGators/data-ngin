@@ -6,6 +6,8 @@ from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
 import logging, pendulum
 
+from src.modules.notifications.github_issue_notifier import notify_dag_failure
+
 # Heavy imports (pandas, sqlalchemy, dotenv via src.orchestrator/dynamic_loader)
 # are deferred into run_pipeline() so DAG parsing stays fast and avoids the
 # AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT under host memory pressure.
@@ -19,6 +21,9 @@ default_args = {
     "email_on_retry": False,
     "retries": 1,
     "retry_delay": timedelta(minutes=5),
+    # Files/updates a GitHub issue on failure -- see github_issue_notifier for why
+    # (email_on_failure above has no SMTP configured in this deployment).
+    "on_failure_callback": notify_dag_failure,
 }
 
 CONFIG_PATH = "/opt/airflow/data_engine/src/config/new_config.yaml"
