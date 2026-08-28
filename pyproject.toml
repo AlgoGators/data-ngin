@@ -13,20 +13,81 @@ python = "^3.11, <3.13"
 pandas = "^2.2.3"
 yfinance = "^0.2.48"
 databento = "^0.44.1"
-python-dotenv = "^1.0.1"
+# Bumped from ^1.0.1 to clear CVE (patched 1.2.2); load_dotenv API is unchanged.
+python-dotenv = ">=1.2.2"
 pyyaml = "^6.0.2"
 psycopg2 = "^2.9.10"
-sqlalchemy = "1.4.36"
-apache-airflow = "^2.10.4"
-fastapi = "^0.115.6"
-uvicorn = "^0.34.0"
-pyarrow = "^18.1.0"
+# aiohttp is imported directly by src/modules/fetcher/tiingo_fetcher.py but was
+# previously only a transitive dep, pinned <3.11 by apache-airflow-providers-http.
+# The Airflow 3 upgrade drops that ceiling (only databento constrains it now,
+# <4.0.0), so it's promoted to a direct dependency with a security floor that
+# clears its backlog of CVEs (>=3.14.1).
+aiohttp = ">=3.14.1,<4.0.0"
+# Airflow 3 requires SQLAlchemy 2.x (>=1.4.36,<2.1); the old hard pin to 1.4.36
+# existed specifically because Airflow 2.10's ORM did not tolerate 2.x. That
+# constraint is lifted by the Airflow 3 upgrade.
+sqlalchemy = "^2.0"
+# Airflow 2->3 major upgrade. In 3.x, PythonOperator moved to the standard
+# provider (bundled with the meta-package) and schedule_interval was replaced
+# by schedule on the DAG. See dags/*.py and src/modules/db_models.py.
+# Floor set to 3.2.2 to pick up CVEs patched only in that point release
+# (CVE-2026-45360 deserialization, CVE-2026-40961 is_safe_url bypass,
+# CVE-2026-49267 SMTP STARTTLS cert validation).
+apache-airflow = "^3.2.2"
+# PostgresHook lives in the postgres provider, which is NOT bundled with the
+# Airflow 3 meta-package. Only src/modules/data_staleness.py imports it (and
+# that module is currently orphaned), but keeping the provider present keeps
+# the import path valid. Lower-bound only so the resolver picks whatever
+# aligns with the resolved Airflow 3 version.
+apache-airflow-providers-postgres = ">=5.10"
+# fastapi/uvicorn are declared for a future API surface but nothing imports
+# them yet. Airflow 3 uses FastAPI internally and drives its own compatible
+# version, so these are loosened to lower-bound-only to avoid fighting it.
+fastapi = ">=0.115.6"
+uvicorn = ">=0.34.0"
+# pyarrow bumped to clear CVE-2026-25087 (use-after-free reading IPC files).
+# Only databento required it (>=13.0.0, no upper cap) and nothing imports it
+# directly, so the jump from 18 is a resolver-only change.
+pyarrow = ">=23.0.1"
 pydantic = "^2.10.4"
+# Security-override floor for a transitive dependency (pulled in via httpx ->
+# httpcore, which Airflow uses). h11 < 0.16.0 accepts some malformed
+# Chunked-Encoding bodies -> HTTP request smuggling (CVE-2025-43859, the repo's
+# only CRITICAL alert). httpcore >=1.0.9 raised its h11 ceiling to allow 0.16,
+# so this floor is satisfiable; not imported by this codebase directly.
+h11 = ">=0.16.0"
 tzdata = "^2024.2"
-prometheus-fastapi-instrumentator = "^7.0.0"
-slowapi = "^0.1.9"
+# Loosened to lower-bound-only (like fastapi/uvicorn above) so they don't cap
+# starlette below 1.0. Airflow 3.2+ requires starlette >=1.0.1, but
+# prometheus-fastapi-instrumentator 7.x pins starlette <1.0.0 -- that clash is
+# exactly what held the resolver at Airflow 3.1.0. None of the fastapi-family
+# deps (fastapi, uvicorn, prometheus-fastapi-instrumentator, slowapi) are
+# imported anywhere in the codebase yet; they're declared for a future API
+# surface, so letting the resolver pick starlette-1.x-compatible versions
+# (instrumentator 8.x) is safe.
+prometheus-fastapi-instrumentator = ">=7.0.0"
+slowapi = ">=0.1.9"
 mkdocstrings-python = "^1.13.0"
-requests = "^2.32.3"
+
+# --- Security-override floors for transitive dependencies ---------------------
+# These packages are not imported directly; they are pulled in via Airflow,
+# yfinance, beautifulsoup4, mkdocs, requests, etc. Each floor is set to the
+# version that patches its outstanding Dependabot CVE. Kept as explicit floors
+# (not a one-off `poetry update`) so the requirement survives future re-locks.
+# Their requirers impose no upper cap below these versions (verified via
+# `poetry show`), so the floors resolve cleanly.
+cryptography = ">=50.0.0"          # SECT subgroup attack, vendored OpenSSL, + PKCS#7 Bleichenbacher
+urllib3 = ">=2.7.0"                # redirect header leakage + decompression bombs
+lxml = ">=6.1.0"                   # XXE via default iterparse/ETCompatXMLParser
+mako = ">=1.3.12"                  # path traversal in TemplateLookup (Windows)
+protobuf = ">=5.29.6"             # JSON recursion depth bypass DoS
+soupsieve = ">=2.8.4"             # ReDoS + memory exhaustion in selector parser
+pygments = ">=2.20.0"             # ReDoS
+"pymdown-extensions" = ">=11.0.1"  # file read / SSRF in snippets, + ReDoS GHSA-gm37-52c6-37mw
+idna = ">=3.15"                    # DoS on crafted input
+markdown = ">=3.8.1"              # ReDoS
+requests = ">=2.33.0"            # .netrc credential leak / redirect handling
+sqlparse = ">=0.6.0"             # ReDoS + two O(n^2) DoS advisories fixed in 0.6.0
 
 
 [tool.poetry.group.dev.dependencies]

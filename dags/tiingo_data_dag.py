@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta
 from airflow import DAG
-from airflow.operators.python import PythonOperator
-import logging, pendulum
 
-from src.modules.notifications.github_issue_notifier import notify_dag_failure
+# Airflow 3: PythonOperator moved from airflow.operators.python (removed) to the
+# standard provider, which ships bundled with the apache-airflow 3.x meta-package.
+from airflow.providers.standard.operators.python import PythonOperator
+import logging, pendulum
 
 # Heavy imports (pandas, sqlalchemy, dotenv via src.orchestrator/dynamic_loader)
 # are deferred into run_tiingo_pipeline() so DAG parsing stays fast and avoids the
@@ -18,9 +19,6 @@ default_args = {
     "email_on_retry": False,
     "retries": 1,
     "retry_delay": timedelta(minutes=5),
-    # Files/updates a GitHub issue on failure -- see github_issue_notifier for why
-    # (email_on_failure above has no SMTP configured in this deployment).
-    "on_failure_callback": notify_dag_failure,
 }
 
 CONFIG_PATH = "/opt/airflow/data_engine/src/config/config_tiingo.yaml"
@@ -52,8 +50,10 @@ with DAG(
     "tiingo_data_dag",
     default_args=default_args,
     description="Daily Tiingo equity OHLCV ingestion",
-    schedule_interval="15 7 * * 1-5",  # Weekdays 7:15 AM ET — staggered after the
-    # Databento run (7:00) to ease memory pressure on the t2.micro
+    # Airflow 3: schedule_interval was removed; use schedule.
+    # Weekdays 7:15 AM ET — staggered after the Databento run (7:00) to ease
+    # memory pressure on the t2.micro.
+    schedule="15 7 * * 1-5",
     start_date=datetime(2024, 12, 1, tzinfo=local_tz),
     catchup=False,
     tags=["tiingo", "equity", "data_pipeline"],

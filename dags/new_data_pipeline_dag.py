@@ -1,6 +1,9 @@
 from datetime import datetime, timedelta
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+
+# Airflow 3: PythonOperator moved from airflow.operators.python (removed) to the
+# standard provider, which ships bundled with the apache-airflow 3.x meta-package.
+from airflow.providers.standard.operators.python import PythonOperator
 import logging, pendulum
 
 from src.modules.notifications.github_issue_notifier import notify_dag_failure
@@ -52,7 +55,7 @@ with DAG(
     "new_data_pipeline_dag",
     default_args=default_args,
     description="Daily data pipeline for market data ingestion",
-    schedule_interval="5 7 * * *",
+    schedule="5 7 * * *",  # Airflow 3: schedule_interval was removed; use schedule
     start_date=datetime(2024, 12, 1, tzinfo=local_tz),
     catchup=False,
     tags=["new_data_pipeline"],

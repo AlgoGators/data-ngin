@@ -1,6 +1,9 @@
 from sqlalchemy import create_engine, Column, String, Float, Integer, DateTime
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+
+# SQLAlchemy 2.0: declarative_base moved to sqlalchemy.orm; the old
+# sqlalchemy.ext.declarative import path is removed. The legacy session.query()
+# API used in data_access.py is retained in 2.0, so no changes are needed there.
+from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.engine.base import Engine
 from sqlalchemy.orm.session import Session
 from typing import Dict, Any, Optional
@@ -14,7 +17,7 @@ Base = declarative_base()
 class OHLCV(Base):
     """
     SQLAlchemy model representing the `ohlcv_1d` table in the `futures_data` schema.
-    
+
     Attributes:
         time (datetime): The timestamp for the data entry (primary key).
         symbol (str): The symbol or identifier for the instrument (primary key).
@@ -24,6 +27,7 @@ class OHLCV(Base):
         close (float): The closing price for the interval.
         volume (int): The trading volume for the interval.
     """
+
     __tablename__ = "ohlcv_1d"
     __table_args__ = {"schema": "futures_data"}
 
@@ -63,7 +67,7 @@ def get_engine(config: Optional[Dict[str, Any]] = None) -> Engine:
     db_host: Optional[str] = os.getenv("DB_HOST")
     db_port: Optional[str] = os.getenv("DB_PORT")
     db_name = config.get("database", {}).get("db_name")
-    #db_name: Optional[str] = os.getenv("DB_NAME")
+    # db_name: Optional[str] = os.getenv("DB_NAME")
 
     # Validate that all required parameters are present
     if not all([db_user, db_password, db_host, db_port, db_name]):
