@@ -16,7 +16,7 @@ USER airflow
 WORKDIR /opt/airflow
 
 # Install specific version of Poetry as airflow user
-RUN pip install poetry==1.8.4
+RUN pip install poetry==2.3.3
 
 # Debug: Check Poetry access as airflow user
 RUN echo "Checking Poetry as airflow user..." && \

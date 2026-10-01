@@ -106,7 +106,8 @@ class Orchestrator:
             )
 
         except Exception as e:
-            logging.error(f"Failed to process symbol {symbol['dataSymbol']}: {e}")
+            logging.exception(f"Failed to process symbol {symbol['dataSymbol']}: {e}")
+            raise
 
         finally:
             self.inserter.close()
@@ -126,10 +127,23 @@ class Orchestrator:
             logging.info(f"Fetching data from {start_date} to {end_date}")
     
             # Fetch, clean, and insert data for all symbols
-            await asyncio.gather(*[
+            results = await asyncio.gather(*[
                 self.retrieve_and_process_data({"dataSymbol": symbol, "instrumentType": asset_type}, start_date, end_date)
                 for symbol, asset_type in symbols.items()
-            ])
+            ], return_exceptions=True)
+
+            # Let every symbol finish, then fail the task on partial or total failure.
+            failures = [
+                (symbol, result)
+                for symbol, result in zip(symbols, results)
+                if isinstance(result, BaseException)
+            ]
+            if failures:
+                summary = "; ".join(f"{symbol}: {error}" for symbol, error in failures)
+                raise RuntimeError(
+                    f"Pipeline execution failed for {len(failures)}/{len(symbols)} "
+                    f"symbol(s): {summary}"
+                ) from failures[0][1]
             logging.info("Pipeline execution completed successfully.")
 
         except Exception as e:
