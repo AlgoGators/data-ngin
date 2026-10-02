@@ -1120,14 +1120,14 @@ test-randomorder = ["pytest-randomly"]
 
 [[package]]
 name = "databento"
-version = "0.83.0"
+version = "0.87.0"
 description = "Official Python client library for Databento"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "databento-0.83.0-py3-none-any.whl", hash = "sha256:dbf3902af4909ccf35712b54e61fa16e88c6331aaf773e9e7977fdd9f75f4a70"},
-    {file = "databento-0.83.0.tar.gz", hash = "sha256:e38168b8f99f7f5bcd8e4f2d6f3d5984bf0c832c207e85896a4d765040899507"},
+    {file = "databento-0.87.0-py3-none-any.whl", hash = "sha256:da7282f9be951ec8818c9eae98fddc3ad266f9591bee99d3026b3dd094de9a07"},
+    {file = "databento-0.87.0.tar.gz", hash = "sha256:6fce1f08c255e5abbeed91aefa7c8cee31cbed8f120d5b924219bd6ca75dc741"},
 ]
 
 [package.dependencies]
@@ -1135,7 +1135,7 @@ aiohttp = [
     {version = ">=3.8.3,<4.0.0", markers = "python_version < \"3.12\""},
     {version = ">=3.9.0,<4.0.0", markers = "python_version >= \"3.12\""},
 ]
-databento-dbn = ">=0.65.0,<0.66.0"
+databento-dbn = ">=0.70.0,<0.71.0"
 numpy = [
     {version = ">=1.23.5", markers = "python_version < \"3.12\""},
     {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
@@ -1148,47 +1148,47 @@ zstandard = ">=0.21.0"
 
 [[package]]
 name = "databento-dbn"
-version = "0.65.0"
+version = "0.70.0"
 description = "Python bindings for encoding and decoding Databento Binary Encoding (DBN)"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "databento_dbn-0.65.0-cp310-cp310-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:95b1bd602fc5b6b41082acc537819c5a31a07f5a64799e7cf0c6f087140bca77"},
-    {file = "databento_dbn-0.65.0-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:6337df66e448e2b0192e31539cb26c1dfa522ea072434e0fafb75c519e9005d1"},
-    {file = "databento_dbn-0.65.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:7bc41b8f5d794235463c913ca9b112fd4de42b284ee8f0e9b39bbc4cb3d72555"},
-    {file = "databento_dbn-0.65.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:28701982cbacb8cb7b229e95cc75345b75d28182cd5a6d774b54f1bb3c68aac9"},
-    {file = "databento_dbn-0.65.0-cp310-cp310-musllinux_1_2_aarch64.whl", hash = "sha256:0e6836e9eae06c178e151ef76c7527f3b82c641a473fe707af7c618837f1c677"},
-    {file = "databento_dbn-0.65.0-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:dc4a0d57ae3beb16e92e95e2eaeca921b2ddbef7521ad8e5fbac0f555a9fbdbd"},
-    {file = "databento_dbn-0.65.0-cp310-cp310-win_amd64.whl", hash = "sha256:e503f4a694a17b1a04d7f07597f185c079e432a7526df5ac726f011cb21845f7"},
-    {file = "databento_dbn-0.65.0-cp311-cp311-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:221d59f092b7c0ae1f3b1ab7e65c7e3842f47fa7b3448d8b138dc7dc3eaea6d4"},
-    {file = "databento_dbn-0.65.0-cp311-cp311-macosx_10_12_x86_64.whl", hash = "sha256:850a713959c7914d4085404b86fc25ec95e8f551947981a050597efcddff9509"},
-    {file = "databento_dbn-0.65.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a77fdf5715360df7c6f55a9820cb6679bec7dce232d1b484ce02f1740b4b09c0"},
-    {file = "databento_dbn-0.65.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d203d659e2968e06cc68dea58bda14b39eeb4b5d4fdc59c7115d43cbd064fe1e"},
-    {file = "databento_dbn-0.65.0-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:6e1be6d879635cc3e9a6221f119cf968e0fc2a523399d8279faeeee54327075a"},
-    {file = "databento_dbn-0.65.0-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:09edabde6522d00c1ba7f5b0e77a56b3ffd9e4771c8f2c01fb5d7b3a1ae19775"},
-    {file = "databento_dbn-0.65.0-cp311-cp311-win_amd64.whl", hash = "sha256:38fa147f37086c342e1e19ddf545e0301b7decd0aabb687c38dfbc6d5447691a"},
-    {file = "databento_dbn-0.65.0-cp312-cp312-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:70aa76b30d35062a2602acb4324a225937ffcb33f6e740fd7021b666b998e361"},
-    {file = "databento_dbn-0.65.0-cp312-cp312-macosx_10_12_x86_64.whl", hash = "sha256:474994eff509dfe3ea9f4ea86fbd2c750a5f004b72f438f8b6d5d6c82c9ba124"},
-    {file = "databento_dbn-0.65.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:4b57f2211d7d4c80c4b0b59e6e08ccf30906be7d388e270e9fed17b1e681d891"},
-    {file = "databento_dbn-0.65.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1734c1fe5dd6185a9b4a1ffdaedd83057b74db19d1077f6c1a5058dee5a9bc77"},
-    {file = "databento_dbn-0.65.0-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:8d37d482cab6867a4593a960e2994084af476effc7d2b94819d82416348f93d6"},
-    {file = "databento_dbn-0.65.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:cd438cd28827c8a66d036a5c3474acaebab78bf093b188102b4291882b28ef07"},
-    {file = "databento_dbn-0.65.0-cp312-cp312-win_amd64.whl", hash = "sha256:3023b0412d9799f8995329febadeed59978ed971695dcc8d2957499274f313ee"},
-    {file = "databento_dbn-0.65.0-cp313-cp313-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:358e81259d610f7881cb7c623d19fbb8597f1390b135ce9e7d2a378054fb5630"},
-    {file = "databento_dbn-0.65.0-cp313-cp313-macosx_10_12_x86_64.whl", hash = "sha256:d6abc265765c1a4bfb569013d17f289d594e93b16db0f84c78740b27e0e56c0b"},
-    {file = "databento_dbn-0.65.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:e286a16279bb585d604878b5c0fd5b473c5f8b43208e3b2c7148bdc4cb7d73d7"},
-    {file = "databento_dbn-0.65.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5408d77c6831a682632113deadba60bed6697e930d76494e4e9d2a5e6acebfba"},
-    {file = "databento_dbn-0.65.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:52e5d378a3da3c93353a3d08f17e7f2092ffb81894f56e29eb3ae4346ed279da"},
-    {file = "databento_dbn-0.65.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:e05613589a3993644d8e5641523eae81c264192ac19673a627ba6f9c46c742dc"},
-    {file = "databento_dbn-0.65.0-cp313-cp313-win_amd64.whl", hash = "sha256:4a5d832b9a9f1d1b3003b2db0dc01908b87904464ab5fda111e1b34d96caac75"},
-    {file = "databento_dbn-0.65.0-cp314-cp314-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:c95d0954784e268dd9af1f23d0e71ed53e18c97990fa38bd499ee81f4070c1b6"},
-    {file = "databento_dbn-0.65.0-cp314-cp314-macosx_10_12_x86_64.whl", hash = "sha256:2f963c88e7a58ed3130e645e5ccdbe7fe6de8c6230269b7a8edd1e27c596af04"},
-    {file = "databento_dbn-0.65.0-cp314-cp314-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:afe694f3efa6ba3be95297f3414dc5baf1081b4c389604d17a72e90de77298d7"},
-    {file = "databento_dbn-0.65.0-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:69da366489f3fd7e428df1187dbc435689433c44f8c6ab2bda393de3c0e23549"},
-    {file = "databento_dbn-0.65.0-cp314-cp314-musllinux_1_2_aarch64.whl", hash = "sha256:7bfa8061de2f7959336a193db51ecef1ce1f600bf4238d57b570d6caa0d8fe66"},
-    {file = "databento_dbn-0.65.0-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:a7870f79ef0694941c39b3985758744d1654677cb2cfd7fd9e0a884c75c84b9b"},
-    {file = "databento_dbn-0.65.0-cp314-cp314-win_amd64.whl", hash = "sha256:b99623421b538ee6704ca7aea9d08f8f00e3b72d7b45b9f64379e0a08cfe3335"},
+    {file = "databento_dbn-0.70.0-cp310-cp310-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:e3ec246360d1b6ddb0b13859320ed0c7e58050a86db91d6b7298a199fe58b2c6"},
+    {file = "databento_dbn-0.70.0-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:514bd9c5e8fd47506b4a5d73a5c21f887428bd467ee4332fbb54002043cfcc2b"},
+    {file = "databento_dbn-0.70.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:bc7bfbf65087bf3d1db82fa562408ec9760a2f66481f7ca773628c2e3453a532"},
+    {file = "databento_dbn-0.70.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:308f7221a7b19d2118206eb62f3cd47a68dd886f1d769052b3756b430a6782dd"},
+    {file = "databento_dbn-0.70.0-cp310-cp310-musllinux_1_2_aarch64.whl", hash = "sha256:059b778f91005aa3b5fe3382a6c74258a7fac7beb6cb8b9632359724cdd66c27"},
+    {file = "databento_dbn-0.70.0-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:70726f54f17316863cace39e6e079fe3bb7a1705c0428cbdc2bed6aa66cdd567"},
+    {file = "databento_dbn-0.70.0-cp310-cp310-win_amd64.whl", hash = "sha256:a1361d1cf6ceac3ee8796d587d04886ba1aa0564d5b3d95cac2c614c088b1616"},
+    {file = "databento_dbn-0.70.0-cp311-cp311-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:3eb8b54df4a637314a9448b0364a84f8b88c6232d7ebd8cc71a29b7fab0061a0"},
+    {file = "databento_dbn-0.70.0-cp311-cp311-macosx_10_12_x86_64.whl", hash = "sha256:365431cb8933650a547539e69f9ed913a85deeb6d89d12e056391b3899168282"},
+    {file = "databento_dbn-0.70.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:203404c1e3d5fd50d5e18f492b106c0d4deda0b8851ffc4dfb01302303cd5f0d"},
+    {file = "databento_dbn-0.70.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d2b2ebc68209d2db990bf08b74b0c5c2be600bb89b7a34496b34e9688c53ce78"},
+    {file = "databento_dbn-0.70.0-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:f55cc05b44be2ba6886792a9450500b6ea9a8918bd71fdfe002302bd5d26baee"},
+    {file = "databento_dbn-0.70.0-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:3aa3aaed0331755fe77976685f2803d41cc0339b22e5e1179aa258a655499108"},
+    {file = "databento_dbn-0.70.0-cp311-cp311-win_amd64.whl", hash = "sha256:3f3791fe0820d5c610c821e6e65d6c030c961a5a8268e13f8b1584c23d09c2fb"},
+    {file = "databento_dbn-0.70.0-cp312-cp312-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:6301053c88c4f574af976333d94ca7801d69aee184f18aa003ff48d79ed1e8b0"},
+    {file = "databento_dbn-0.70.0-cp312-cp312-macosx_10_12_x86_64.whl", hash = "sha256:639a53146ce6699261079e5ee913a8426a53fdd42d2931a533a7f927caee3341"},
+    {file = "databento_dbn-0.70.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:463b82cac54bee364562240ab18a976ebd01c3f781eada2115ee123e38e9b272"},
+    {file = "databento_dbn-0.70.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2abf3815b14ad6b36175dd55277c588e8d254d1e1214aa2e70dbd1a07bd95762"},
+    {file = "databento_dbn-0.70.0-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:03a58df6bd17344b74f1a0e683c5b746ed8631db2581ba11ac636ff3123d5a48"},
+    {file = "databento_dbn-0.70.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:a38c92909ecd2ab4e9016b74b22939da7af469942d62f59a6e3ef38526ed584e"},
+    {file = "databento_dbn-0.70.0-cp312-cp312-win_amd64.whl", hash = "sha256:0629168a7c7310f37052a768d4819c66bcd024fe230d4d560a16ef3d07179be7"},
+    {file = "databento_dbn-0.70.0-cp313-cp313-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:aad25d3fce918b4ea39fff6c2b161781cbf26cde0b8de6822cab870a71d57fc1"},
+    {file = "databento_dbn-0.70.0-cp313-cp313-macosx_10_12_x86_64.whl", hash = "sha256:debf383eac5b84d4128431377f01c33cde5ea0b2595bea7ef7fc14aa3807c520"},
+    {file = "databento_dbn-0.70.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:100ec283ca76cf79f920d2137a773c6d77b1feea37594aee92eaca7e21be1b68"},
+    {file = "databento_dbn-0.70.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8659b14bd2b7225446bb957ed4840dcaf09acfcbdb67441484f4c1c400a5e54b"},
+    {file = "databento_dbn-0.70.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:9e4f01bde5c604e1660b42369bea22f8e9f9d54859708beea183de5d7a348e22"},
+    {file = "databento_dbn-0.70.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:b9a8add3423a0a990a17882de5ef3361d179b7e0e765ebb6b8282cb77a79a6d1"},
+    {file = "databento_dbn-0.70.0-cp313-cp313-win_amd64.whl", hash = "sha256:5792768a93428479e38205b2b2c6a76248ffef44cd0a870a9e8c376b1bf8bbb9"},
+    {file = "databento_dbn-0.70.0-cp314-cp314-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:49250cbcd6cab11c9d04333e512f4773535137e60d70bcbac67eb8a62d49c5e3"},
+    {file = "databento_dbn-0.70.0-cp314-cp314-macosx_10_12_x86_64.whl", hash = "sha256:85ad298c504b9e6b32403611af88a040295a4f841bdb892f557d39393cd45246"},
+    {file = "databento_dbn-0.70.0-cp314-cp314-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:2fd6b2b5a0696359056ee7f05d909e32a82de22eee84ccfc426c933acc9001cf"},
+    {file = "databento_dbn-0.70.0-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d85ebb925414247e9a1afa5d67ea41ad8dab4307139d684571bcd4772bf107f2"},
+    {file = "databento_dbn-0.70.0-cp314-cp314-musllinux_1_2_aarch64.whl", hash = "sha256:a797a4532859553c6102a6582469421553d543453881fd84f49de16fe964b424"},
+    {file = "databento_dbn-0.70.0-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:506f1a06c2742c53e9d32ab6323307493369c07bc15c872ac1142cc3eb306f90"},
+    {file = "databento_dbn-0.70.0-cp314-cp314-win_amd64.whl", hash = "sha256:00f6eda4af63eee3544ad56dd7afd433d82f88fcdfa322773f6aa471ce6e2751"},
 ]
 
 [[package]]
@@ -5369,4 +5369,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11, <3.13"
-content-hash = "6da2c90629840697cd905d60d7cfbbb322366300092167796057dfce25101c7d"
+content-hash = "972f281eb4d9612c141f8e863d7ddac5f49f433f5de67f4f7f7eb7802f84cfa9"
