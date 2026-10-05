@@ -81,6 +81,15 @@ class Orchestrator:
                     loaded_asset_type=symbol['instrumentType'],
                     start_date=start_date,
                     end_date=end_date,)
+
+            if raw_data.empty:
+                logging.warning(
+                    "No data returned for %s between %s and %s; skipping.",
+                    symbol["dataSymbol"],
+                    start_date,
+                    end_date,
+                )
+                return
                
             # Connect to the database
             self.inserter.connect()
