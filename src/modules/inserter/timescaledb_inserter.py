@@ -1,5 +1,6 @@
 import os
 import psycopg2
+from psycopg2.extras import execute_values
 from typing import List, Dict, Any, Optional
 from src.modules.inserter.inserter import Inserter
 import logging
@@ -72,11 +73,23 @@ class TimescaleDBInserter(Inserter):
             table (str): The target table in TimescaleDB.
 
         Raises:
-            ValueError: If the data is empty or columns are not specified.
             RuntimeError: If the insertion into the database fails.
+            RuntimeError: If the target schema or table does not exist.
+
+        Note:
+            An empty `data` list is a logged no-op, not an error. This is normal when
+            a vendor returns zero rows for a symbol with no bars in the requested range.
         """
         if not self.connection:
             raise RuntimeError("Database connection is not established.")
+
+        # An empty payload is a normal outcome (symbol has no bars in the requested
+        # window), not an error. Returning early keeps it out of the orchestrator's
+        # per-symbol except handler, where it would masquerade as a fetch failure.
+        if not data:
+            self.logger.info("No rows to insert into %s.%s; skipping.", schema, table)
+            return
+
         schema_exists_sql = """
         SELECT 1 FROM information_schema.schemata WHERE schema_name = %s
         """
@@ -109,13 +122,18 @@ class TimescaleDBInserter(Inserter):
         columns = list(data[0].keys())
 
         # Dynamically construct query based on provided columns
+        # execute_values batches rows into a single multi-row INSERT. psycopg2's
+        # executemany issues ONE ROUND-TRIP PER ROW -- invisible on the daily run
+        # (one bar per symbol) and crippling on a bulk load. Measured: backfilling
+        # AAL's 5,245 bars across the price and raw tables took five minutes against
+        # the remote database, which extrapolates to ~21 hours for a 260-symbol
+        # backfill. Same SQL and same ON CONFLICT semantics, ~1000x fewer round-trips.
         column_names = ", ".join(columns)
-        placeholders = ", ".join([f"%({col})s" for col in columns])
-        query = f"""
-        INSERT INTO {schema}.{table} ({column_names})
-        VALUES ({placeholders})
-        ON CONFLICT DO NOTHING;
-        """.strip()
+        template = "(" + ", ".join(f"%({col})s" for col in columns) + ")"
+        query = (
+            f"INSERT INTO {schema}.{table} ({column_names}) "
+            f"VALUES %s ON CONFLICT DO NOTHING"
+        )
 
         # Diagnostic logging: what symbols are we about to insert?
         if data and isinstance(data, list):
@@ -135,7 +153,7 @@ class TimescaleDBInserter(Inserter):
 
         try:
             with self.connection.cursor() as cursor:
-                cursor.executemany(query, data)
+                execute_values(cursor, query, data, template=template, page_size=1000)
             self.logger.info(
                 "Inserted %d rows into %s.%s",
                 len(data),
