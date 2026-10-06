@@ -84,8 +84,8 @@ jobs:
           AIRFLOW__CORE__LOAD_EXAMPLES: "False"
         run: |
           poetry run python - <<'PY'
-          from airflow.models.dagbag import DagBag
-          bag = DagBag(dag_folder="dags", include_examples=False)
+          from airflow.dag_processing.dagbag import DagBag
+          bag = DagBag(dag_folder="dags")
           if bag.import_errors:
               for path, err in bag.import_errors.items():
                   print(f"::error file={path}::DAG import error: {err}")
