@@ -83,7 +83,7 @@ mkdocstrings-python = "^1.13.0"
 cryptography = ">=50.0.0"          # SECT subgroup attack, vendored OpenSSL, + PKCS#7 Bleichenbacher
 urllib3 = ">=2.7.0"                # redirect header leakage + decompression bombs
 lxml = ">=6.1.0"                   # XXE via default iterparse/ETCompatXMLParser
-mako = ">=1.3.12"                  # path traversal in TemplateLookup (Windows)
+mako = ">=1.4.2"                  # path traversal in TemplateLookup (Windows)
 protobuf = ">=5.29.6"             # JSON recursion depth bypass DoS
 soupsieve = ">=2.8.4"             # ReDoS + memory exhaustion in selector parser
 pygments = ">=2.20.0"             # ReDoS
