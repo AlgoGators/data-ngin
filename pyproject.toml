@@ -40,6 +40,10 @@ apache-airflow = "3.3.2"
 # the import path valid. Lower-bound only so the resolver picks whatever
 # aligns with the resolved Airflow 3 version.
 apache-airflow-providers-postgres = ">=5.10"
+# FAB auth manager (set in docker-compose.yml). The base image ships it, but
+# poetry install would otherwise leave it paired with whatever common-compat
+# the lock picked, which can be too old for it to import.
+apache-airflow-providers-fab = ">=3.9.0"
 # fastapi/uvicorn are declared for a future API surface but nothing imports
 # them yet. Airflow 3 uses FastAPI internally and drives its own compatible
 # version, so these are loosened to lower-bound-only to avoid fighting it.
