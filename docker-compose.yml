@@ -2,6 +2,7 @@
 #   AIRFLOW_DB_CONN     metadata DB DSN (postgresql+psycopg2://...)
 #   AIRFLOW_JWT_SECRET  shared by every Airflow component to sign task tokens
 #   AIRFLOW_SECRET_KEY  signs UI sessions
+#   AIRFLOW_OIDC_SECRET the Dex client secret for GitHub login (or set AIRFLOW_LOGIN=db)
 # Generate the two secrets with: openssl rand -hex 32
 #
 # Upgrading an existing 2.x deployment: back up the airflow_metadata schema
@@ -27,6 +28,14 @@ x-airflow-common: &airflow-common
     AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET:?AIRFLOW_JWT_SECRET is unset}
     AIRFLOW__API__SECRET_KEY: ${AIRFLOW_SECRET_KEY:?AIRFLOW_SECRET_KEY is unset}
     AIRFLOW__API__EXPOSE_CONFIG: "non-sensitive-only"
+    # Public URL, used for login redirects and links. Login itself is configured
+    # in webserver_config.py.
+    AIRFLOW__API__BASE_URL: ${AIRFLOW_BASE_URL:-http://localhost:8080}
+    AIRFLOW_LOGIN: ${AIRFLOW_LOGIN:-dex}
+    AIRFLOW_OIDC_SECRET: ${AIRFLOW_OIDC_SECRET:-}
+    # Trust X-Forwarded-* only from the nginx reverse proxy (monitoring box), so
+    # OAuth callbacks are built as https://airflow.algogators.com/...
+    FORWARDED_ALLOW_IPS: ${AIRFLOW_PROXY_IPS:-127.0.0.1}
     PYTHONPATH: /opt/airflow/data_engine
   volumes:
     - ./dags:/opt/airflow/dags
@@ -34,6 +43,7 @@ x-airflow-common: &airflow-common
     # Logs only. Mounting all of /opt/airflow would keep serving the
     # airflow.cfg that 2.x generated into the volume on first run.
     - airflow_logs:/opt/airflow/logs
+    - ./webserver_config.py:/opt/airflow/webserver_config.py:ro
 
 services:
 
@@ -55,7 +65,7 @@ services:
         condition: service_completed_successfully
     ports:
       - "8080:8080"
-    command: ["airflow", "api-server"]
+    command: ["airflow", "api-server", "--proxy-headers"]
 
   airflow-scheduler:
     <<: *airflow-common
